@@ -1,0 +1,123 @@
+#standardSQL
+#
+# Create a vessel info table with one row per vessel_id from segment_identity_daily
+# using seg_id to vesse_id mappings from segment_identity_window
+# Includes the entire time range from the source tables
+#
+#
+
+# Include some utility functions
+{% include 'util.sql.j2' %}
+
+CREATE TEMP FUNCTION mostCommonMinFreq() AS ({{most_common_min_freq}});
+
+# Build the query
+#
+WITH
+  #
+  # Daily segment identity counts over the entire time range
+  # There is one row per seg_id per day
+  #
+  segments as (
+  SELECT
+    *
+  FROM
+    `{{ segment_identity_daily }}`
+  ),
+  #
+  # vessel_id mapped to seg_id
+  # note that the source table is a daily snapshot of segment activity over a multi-day window
+  # All entries for a given day will have last_timestamp fall within that day (which is the last day of the window)
+  # For any given day, there will be a one-to-one mapping between seg_id and vessel_id, but over
+  # many days, there is a many-to-many mapping
+  #
+  vessels as (
+  SELECT
+    vessel_id,
+    seg_id,
+    day
+  FROM
+    `{{ segment_vessel_daily }}`
+  ),
+  #
+  # Get the day for each row in segments
+  segments_by_day as (
+  SELECT
+    *,
+    DATE(last_timestamp) as day
+  FROM
+    segments
+  ),
+
+  #
+  # get the latest date for each seg_id/vessel_id pair
+  #
+  vessel_id_latest_day as (
+  SELECT
+    vessel_id,
+    seg_id,
+    MAX(day) as latest_day
+  FROM
+    vessels
+  GROUP BY
+    vessel_id,
+    seg_id
+  ),
+
+  #
+  # Rank vessel_id values for each seg_id with the latest day having the highest rank
+  # and keep only the vessel_id with the highest rank for each seg_id
+  best_vessel_id as (
+    SELECT
+      * except (vessel_id_rank)
+    FROM (
+      SELECT
+        seg_id,
+        vessel_id,
+        ROW_NUMBER() OVER (PARTITION BY seg_id ORDER BY latest_day DESC, vessel_id) as vessel_id_rank
+      FROM
+        vessel_id_latest_day
+    )
+    WHERE vessel_id_rank = 1
+  ),
+
+  segments_by_vessel as (
+  SELECT
+    *
+  FROM
+    segments_by_day JOIN best_vessel_id USING (seg_id)
+  ),
+
+  #
+  # Aggregate daily identity counts over the full time range
+  # group each segment day by vessel_id, so the daily stats for a single segment
+  # are grouped into vessels
+  #
+  # reduce each identity field to just the most commonly occuring value
+  vessel_most_common as (
+  SELECT
+    vessel_id,
+    ssvid,
+    MIN(first_timestamp) as first_timestamp,
+    MAX(last_timestamp) as last_timestamp,
+    SUM(msg_count) as msg_count,
+    SUM(pos_count) as pos_count,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(shipname  )), SUM(ident_count), mostCommonMinFreq()) as shipname,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(callsign  )), SUM(ident_count), mostCommonMinFreq()) as callsign,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(imo       )), SUM(ident_count), mostCommonMinFreq()) as imo,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_shipname)), SUM(ident_count), mostCommonMinFreq()) as n_shipname,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_callsign)), SUM(ident_count), mostCommonMinFreq()) as n_callsign,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_imo     )), SUM(ident_count), mostCommonMinFreq()) as n_imo,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(length    )), SUM(ident_count), mostCommonMinFreq()) as length,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(width     )), SUM(ident_count), mostCommonMinFreq()) as width
+  FROM
+    segments_by_vessel
+  GROUP by
+    ssvid,
+    vessel_id
+  )
+
+SELECT
+  *
+FROM
+  vessel_most_common

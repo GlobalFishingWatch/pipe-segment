@@ -1,0 +1,261 @@
+[
+  {
+    "mode": "NULLABLE",
+    "name": "seg_id",
+    "type": "STRING",
+    "description": "unique segment id.  This table has one row per segment id"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "ssvid",
+    "type": "STRING",
+    "description": "source specific vessel id.  This is the transponder id, and for AIS this is the MMSI"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "vessel_id",
+    "type": "STRING",
+    "description": "Unique vessel id. Each vessel_id can be associated with many seg_ids, and only one ssvid"
+
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "first_timestamp",
+    "type": "TIMESTAMP",
+    "description": "Timestamp of the first message in the segment"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "last_timestamp",
+    "type": "TIMESTAMP",
+    "description": "Timestamp of the last message in the segment"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "msg_count",
+    "type": "INTEGER",
+    "description": "Total number of messages in the segment, including identiy messages and positional messages"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "pos_count",
+    "type": "INTEGER",
+    "description": "Total number or positional messages in the segment.   Consider filtering out messages in segments with only a small number of positional messagess"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "ident_count",
+    "type": "INTEGER",
+    "description": "Number of identity messages in the segment. Note that some messages can contain both position and identity"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "shipname",
+    "type": "RECORD",
+    "description": "Most commonly occuring shipname (unnormalized) for this segment"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "callsign",
+    "type": "RECORD",
+    "description": "Most commonly occuring callsign (unnormalized) for this segment"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "imo",
+    "type": "RECORD",
+    "description": "Most commonly occuring imo number (unvalidated) for this segment"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "n_shipname",
+    "type": "RECORD",
+    "description": "Most commonly occuring normalized shipname for this segment"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "n_callsign",
+    "type": "RECORD",
+    "description": "Most commonly occuring normalized callsign for this segment"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "n_imo",
+    "type": "RECORD",
+    "description": "Most commonly occuring valid imo number for this segment"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment "
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "length",
+    "type": "RECORD",
+    "description": "Most commonly occuring length for this segment."
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment "
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "width",
+    "type": "RECORD",
+    "description": "Most commonly occuring width for this segment."
+  }
+
+]
+

@@ -1,0 +1,165 @@
+#standardSQL
+#
+# Aggregates segment identity field counts from segment_identity_daily across a
+# multi-day window and assigns a vessel_id guid to each segment for the current day
+# which is the last day of the window
+#
+#
+# PARAMETERS
+#
+CREATE TEMP FUNCTION processDate() AS (DATE('{{ date }}'));
+CREATE TEMP FUNCTION windowDays() AS ({{ window_days }});
+CREATE TEMP FUNCTION windowStart() AS (DATE_SUB(processDate(), INTERVAL (windowDays() - 1) DAY));
+CREATE TEMP FUNCTION singleIdentMinFreq() AS ({{ single_ident_min_freq }});
+CREATE TEMP FUNCTION mostCommonMinFreq() AS ({{most_common_min_freq}});
+CREATE TEMP FUNCTION spoofingThreshold() AS ({{spoofing_threshold}});
+
+# Include some utility functions
+{% include 'util.sql.j2' %}
+
+#
+# Building the query
+#
+WITH
+  #
+  # Daily segment identity counts over a multi-day time window
+  #
+  segments as (
+  SELECT
+    *
+  FROM
+    `{{ segment_identity }}`
+  WHERE
+    DATE(summary_timestamp) between windowStart() AND processDate()
+  ),
+
+  #
+  # Aggregate daily segment identity counts over a multi-day time window
+  # and reduce each identity field to just the most commonly occuring value
+  # include only segments that have some activity in the last day of the window
+  #
+  segment_most_common as (
+  SELECT
+    seg_id,
+    ssvid,
+    DATE(MAX(summary_timestamp)) as day,
+    MIN(first_timestamp) as first_timestamp,
+    MAX(last_timestamp) as last_timestamp,
+    MIN(first_pos_timestamp) as first_pos_timestamp,
+    MAX(last_pos_timestamp) as last_pos_timestamp,
+    SUM(msg_count) as msg_count,
+    SUM(pos_count) as pos_count,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(shipname  )), SUM(ident_count), mostCommonMinFreq()) as shipname,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(callsign  )), SUM(ident_count), mostCommonMinFreq()) as callsign,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(imo       )), SUM(ident_count), mostCommonMinFreq()) as imo,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_shipname)), SUM(ident_count), mostCommonMinFreq()) as n_shipname,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_callsign)), SUM(ident_count), mostCommonMinFreq()) as n_callsign,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_imo     )), SUM(ident_count), mostCommonMinFreq()) as n_imo,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(length    )), SUM(ident_count), mostCommonMinFreq()) as length,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(width     )), SUM(ident_count), mostCommonMinFreq()) as width
+  FROM
+    segments
+  GROUP BY
+    ssvid, seg_id
+  HAVING
+    day = processDate()
+  ),
+  #
+  # Compute most common identity values by ssvid (combine all segments together)
+  #
+  ssvid_most_common as (
+  SELECT
+    ssvid,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_shipname)), SUM(ident_count), mostCommonMinFreq()) as n_shipname,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_callsign)), SUM(ident_count), mostCommonMinFreq()) as n_callsign,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_imo     )), SUM(ident_count), mostCommonMinFreq()) as n_imo
+  FROM
+    segments
+  GROUP BY
+    ssvid
+  ),
+
+  #
+  # Exclude segments that are "noise" and should be ignored for the overlap test
+  #
+  good_segs as (
+  SELECT
+    seg_id,
+    ssvid,
+    first_pos_timestamp,
+    last_pos_timestamp
+  FROM
+    segments
+  WHERE
+    pos_count > spoofingThreshold()
+  ),
+  #
+  # Order all the good segments within a single SSVID and capture the start timestamp of the following segment
+  #
+  overlap_segs as (
+  SELECT
+    seg_id,
+    ssvid,
+    last_pos_timestamp as end_timestamp,
+    LEAD(first_pos_timestamp) OVER (PARTITION BY ssvid ORDER BY first_pos_timestamp) as next_start_timestamp
+  FROM
+    good_segs
+  ),
+  #
+  #  Find SSVIDs that have any (non-noise) segments that overlap in time
+  #
+  overlap_ssvid AS (
+    SELECT
+      ssvid,
+      COUNTIF(end_timestamp > next_start_timestamp) AS overlap_count
+    FROM
+      overlap_segs
+    GROUP BY
+      ssvid
+    HAVING
+      overlap_count > 0
+  ),
+  #
+  # Find the ssvids that have a single dominant identity, and compute the ssvid-level vessel_id
+  #
+  single_ident_ssvid as (
+  SELECT
+    ssvid,
+    vesselId(ssvid, n_imo.value, n_shipname.value, n_callsign.value) as ssvid_vessel_id
+  FROM
+    ssvid_most_common
+  WHERE
+    LEAST(
+      IFNULL(n_shipname.freq, 1.0),
+      IFNULL(n_callsign.freq, 1.0),
+      IFNULL(n_imo.freq, 1.0)
+     ) > singleIdentMinFreq()
+  ),
+  #
+  # Get ssvid identites that have no overlapping segments and only one identity
+  #
+  no_overlap_single_ident_ssvid as (
+  SELECT
+    *
+  FROM
+    single_ident_ssvid LEFT JOIN overlap_ssvid USING (ssvid)
+  WHERE
+    overlap_ssvid.ssvid is NULL
+  ),
+  #
+  # Set the segment vessel_id. If the ssvid has no overlaps and only one identity, then use the ssvid's vessel_id
+  # otherwise create a vessel_id using the most common identity values in the segment
+  #
+  segment_vessel_day as (
+  SELECT
+    IFNULL(ssvid_vessel_id, vesselId(ssvid, n_imo.value, n_shipname.value, n_callsign.value)) as vessel_id,
+    ssvid_vessel_id is not NULL as single_ident_ssvid,
+    segment_most_common.*
+  FROM segment_most_common LEFT JOIN no_overlap_single_ident_ssvid USING (ssvid)
+  )
+
+
+SELECT
+  *
+FROM
+   segment_vessel_day
