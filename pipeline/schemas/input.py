@@ -18,19 +18,19 @@ def build():
     field = bigquery.TableFieldSchema()
     field.name = "lat"
     field.type = "FLOAT"
-    field.mode="REQUIRED"
+    field.mode="NULLABLE"
     schema.fields.append(field)
 
     field = bigquery.TableFieldSchema()
     field.name = "lon"
     field.type = "FLOAT"
-    field.mode="REQUIRED"
+    field.mode="NULLABLE"
     schema.fields.append(field)
 
     field = bigquery.TableFieldSchema()
     field.name = "speed"
     field.type = "FLOAT"
-    field.mode="REQUIRED"
+    field.mode="NULLABLE"
     schema.fields.append(field)
 
     return schema

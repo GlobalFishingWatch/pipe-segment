@@ -22,8 +22,14 @@ class Sink(PTransform):
             schema=output_schema(),
         )
 
+        # return (
+        #     xs
+        #     | Map(self.encode_datetime_fields)
+        #     | io.Write(big_query_sink)
+        # )
+
+
         return (
             xs
-            | Map(self.encode_datetime_fields)
             | io.Write(big_query_sink)
         )

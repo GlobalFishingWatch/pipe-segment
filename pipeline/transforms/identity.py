@@ -5,6 +5,8 @@ from apache_beam import Filter
 
 # Identity transform - passes the message through unchanged
 class Identity(PTransform):
+    def __init__(self):
+        pass
 
     def expand(self, xs):
         return xs
