@@ -1,0 +1,20 @@
+version: '2'
+services:
+  pipeline:
+    image: gfw/pipe-segment
+    build: .
+    volumes:
+      - ".:/opt/project"
+      - "gcp:/root/.config/"
+
+  gcloud:
+    image: gfw/pipe-segment
+    build: .
+    entrypoint: gcloud
+    volumes:
+      - "gcp:/root/.config/"
+
+volumes:
+  gcp:
+
+
