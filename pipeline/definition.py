@@ -2,6 +2,8 @@ from pipeline.transforms.source import Source
 from pipeline.transforms.identity import Identity
 from pipeline.transforms.sink import Sink
 from apache_beam import io
+from apache_beam import Map
+from apache_beam import GroupByKey
 
 class PipelineDefinition():
     def __init__(self, options):
@@ -19,6 +21,8 @@ class PipelineDefinition():
         (
             pipeline
             | "ReadFromSource" >> Source(self.options.source)
+            | "ExtractMMSI" >> Map(lambda row: (row['mmsi'], row))
+            | "GroupByMMSI" >> GroupByKey('mmsi')
             | "DoNothing" >> Identity()
             | "WriteToSink" >> sink
         )
