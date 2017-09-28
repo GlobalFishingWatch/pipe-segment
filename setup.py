@@ -6,6 +6,7 @@ PROJECT_DESCRIPTION = 'Apache Beam pipeline that runs the segmenter'
 DEPENDENCIES = [
     "pytest",
     "nose",
+    "gpsdio-segment==0.8",
 ]
 
 # Frozen dependencies for the google cloud dataflow dependency
@@ -61,4 +62,6 @@ setup(
     license="Apache 2",
     packages=find_packages(),
     install_requires=DEPENDENCIES + DATAFLOW_PINNED_DEPENDENCIES,
+    dependency_links=["git+https://github.com/SkyTruth/gpsdio-segment.git@v0.8#egg=gpsdio-segment-0.8"],
+
 )

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SINK_TABLE=pipe_segment_test_e
+SINK_TABLE=pipe_segment_test_f
 JOB_NAME=job-${SINK_TABLE//_/-}
 
 docker-compose run pipeline \

@@ -1,7 +1,6 @@
 SELECT
   messages.mmsi       AS mmsi,
   TIMESTAMP_TO_USEC(messages.timestamp)  AS timestamp,
-  type                AS type,
   messages.lat        AS lat,
   messages.lon        AS lon,
   messages.speed      AS speed,
