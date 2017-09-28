@@ -29,6 +29,10 @@ The pipeline includes a CLI that can be used to start both local test runs and
 remote full runs. Just run `docker-compose run pipeline --help` and follow the
 instructions there.
 
+## Testing
+
+Run unit tests with `docker-compose run py.test tests`
+
 # License
 
 Copyright 2017 Global Fishing Watch

@@ -4,7 +4,8 @@ PROJECT_NAME = 'pipe-segment'
 PROJECT_VERSION = '1.0.0'
 PROJECT_DESCRIPTION = 'Apache Beam pipeline that runs the segmenter'
 DEPENDENCIES = [
-    "statistics==1.0.3.5", # This is a sample dependency
+    "pytest",
+    "nose",
 ]
 
 # Frozen dependencies for the google cloud dataflow dependency
