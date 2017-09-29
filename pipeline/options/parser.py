@@ -57,5 +57,5 @@ def parse():
         standard_options.runner = 'DataflowRunner'
         setup_options = pipeline_options.view_as(beam.SetupOptions)
         setup_options.setup_file = './setup.py'
-
+        setup_options.extra_packages=[options.segmenter_local_package]
     return (options, pipeline_options)

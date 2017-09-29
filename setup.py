@@ -3,10 +3,21 @@ from setuptools import setup, find_packages
 PROJECT_NAME = 'pipe-segment'
 PROJECT_VERSION = '1.0.0'
 PROJECT_DESCRIPTION = 'Apache Beam pipeline that runs the segmenter'
+
 DEPENDENCIES = [
     "pytest",
     "nose",
-    "gpsdio-segment==0.8",
+
+    # We would like to just specify the dependency here and pull it from the
+    # dependency_links included below.  This works with
+    #   `pip install . --process-dependency-links`
+    # However, this does not work when installing in the remote worker in dataflow
+    # because there is no git executable on the remote workers.
+    # So instead we download the package patball in setup.sh and then for local
+    # execution we just pip install from that package, and for remote install we pass
+    # the tarball along via the extra_packages option in parser.py
+
+    # "gpsdio-segment==0.8",
 ]
 
 # Frozen dependencies for the google cloud dataflow dependency
@@ -62,6 +73,6 @@ setup(
     license="Apache 2",
     packages=find_packages(),
     install_requires=DEPENDENCIES + DATAFLOW_PINNED_DEPENDENCIES,
-    dependency_links=["git+https://github.com/SkyTruth/gpsdio-segment.git@v0.8#egg=gpsdio-segment-0.8"],
+    # dependency_links=["git+https://github.com/SkyTruth/gpsdio-segment.git@v0.8#egg=gpsdio-segment-0.8"],
 
 )

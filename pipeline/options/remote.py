@@ -17,6 +17,11 @@ def setup(parser):
         action='store_true',
         default=False,
     )
+    parser.add_argument(
+        '--segmenter_local_package',
+        help='local package file containing gpsdio-segment',
+        default='',
+    )
 
     required = parser.add_argument_group('remote required arguments')
     required.add_argument(
