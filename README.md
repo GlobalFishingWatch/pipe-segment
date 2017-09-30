@@ -34,16 +34,16 @@ instructions there.
 Run unit tests  
   `docker-compose run py.test tests`
 
-Re-build the docker environment (needed if you modify setup.py or other environmental change)
+Re-build the docker environment (needed if you modify setup.py or other environmental change) 
   `docker-compose build`
   
-You can run the unit tests outside of docker like this
+You can run the unit tests outside of docker like this 
   ` py.test tests`
 which may be convenient when debugging stuff.  If you do this then you will need 
-to clear out the `__pycache__` with 
+to clear out the `__pycache__` with  
     `rm -rf tests/__pycache__/`
     
-or else you will get an error like this
+or else you will get an error like this 
 `ImportMismatchError: ('conftest', '/opt/project/tests/conftest.py', 
 local('/Users/paul/github/pipe-segment/tests/conftest.py'))`
 
