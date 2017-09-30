@@ -56,7 +56,7 @@ class TestPipeline():
                 | beam.io.ReadFromText(file_pattern=source, coder=JSONCoder())
                 | "ExtractMMSI" >> Map(lambda row: (row['mmsi'], row))
                 | "GroupByMMSI" >> GroupByKey('mmsi')
-                | Identity()
+                | Segment()
                 | "Flatten" >> FlatMap(lambda(k,v): v)
                 | "WriteToSink" >> beam.io.WriteToText(
                     file_path_prefix=sink,
