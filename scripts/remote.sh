@@ -13,8 +13,9 @@ JOB_NAME=job-${SINK_TABLE//_/-}
 
 docker-compose run pipeline \
   remote \
-  --sourcequery @examples/local.sql  \
+  --sourcequery @examples/1-day.sql  \
   --sink world-fishing-827:scratch_paul.$SINK_TABLE \
+  --sink_write_disposition WRITE_TRUNCATE \
   --job_name $JOB_NAME \
   --temp_location gs://paul-scratch/$SINK_TABLE \
   --max_num_workers 2 \

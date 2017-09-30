@@ -16,7 +16,8 @@ from pipeline.transforms.segment import Segment
 
 from gpsdio.schema import datetime2str
 
-from pipeline.coders import usec2datetime
+from pipeline.coders import timestamp2datetime
+
 
 @pytest.mark.filterwarnings('ignore:Using fallback coder:UserWarning')
 @pytest.mark.filterwarnings('ignore:The compiler package is deprecated and removed in Python 3.x.:DeprecationWarning')
@@ -41,7 +42,7 @@ class TestTransforms(unittest.TestCase):
 
     def test_Segment(self):
         def _seg_id_from_message(msg):
-            return '{}-{}'.format(msg['mmsi'], datetime2str(usec2datetime(msg['timestamp'])))
+            return '{}-{}'.format(msg['mmsi'], datetime2str(timestamp2datetime(msg['timestamp'])))
 
         def _add_seg_id (row):
             row[1][0]['seg_id'] = _seg_id_from_message(row[1][0])
@@ -60,13 +61,12 @@ class TestTransforms(unittest.TestCase):
     def test_Segment_datetime(self):
         now = datetime.utcnow()
 
-        msg = {'timestamp': 1506794044401804,
+        msg = {'timestamp': 1506794044.401804,
                'expected': datetime(2017, 9, 30, 17, 54, 4, 401804)
                }
-        for msg in Segment._usec2datetime([msg]):
+        for msg in Segment._timestamp2datetime([msg]):
             assert msg['timestamp'] == msg['expected']
 
         msg = {'timestamp': now, 'expected': now}
-        for msg in Segment._usec2datetime(Segment._datetime2usec([msg])):
+        for msg in Segment._timestamp2datetime(Segment._datetime2timestamp([msg])):
             assert msg['timestamp'] == msg['expected']
-

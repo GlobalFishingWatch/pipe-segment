@@ -6,30 +6,30 @@ from apache_beam import Map
 from gpsdio_segment.core import Segmentizer
 from gpsdio_segment.core import BadSegment
 
-from pipeline.coders import usec2datetime
-from pipeline.coders import datetime2usec
+from pipeline.coders import timestamp2datetime
+from pipeline.coders import datetime2timestamp
+
 
 class Segment(PTransform):
     def __init__(self, *args, **kwargs):
         super(Segment, self).__init__(*args, **kwargs)
 
     @staticmethod
-    def _usec2datetime(messages):
+    def _timestamp2datetime(messages):
         # convert the timestamp field in a stream of messages (dicts)
-        # from an integer value in microseconds to a datetime object
+        # from a timestamp to a datetime object
         for msg in messages:
-            msg ['timestamp'] = usec2datetime(msg['timestamp'])
+            msg['timestamp'] = timestamp2datetime(msg['timestamp'])
             yield msg
 
     @staticmethod
-    def _datetime2usec(messages):
+    def _datetime2timestamp(messages):
         # convert the timestamp field in a stream of messages (dicts)
         # from a datetime object to an integer value in microseconds
 
         for msg in messages:
-            msg ['timestamp'] = datetime2usec(msg['timestamp'])
+            msg['timestamp'] = datetime2timestamp(msg['timestamp'])
             yield msg
-
 
     @staticmethod
     def _gpsdio_segment(messages):
@@ -53,9 +53,9 @@ class Segment(PTransform):
         # Note:  since each of these functions is a generator, the code is not actually executed until
         # the output is iterated in the list() operation at the end
 
-        messages = self._usec2datetime(messages)
+        messages = self._timestamp2datetime(messages)
         messages = self._gpsdio_segment(messages)
-        messages = self._datetime2usec(messages)
+        messages = self._datetime2timestamp(messages)
 
         return (key, list(messages))
 

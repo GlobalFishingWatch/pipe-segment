@@ -6,14 +6,14 @@ from apache_beam.coders import Coder
 EPOCH = datetime.utcfromtimestamp(0)
 
 
-def usec2datetime(ts):
-    """Convert an integer timestamp in microseconds to a datetime"""
-    return datetime.utcfromtimestamp(ts / 1000000.0)
+def timestamp2datetime(ts):
+    """Convert a timestamp in seconds with microsecond precision to a datetime"""
+    return datetime.utcfromtimestamp(ts)
 
 
-def datetime2usec(dt):
-    """Convert a datetime to an integer timestamp in microseconds"""
-    return int((dt - EPOCH).total_seconds() * 1000000.0)
+def datetime2timestamp(dt):
+    """Convert a datetime to a timestamp in seconds with microsecond precision"""
+    return (dt - EPOCH).total_seconds()
 
 
 class JSONCoder(Coder):
