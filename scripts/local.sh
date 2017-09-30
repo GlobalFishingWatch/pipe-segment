@@ -1,6 +1,7 @@
 #!/bin/bash
 
 docker-compose run pipeline \
-  --source @examples/local.sql \
  local \
- --project world-fishing-827
+  --sourcequery @examples/local.sql \
+  --project world-fishing-827 \
+  --sink ./local-output

@@ -9,11 +9,11 @@ source ${THIS_SCRIPT_DIR}/setup.cfg
 SINK_TABLE=pipe_segment_test_g
 JOB_NAME=job-${SINK_TABLE//_/-}
 
-# NB: SEGMENTER_LOCAL_PACKAGE is exported by setup.sh so that must be run first
+# NB: SEGMENTER_LOCAL_PACKAGE is defined in setup.cfg
 
 docker-compose run pipeline \
-  --source @examples/local.sql  \
   remote \
+  --sourcequery @examples/local.sql  \
   --sink world-fishing-827:scratch_paul.$SINK_TABLE \
   --job_name $JOB_NAME \
   --temp_location gs://paul-scratch/$SINK_TABLE \

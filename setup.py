@@ -7,6 +7,7 @@ PROJECT_DESCRIPTION = 'Apache Beam pipeline that runs the segmenter'
 DEPENDENCIES = [
     "pytest",
     "nose",
+    "ujson",
 
     # We would like to just specify the dependency here and pull it from the
     # dependency_links included below.  This works with

@@ -9,8 +9,15 @@ class Segment(PTransform):
     def __init__(self):
         pass
 
+    def segment(self, kv):
+        key, messages = kv
+
+        # TODO: segment messages here
+
+        return (key, messages)
+
     def expand(self, xs):
         return (
-            xs
+            xs | Map(self.segment)
         )
 
