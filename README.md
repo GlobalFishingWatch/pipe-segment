@@ -37,6 +37,18 @@ Run unit tests
 Re-build the docker environment (needed if you modify setup.py or other environmental change)
   `docker-compose build`
   
+You can run the unit tests outside of docker like this
+  ` py.test tests`
+which may be convenient when debugging stuff.  If you do this then you will need 
+to clear out the `__pycache__` with 
+    `rm -rf tests/__pycache__/`
+    
+or else you will get an error like this
+`ImportMismatchError: ('conftest', '/opt/project/tests/conftest.py', 
+local('/Users/paul/github/pipe-segment/tests/conftest.py'))`
+
+
+  
 ## Note on the gpsdio-segment dependency
 
 This library depends on the python package [gpsdio-segment](https://github.com/SkyTruth/gpsdio-segment)
