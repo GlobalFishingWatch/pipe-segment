@@ -25,7 +25,7 @@ class Segment(PTransform):
     @staticmethod
     def _datetime2timestamp(messages):
         # convert the timestamp field in a stream of messages (dicts)
-        # from a datetime object to an integer value in microseconds
+        # from a datetime object to a timestamp
 
         for msg in messages:
             msg['timestamp'] = datetime2timestamp(msg['timestamp'])
@@ -49,15 +49,12 @@ class Segment(PTransform):
     def segment(self, kv):
         key, messages = kv
 
-        messages = sorted(messages, key=lambda msg: msg['timestamp'])
-        # Note:  since each of these functions is a generator, the code is not actually executed until
-        # the output is iterated in the list() operation at the end
-
         messages = self._timestamp2datetime(messages)
-        messages = self._gpsdio_segment(messages)
+        messages = sorted(messages, key=lambda msg: msg['timestamp'])
+        messages = list(self._gpsdio_segment(messages))
         messages = self._datetime2timestamp(messages)
 
-        return (key, list(messages))
+        return key, list(messages)
 
     def expand(self, xs):
         return (

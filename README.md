@@ -47,7 +47,11 @@ or else you will get an error like this
 `ImportMismatchError: ('conftest', '/opt/project/tests/conftest.py', 
 local('/Users/paul/github/pipe-segment/tests/conftest.py'))`
 
+## Schema
 
+To get the schema for an existing bigquery table - use something like this
+
+  `bq show --format=prettyjson world-fishing-827:pipeline_measures_p_p516_daily.20170923 | jq '.schema.fields'`
   
 ## Note on the gpsdio-segment dependency
 
