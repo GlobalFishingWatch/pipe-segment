@@ -15,28 +15,7 @@ class Segment(PTransform):
         super(Segment, self).__init__(*args, **kwargs)
 
     @staticmethod
-    def _timestamp2datetime(messages):
-        # convert the timestamp field in a stream of messages (dicts)
-        # from a timestamp to a datetime object
-        for msg in messages:
-            msg['timestamp'] = timestamp2datetime(msg['timestamp'])
-            yield msg
-
-    @staticmethod
-    def _datetime2timestamp(messages):
-        # convert the timestamp field in a stream of messages (dicts)
-        # from a datetime object to a timestamp
-
-        for msg in messages:
-            msg['timestamp'] = datetime2timestamp(msg['timestamp'])
-            yield msg
-
-    @staticmethod
     def _gpsdio_segment(messages):
-        # for msg in messages:
-        #     msg['seg_id'] = '%s-XXX' % msg['mmsi']
-        #     yield msg
-
         for seg in Segmentizer(messages):
             if isinstance(seg, BadSegment):
                 seg_id = "{}-BAD".format(seg.id)
@@ -49,12 +28,9 @@ class Segment(PTransform):
     def segment(self, kv):
         key, messages = kv
 
-        messages = self._timestamp2datetime(messages)
         messages = sorted(messages, key=lambda msg: msg['timestamp'])
-        messages = list(self._gpsdio_segment(messages))
-        messages = self._datetime2timestamp(messages)
 
-        return key, list(messages)
+        return key, list(self._gpsdio_segment(messages))
 
     def expand(self, xs):
         return (

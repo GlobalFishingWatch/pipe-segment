@@ -11,17 +11,13 @@ from apache_beam.transforms import window
 from pipeline.transforms.source import Source
 from pipeline.transforms.segment import Segment
 from pipeline.transforms.sink import Sink
-
+from pipeline.coders import AddTimestampDoFn
+from pipeline.coders import Timestamp2DatetimeDoFn
+from pipeline.coders import Datetime2TimestampDoFn
 
 
 from coders import JSONCoder
 
-class AddTimestampDoFn(beam.DoFn):
-
-  def process(self, msg):
-    # Wrap and emit the current entry and new timestamp in a
-    # TimestampedValue.
-    yield window.TimestampedValue(msg, msg['timestamp'])
 
 
 class PipelineDefinition():
@@ -62,10 +58,13 @@ class PipelineDefinition():
             items = items | 'window' >> WindowInto(window.FixedWindows(self.options.window_size))
 
         (
-            items | "ExtractMMSI" >> Map(lambda row: (row['mmsi'], row))
+            items
+            | "timestamp2datetime" >> beam.ParDo(Timestamp2DatetimeDoFn())
+            | "ExtractMMSI" >> Map(lambda row: (row['mmsi'], row))
             | "GroupByMMSI" >> GroupByKey('mmsi')
             | "Segment" >> Segment()
             | "Flatten" >> FlatMap(lambda(k,v): v)
+            | "datetime2timestamp" >> beam.ParDo(Datetime2TimestampDoFn())
             | "WriteToSink" >> self._sink()
         )
 

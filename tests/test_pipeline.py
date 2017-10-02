@@ -1,11 +1,6 @@
 import pytest
-import unittest
-import shutil
-import tempfile
 import posixpath as pp
-import ujson as json
 import newlinejson as nlj
-from glob import glob
 
 from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
 # rename the class to prevent py.test from trying to collect TestPipeline as a unit test class
@@ -20,8 +15,9 @@ from apache_beam import FlatMap
 
 import pipeline
 from pipeline.transforms.segment import Segment
-from pipeline.transforms.identity import Identity
 from pipeline.coders import JSONCoder
+from pipeline.coders import Timestamp2DatetimeDoFn
+from pipeline.coders import Datetime2TimestampDoFn
 
 
 @pytest.mark.filterwarnings('ignore:Using fallback coder:UserWarning')
@@ -65,10 +61,12 @@ class TestPipeline():
             result = (
                 p
                 | beam.io.ReadFromText(file_pattern=source, coder=JSONCoder())
+                | "timestamp2datetime" >> beam.ParDo(Timestamp2DatetimeDoFn())
                 | "ExtractMMSI" >> Map(lambda row: (row['mmsi'], row))
                 | "GroupByMMSI" >> GroupByKey('mmsi')
                 | Segment()
                 | "Flatten" >> FlatMap(lambda(k,v): v)
+                | "datetime2timestamp" >> beam.ParDo(Datetime2TimestampDoFn())
                 | "WriteToSink" >> beam.io.WriteToText(
                     file_path_prefix=sink,
                     num_shards=1,
