@@ -34,16 +34,16 @@ instructions there.
 Run unit tests  
   `docker-compose run py.test tests`
 
-Re-build the docker environment (needed if you modify setup.py or other environmental change) 
+Re-build the docker environment (needed if you modify setup.py or other environmental change)  
   `docker-compose build`
   
-You can run the unit tests outside of docker like this 
+You can run the unit tests outside of docker like this  
   ` py.test tests`
-which may be convenient when debugging stuff.  If you do this then you will need 
+which may be convenient when debugging stuff.  If you do this then you will need  
 to clear out the `__pycache__` with  
     `rm -rf tests/__pycache__/`
     
-or else you will get an error like this 
+or else you will get an error like this  
 `ImportMismatchError: ('conftest', '/opt/project/tests/conftest.py', 
 local('/Users/paul/github/pipe-segment/tests/conftest.py'))`
 
@@ -61,7 +61,7 @@ We would like to just specify the dependency in setup.py (see the comment in
 that file). However, this does not work when installing in the remote worker 
 in dataflow because there is no git executable on the remote workers.
 
-So instead we download the package patball in setup.sh and then for local 
+So instead we download the package tarball in setup.sh and then for local 
 execution we just pip install from that package, and for remote install we pass 
 the tarball along via the extra_packages option in parser.py
     
