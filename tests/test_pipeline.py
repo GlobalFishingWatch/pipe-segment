@@ -29,11 +29,8 @@ from pipeline.coders import JSONCoder
 @pytest.mark.filterwarnings('ignore:open_shards is experimental.:FutureWarning')
 class TestPipeline():
 
-    def test_Pipeline_args(self, test_data_dir, temp_dir):
-        source = pp.join(test_data_dir, 'input.json')
-        sink = pp.join(temp_dir, 'output')
-        expected = pp.join(test_data_dir, 'expected.json')
-        args = [
+    def _run_pipeline (self, source, sink, expected, args=[]):
+        args += [
             'local',
             '--sourcefile=%s' % source,
             '--sink=%s' % sink
@@ -44,6 +41,20 @@ class TestPipeline():
         with nlj.open(expected) as expected:
             with open_shards('%s*' % sink) as output:
                 assert sorted(expected) == sorted(nlj.load(output))
+
+    def test_Pipeline_basic_args(self, test_data_dir, temp_dir):
+        source = pp.join(test_data_dir, 'input.json')
+        sink = pp.join(temp_dir, 'output')
+        expected = pp.join(test_data_dir, 'expected.json')
+
+        self._run_pipeline(source, sink, expected)
+
+    def test_Pipeline_window(self, test_data_dir, temp_dir):
+        source = pp.join(test_data_dir, 'input.json')
+        sink = pp.join(temp_dir, 'output')
+        expected = pp.join(test_data_dir, 'expected-window-1.json')
+        args = [ '--window_size=1' ]
+        self._run_pipeline(source, sink, expected, args)
 
     def test_Pipeline_parts(self, test_data_dir, temp_dir):
         source = pp.join(test_data_dir, 'input.json')

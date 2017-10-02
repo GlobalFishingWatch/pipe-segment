@@ -7,7 +7,7 @@ SELECT
 FROM
   TABLE_DATE_RANGE(
     [world-fishing-827:pipeline_measures_p_p516_daily.],
-    TIMESTAMP('2017-08-01'),
-    TIMESTAMP('2017-09-01')
+    TIMESTAMP('2015-01-01'),
+    TIMESTAMP('2015-02-01')
     ) AS messages
 

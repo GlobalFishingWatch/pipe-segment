@@ -8,19 +8,12 @@ def setup(parser):
         parser -- argparse.ArgumentParser instance to setup
     """
 
-    # parser.add_argument(
-    #     '--fishing_threshold',
-    #     help='Score threshold to consider a message to be a fishing event',
-    #     type=float,
-    #     default=0.5,
-    # )
+    parser.add_argument(
+        '--window_size',
+        help='Window size in seconds. Message will be divided in to windows of this duration by '
+             'message timestamp and each window is precessed independently.  Set to 0 for no '
+             'windowing.',
+        type=int,
+        default=0,
+    )
 
-    # required = parser.add_argument_group('global required arguments')
-    # required.add_argument(
-    #     '--source',
-    #     help="BigQuery query that returns the records to process. Might be either a query or a file containing the query if using the `@path/to/file.sql syntax`. See examples/local.sql.",
-    #     required=True,
-    #     action=ReadFileAction,
-    # )
-
-    pass
