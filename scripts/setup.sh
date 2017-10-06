@@ -11,6 +11,6 @@ source ${THIS_SCRIPT_DIR}/setup.cfg
 
 curl -sS $SEGMENTER_REMOTE_PACKAGE -o $SEGMENTER_LOCAL_PACKAGE
 
-pip install .
+pip install -e .
 pip install $SEGMENTER_LOCAL_PACKAGE
 

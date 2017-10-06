@@ -1,4 +1,5 @@
 import os
+import json
 
 import apache_beam as beam
 from apache_beam import io
@@ -97,6 +98,12 @@ class PipelineDefinition():
                 coder=JSONCoder()
             )
 
+    def _segmeter_params(self):
+        if self.options.segmenter_params:
+            return json.loads(self.options.segmenter_params)
+        else:
+            return {}
+
     def build(self, pipeline):
         messages = pipeline | "ReadFromSource" >> self._source(self.options.messages_source)
 
@@ -109,7 +116,7 @@ class PipelineDefinition():
             | "timestamp2datetime" >> beam.ParDo(Timestamp2DatetimeDoFn())
             | "ExtractMMSI" >> Map(lambda row: (row['mmsi'], row))
             | "GroupByMMSI" >> GroupByKey('mmsi')
-            | "Segment" >> Segment()
+            | "Segment" >> Segment(self._segmeter_params())
         )
         messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
         segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]

@@ -57,8 +57,8 @@ class TestTransforms(unittest.TestCase):
         def valid_segment():
             def _is_valid(segments):
                 for seg in segments:
-                    assert seg['id'] == _seg_id_from_message(seg['msgs'][0])
-                    assert seg['msg_count'] == 1
+                    assert seg['seg_id'].startswith(str(seg['mmsi']))
+                    assert seg['message_count'] == 1
                 return True
 
             return _is_valid

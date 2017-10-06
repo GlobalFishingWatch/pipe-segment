@@ -55,6 +55,15 @@ class TestPipeline():
         args = [ '--window_size=1' ]
         self._run_pipeline(source, messages_sink, segments_sink, expected, args)
 
+    def test_Pipeline_segmenter_params(self, test_data_dir, temp_dir):
+        source = pp.join(test_data_dir, 'input.json')
+        messages_sink = pp.join(temp_dir, 'messages')
+        segments_sink = pp.join(temp_dir, 'segments')
+        expected = pp.join(test_data_dir, 'expected_messages.json')
+        segmenter_params = pp.join(test_data_dir, 'segmenter_params.json')
+        args = [ '--segmenter_params=@%s' % segmenter_params]
+        self._run_pipeline(source, messages_sink, segments_sink, expected, args)
+
     def test_Pipeline_parts(self, test_data_dir, temp_dir):
         source = pp.join(test_data_dir, 'input.json')
         messages_sink = pp.join(temp_dir, 'messages')

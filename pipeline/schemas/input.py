@@ -33,4 +33,10 @@ def build():
     field.mode="NULLABLE"
     schema.fields.append(field)
 
+    field = bigquery.TableFieldSchema()
+    field.name = "tagblock_station"
+    field.type = "STRING"
+    field.mode="NULLABLE"
+    schema.fields.append(field)
+
     return schema

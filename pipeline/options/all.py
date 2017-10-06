@@ -17,6 +17,22 @@ def setup(parser):
         default=0,
     )
 
+    parser.add_argument(
+        '--segmenter_params',
+        help='Pass a json object with parameters to pass to the segmenter, or supply a file name to read with '
+             "@path/to/file.json.   For Example:"
+             ''
+             '{'
+             '  "max_hours": 24,'
+             '  "max_speed": 30,'
+             '  "noise_dist": 0,'
+             '  "reported_speed_multiplier": 1.1,'
+             '  "max_speed_multiplier": 15,'
+             '  "max_speed_exponent": 1.3,'
+             '}',
+        action=ReadFileAction,
+    )
+
     required = parser.add_argument_group('global required arguments')
     required.add_argument(
         '--messages_source',
