@@ -13,6 +13,7 @@ JOB_NAME=job-${SINK_TABLE//_/-}
 
 docker-compose run pipeline \
   --messages_source @examples/local.sql  \
+  --messages_schema @examples/messages-schema.json \
   --messages_sink bq://world-fishing-827:scratch_paul.${SINK_TABLE}_messages \
   --segments_sink bq://world-fishing-827:scratch_paul.${SINK_TABLE}_segments \
   --segmenter_params @examples/segmenter-params.json \

@@ -18,6 +18,7 @@ from pipeline.coders import Timestamp2DatetimeDoFn
 from pipeline.coders import Datetime2TimestampDoFn
 from pipeline.schemas import segment as segment_schema
 from pipeline.schemas import output as output_schema
+from pipeline.schemas import input as input_schema
 
 from coders import JSONCoder
 
@@ -104,6 +105,14 @@ class PipelineDefinition():
         else:
             return {}
 
+    def _input_message_schema(self):
+        if not self.options.messages_schema:
+            raise RuntimeError("You must specify a schema when using a bigquery message source or sink")
+        return input_schema.build(self.options.messages_schema)
+
+    def _output_message_schema(self):
+        return output_schema.build(self._input_message_schema())
+
     def build(self, pipeline):
         messages = pipeline | "ReadFromSource" >> self._source(self.options.messages_source)
 
@@ -124,7 +133,7 @@ class PipelineDefinition():
             messages
             | "datetime2timestamp" >> beam.ParDo(Datetime2TimestampDoFn())
             | "WriteToMessagesSink" >> self._sink(path=self.options.messages_sink,
-                                                  schema=output_schema.build())
+                                                  schema=self._output_message_schema())
         )
         (
             segments

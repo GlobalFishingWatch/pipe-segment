@@ -18,6 +18,7 @@
 
 docker-compose run pipeline \
   --messages_source @examples/local.sql \
+  --messages_schema @examples/messages-schema.json \
   --messages_sink ./output/messages \
   --segments_sink ./output/segments \
   --segmenter_params @examples/segmenter-params.json \

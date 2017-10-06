@@ -28,6 +28,7 @@ class TestPipeline():
     def _run_pipeline (self, source, messages_sink, segments_sink, expected, args=[]):
         args += [
             '--messages_source=%s' % source,
+            '--messages_schema={"fields": []}',
             '--messages_sink=%s' % messages_sink,
             '--segments_sink=%s' % segments_sink,
             'local',

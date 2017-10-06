@@ -33,6 +33,14 @@ def setup(parser):
         action=ReadFileAction,
     )
 
+    parser.add_argument(
+        '--messages_schema',
+        help='JSON schema for the messages input bigquery source.  This is ignored for file sources. '
+             'See examples/message-schema.json for an example.  This must match the fields included in the '
+             'messages-source.   You can use "@path/to/file.json" to load this from a file.',
+        action=ReadFileAction,
+    )
+
     required = parser.add_argument_group('global required arguments')
     required.add_argument(
         '--messages_source',

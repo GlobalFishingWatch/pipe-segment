@@ -4,7 +4,18 @@ SELECT
   lat,
   lon,
   speed,
-  tagblock_station
+  course,
+  heading,
+  tagblock_station,
+  type,
+  imo,
+  shipname,
+  shiptype,
+  shiptype_text,
+  callsign,
+  distance_from_shore,
+  distance_from_port,
+  gridcode
 
 FROM
   [world-fishing-827:pipeline_measures_p_p516_daily.20170923] messages
