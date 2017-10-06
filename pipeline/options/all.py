@@ -15,10 +15,12 @@ def setup(parser):
     #     default=0.5,
     # )
 
-    required = parser.add_argument_group('global required arguments')
-    required.add_argument(
-        '--source',
-        help="BigQuery query that returns the records to process. Might be either a query or a file containing the query if using the `@path/to/file.sql syntax`. See examples/local.sql.",
-        required=True,
-        action=ReadFileAction,
-    )
+    # required = parser.add_argument_group('global required arguments')
+    # required.add_argument(
+    #     '--source',
+    #     help="BigQuery query that returns the records to process. Might be either a query or a file containing the query if using the `@path/to/file.sql syntax`. See examples/local.sql.",
+    #     required=True,
+    #     action=ReadFileAction,
+    # )
+
+    pass

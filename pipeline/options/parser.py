@@ -37,7 +37,7 @@ def setup_remote_command(commands):
     remote.setup(remote_command)
     google.setup(remote_command)
 
-def parse():
+def parse(args=None):
     parser = ArgumentParser(prog="pipeline")
     setup_global_options(parser)
 
@@ -45,7 +45,7 @@ def parse():
     setup_local_command(commands)
     setup_remote_command(commands)
 
-    options = parser.parse_args()
+    options = parser.parse_args(args=args)
 
     # Set option values for beam pipeline options based on our parsed options
     pipeline_options = beam.PipelineOptions()
@@ -57,5 +57,5 @@ def parse():
         standard_options.runner = 'DataflowRunner'
         setup_options = pipeline_options.view_as(beam.SetupOptions)
         setup_options.setup_file = './setup.py'
-
+        setup_options.extra_packages=[options.segmenter_local_package]
     return (options, pipeline_options)

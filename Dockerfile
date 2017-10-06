@@ -30,7 +30,7 @@ VOLUME ["/root/.config"]
 
 # Setup local application dependencies
 COPY . /opt/project
-RUN pip install .
+RUN ./scripts/setup.sh
 
 # Setup the entrypoint for quickly executing the pipelines
 ENTRYPOINT ["python", "-m", "pipeline"]

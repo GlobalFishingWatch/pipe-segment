@@ -14,7 +14,13 @@ services:
     volumes:
       - "gcp:/root/.config/"
 
+  py.test:
+    image: gfw/pipe-segment
+    build: .
+    entrypoint: py.test
+    volumes:
+      - ".:/opt/project"
+      - "gcp:/root/.config/"
+
 volumes:
   gcp:
-
-
