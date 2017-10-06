@@ -20,3 +20,11 @@ def setup(parser):
         help='Project on which the source bigquey queries are run. This also specifies where the dataflow jobs will run.',
         required=True,
     )
+
+    optional = parser.add_argument_group('optional dataflow options')
+
+    optional.add_argument(
+        '--disk_size_gb',
+        help='Persistent disk size for worker nodes.  Set to 0 for the default size.',
+        default=0
+    )

@@ -21,6 +21,7 @@ docker-compose run pipeline \
   --job_name $JOB_NAME \
   --temp_location gs://paul-scratch/$JOB_NAME \
   --max_num_workers 4 \
+  --disk_size_gb 50 \
   --project world-fishing-827 \
   --segmenter_local_package $SEGMENTER_LOCAL_PACKAGE
 
