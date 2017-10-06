@@ -1,9 +1,9 @@
 # Segment pipeline 
 
 This repository contains the segment pipeline, a dataflow pipeline which
-extracts divides vessel tracks into contiguous "segments", separating 
-out noise and signals that may come from tow or more vessels which are 
-broadcasting usin ghte same mmsi at the same time
+ divides vessel tracks into contiguous "segments", separating 
+out noise and signals that may come from two or more vessels which are 
+broadcasting using hte same mmsi at the same time
 
 # Running
 
@@ -46,6 +46,14 @@ to clear out the `__pycache__` with
 or else you will get an error like this  
 `ImportMismatchError: ('conftest', '/opt/project/tests/conftest.py', 
 local('/Users/paul/github/pipe-segment/tests/conftest.py'))`
+
+You can do a local run using a query from BQ in order to get more data to run through it.  
+Use the second command below to help view the output in sorted order
+
+```console
+./scripts/local.sh
+cat local-output-00000-of-00001 | jq -s '. | sort_by(.mmsi + .timestamp)'
+```
 
 ## Schema
 

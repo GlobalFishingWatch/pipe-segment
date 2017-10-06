@@ -1,11 +1,6 @@
 import pytest
-import unittest
-import shutil
-import tempfile
 import posixpath as pp
-import ujson as json
 import newlinejson as nlj
-from glob import glob
 
 from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
 # rename the class to prevent py.test from trying to collect TestPipeline as a unit test class
@@ -20,8 +15,9 @@ from apache_beam import FlatMap
 
 import pipeline
 from pipeline.transforms.segment import Segment
-from pipeline.transforms.identity import Identity
 from pipeline.coders import JSONCoder
+from pipeline.coders import Timestamp2DatetimeDoFn
+from pipeline.coders import Datetime2TimestampDoFn
 
 
 @pytest.mark.filterwarnings('ignore:Using fallback coder:UserWarning')
@@ -29,11 +25,8 @@ from pipeline.coders import JSONCoder
 @pytest.mark.filterwarnings('ignore:open_shards is experimental.:FutureWarning')
 class TestPipeline():
 
-    def test_Pipeline_args(self, test_data_dir, temp_dir):
-        source = pp.join(test_data_dir, 'input.json')
-        sink = pp.join(temp_dir, 'output')
-        expected = pp.join(test_data_dir, 'expected.json')
-        args = [
+    def _run_pipeline (self, source, sink, expected, args=[]):
+        args += [
             'local',
             '--sourcefile=%s' % source,
             '--sink=%s' % sink
@@ -45,6 +38,20 @@ class TestPipeline():
             with open_shards('%s*' % sink) as output:
                 assert sorted(expected) == sorted(nlj.load(output))
 
+    def test_Pipeline_basic_args(self, test_data_dir, temp_dir):
+        source = pp.join(test_data_dir, 'input.json')
+        sink = pp.join(temp_dir, 'output')
+        expected = pp.join(test_data_dir, 'expected.json')
+
+        self._run_pipeline(source, sink, expected)
+
+    def test_Pipeline_window(self, test_data_dir, temp_dir):
+        source = pp.join(test_data_dir, 'input.json')
+        sink = pp.join(temp_dir, 'output')
+        expected = pp.join(test_data_dir, 'expected-window-1.json')
+        args = [ '--window_size=1' ]
+        self._run_pipeline(source, sink, expected, args)
+
     def test_Pipeline_parts(self, test_data_dir, temp_dir):
         source = pp.join(test_data_dir, 'input.json')
         sink = pp.join(temp_dir, 'output')
@@ -54,10 +61,12 @@ class TestPipeline():
             result = (
                 p
                 | beam.io.ReadFromText(file_pattern=source, coder=JSONCoder())
+                | "timestamp2datetime" >> beam.ParDo(Timestamp2DatetimeDoFn())
                 | "ExtractMMSI" >> Map(lambda row: (row['mmsi'], row))
                 | "GroupByMMSI" >> GroupByKey('mmsi')
                 | Segment()
                 | "Flatten" >> FlatMap(lambda(k,v): v)
+                | "datetime2timestamp" >> beam.ParDo(Datetime2TimestampDoFn())
                 | "WriteToSink" >> beam.io.WriteToText(
                     file_path_prefix=sink,
                     num_shards=1,
