@@ -4,9 +4,10 @@ from apache_beam import io
 from pipeline.schemas.output import build as output_schema
 
 class Sink(PTransform):
-    def __init__(self, table=None, write_disposition=None):
+    def __init__(self, table, schema, write_disposition=None):
         self.table = table
         self.write_disposition = write_disposition
+        self.schema = schema
 
     def encode_datetime(self, value):
         return value.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
@@ -19,7 +20,7 @@ class Sink(PTransform):
         big_query_sink = io.gcp.bigquery.BigQuerySink(
             table=self.table,
             write_disposition=self.write_disposition,
-            schema=output_schema(),
+            schema=self.schema,
         )
 
         return (

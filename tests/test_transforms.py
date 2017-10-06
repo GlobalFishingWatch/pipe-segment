@@ -10,6 +10,7 @@ from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
 
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import BeamAssertException
 
 from pipeline.transforms.identity import Identity
 from pipeline.transforms.segment import Segment
@@ -43,18 +44,35 @@ class TestTransforms(unittest.TestCase):
 
     def test_Segment(self):
         def _seg_id_from_message(msg):
-            return '{}-{}'.format(msg['mmsi'], datetime2str(msg['timestamp']))
+            ts = msg['timestamp']
+            if not isinstance(ts, datetime):
+                ts = timestamp2datetime(ts)
+            return '{}-{}'.format(msg['mmsi'], datetime2str(ts))
 
-        def _add_seg_id (row):
-            row[1][0]['seg_id'] = _seg_id_from_message(row[1][0])
+        def _expected (row):
+            row = row[1][0]      # strip off the mmsi key
+            row['seg_id'] = _seg_id_from_message(row)   # add seg_id
             return row
 
-        expected = map(_add_seg_id, deepcopy(self.SAMPLE_DATA))
+        def valid_segment():
+            def _is_valid(segments):
+                for seg in segments:
+                    assert seg['id'] == _seg_id_from_message(seg['msgs'][0])
+                    assert seg['msg_count'] == 1
+                return True
+
+            return _is_valid
+
+        expected_messages = map(_expected, deepcopy(self.SAMPLE_DATA))
 
         with _TestPipeline() as p:
-            result = (
+            segmented = (
                 p
                 | beam.Create(self.SAMPLE_DATA)
-                | Segment())
+                | "Segment" >> Segment())
 
-            assert_that(result, equal_to(expected))
+            messages = segmented['messages']
+            assert_that(messages, equal_to(expected_messages))
+
+            segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
+            assert_that(segments, valid_segment(), label='expected_segments')

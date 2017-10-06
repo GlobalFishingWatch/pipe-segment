@@ -1,0 +1,3 @@
+{"id": "1-1970-01-01T00:00:00.000000Z", "mmsi": 1, "msg_count": 3, "msgs": [{"timestamp": 0.0, "mmsi": 1}, {"timestamp": 2.0, "mmsi": 1}]}
+{"id": "2-1970-01-01T00:00:00.000000Z", "mmsi": 2, "msg_count": 2, "msgs": [{"timestamp": 0.0, "mmsi": 2}, {"timestamp": 1.0, "mmsi": 2}]}
+{"id": "3-1970-01-01T00:00:00.000000Z", "mmsi": 3, "msg_count": 1, "msgs": [{"timestamp": 0.0, "mmsi": 3}]}

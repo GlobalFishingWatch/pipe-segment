@@ -5,4 +5,6 @@ class ReadFileAction(argparse.Action):
         if (values.startswith('@')):
             with open(values[1:], 'r') as f:
                 setattr(namespace, self.dest, f.read())
+        else:
+            setattr(namespace, self.dest, values)
 

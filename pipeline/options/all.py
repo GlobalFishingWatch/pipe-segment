@@ -17,3 +17,50 @@ def setup(parser):
         default=0,
     )
 
+    required = parser.add_argument_group('global required arguments')
+    required.add_argument(
+        '--messages_source',
+        help='source of message records to process.  This can be a file pattern matching one or more files,'
+             'a bigquery table or a bigquery sql query.  '
+             ''
+             'Local file references should start with ".", "/" or "file://".  '
+             ''
+             'Bigquery tables should be specified as "bq://PROJECT:DATASET.TABLE".  '
+             ''
+             'Anything else will be treated as a sql statement. '
+             ''
+             'You can also prepend the option with "@" to load the content of this option from a file'
+             'as in "@path/to/file.sql"',
+        required=True,
+        action=ReadFileAction,
+    )
+
+    required.add_argument(
+        '--messages_sink',
+        help='destination where the pipeline will write message records.  This can be a file pattern matching one or more files,'
+             'or a bigquery table.  '
+             ''
+             'Local file references should start with ".", "/" or "file://".  '
+             ''
+             'Bigquery tables should be specified as "bq://PROJECT:DATASET.TABLE".  ',
+        required=True
+    )
+
+    required.add_argument(
+        '--segments_sink',
+        help='destination where the pipeline will write segment records.  This can be a file pattern matching one or more files,'
+             'or a bigquery table.  '
+             ''
+             'Local file references should start with ".", "/" or "file://".  '
+             ''
+             'Bigquery tables should be specified as "bq://PROJECT:DATASET.TABLE".  ',
+        required=True
+    )
+
+    parser.add_argument(
+        '--sink_write_disposition',
+        help='How to merge the output of this process with whatever records are already there in the sink tables. '
+             'Might be WRITE_TRUNCATE to remove all existing data and write the new data, or WRITE_APPEND to add '
+             'the new date without. Defaults to WRITE_APPEND.',
+        default='WRITE_APPEND',
+    )
