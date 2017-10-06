@@ -29,6 +29,7 @@ class AddTimestampDoFn(beam.DoFn):
 class Timestamp2DatetimeDoFn(beam.DoFn):
     def process(self, msg):
         # convert the timestamp field from a unix timestamp to a datetime
+        msg = dict(msg)
         msg['timestamp'] = timestamp2datetime(msg['timestamp'])
         yield msg
 
@@ -36,6 +37,7 @@ class Timestamp2DatetimeDoFn(beam.DoFn):
 class Datetime2TimestampDoFn(beam.DoFn):
     def process(self, msg):
         # convert the timestamp field from a datetime to a unix timestamp
+        msg = dict(msg)
         msg['timestamp'] = datetime2timestamp(msg['timestamp'])
         yield msg
 

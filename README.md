@@ -59,7 +59,7 @@ cat local-output-00000-of-00001 | jq -s '. | sort_by(.mmsi + .timestamp)'
 
 To get the schema for an existing bigquery table - use something like this
 
-  `bq show --format=prettyjson world-fishing-827:pipeline_measures_p_p516_daily.20170923 | jq '.schema.fields'`
+  `bq show --format=prettyjson world-fishing-827:pipeline_measures_p_p516_daily.20170923 | jq '.schema'`
   
 ## Note on the gpsdio-segment dependency
 

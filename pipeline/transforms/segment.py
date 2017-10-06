@@ -25,13 +25,13 @@ class Segment(PTransform):
 
     @classmethod
     def _datetime2timestamp(cls, msg):
-        msg = deepcopy(msg)
+        msg = dict(msg)
         msg['timestamp'] = datetime2timestamp(msg['timestamp'])
         return msg
 
     @classmethod
     def _convert_seg_state(cls, st):
-        st.msgs = map(cls._datetime2timestamp, st.msgs)
+        # st.msgs = map(cls._datetime2timestamp, st.msgs)
         res = {"seg_id": st.id,
                "mmsi": st.mmsi,
                "message_count": st.msg_count
