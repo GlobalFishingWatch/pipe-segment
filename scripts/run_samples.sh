@@ -14,7 +14,7 @@ do
     FILE_BASE=`basename ${FILE} .json`
     echo "Processing $FILE_BASE file..."
 
-    JOB_NAME=job-${FILE_BASE//_/-}
+    JOB_NAME=job-${FILE_BASE//_/-}-a
     SINK_TABLE=v0_9d_${FILE_BASE//-/_}
 
     docker-compose run pipeline \

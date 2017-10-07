@@ -112,7 +112,7 @@ class PipelineDefinition():
 
         segmented = (
             messages
-            | "ExtractMMSI" >> Map(lambda row: (row['mmsi'], row))
+            | Map(lambda row: (row['mmsi'], row))
             | "GroupByMMSI" >> GroupByKey('mmsi')
             | "Segment" >> Segment(self._segmeter_params())
         )
@@ -120,12 +120,12 @@ class PipelineDefinition():
         segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
         (
             messages
-            | "WriteToMessagesSink" >> self._sink(path=self.options.messages_sink,
+            | "WriteMessages" >> self._sink(path=self.options.messages_sink,
                                                   schema=self._output_message_schema())
         )
         (
             segments
-            | "WriteToSegmentsSink" >> self._sink(path=self.options.segments_sink,
+            | "WriteSegments" >> self._sink(path=self.options.segments_sink,
                                                   schema=segment_schema.build())
         )
         return pipeline

@@ -1,0 +1,8 @@
+{
+  "max_hours": 24,
+  "max_speed": 25,
+  "noise_dist": 100,
+  "reported_speed_multiplier": 1.1,
+  "max_speed_multiplier": 1600,
+  "max_speed_exponent": 2.0
+}
