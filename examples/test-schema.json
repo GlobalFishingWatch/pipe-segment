@@ -1,0 +1,24 @@
+{
+  "fields": [
+    {
+      "name": "mmsi",
+      "type": "INTEGER"
+    },
+    {
+      "name": "timestamp",
+      "type": "TIMESTAMP"
+    },
+    {
+      "name": "lat",
+      "type": "FLOAT"
+    },
+    {
+      "name": "lon",
+      "type": "FLOAT"
+    },
+    {
+      "name": "speed",
+      "type": "FLOAT"
+    }
+  ]
+}

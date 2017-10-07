@@ -19,6 +19,7 @@ do
 
     docker-compose run pipeline \
       --messages_source @examples/1-month.sql  \
+      --messages_schema @examples/messages-schema.json \
       --messages_sink bq://world-fishing-827:scratch_segment.${SINK_TABLE}_messages \
       --segments_sink bq://world-fishing-827:scratch_segment.${SINK_TABLE}_segments \
       --segmenter_params @${FILE} \

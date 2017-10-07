@@ -27,18 +27,6 @@ class PipelineDefinition():
     def __init__(self, options):
         self.options = options
 
-    def _source(self, option_value):
-        if self.options.sourcefile:
-            # Source is a file containing new line delimited json
-            source = io.ReadFromText(
-                file_pattern=self.options.sourcefile,
-                coder=JSONCoder()
-            )
-        elif self.options.sourcequery:
-            # Source is a bigquery query
-            source = Source(query=self.options.sourcequery)
-        return source
-
     def _messages_sink(self, option_value):
         if self.options.local:
             sink = io.WriteToText(
@@ -71,12 +59,13 @@ class PipelineDefinition():
 
         return scheme, path
 
-    def _source(self, path):
+    def _source(self, path, schema):
+        timestamp_fields = ['timestamp']
         scheme, path = self._parse_source_sink(path)
         if scheme == 'bq':
             return BigQuerySource(table=path)
         elif scheme == 'query':
-            return BigQuerySource(query=path)
+            return BigQuerySource(query=path, schema=schema)
         else:
             return io.ReadFromText(
                 file_pattern=path,
@@ -114,7 +103,8 @@ class PipelineDefinition():
         return output_schema.build(self._input_message_schema())
 
     def build(self, pipeline):
-        messages = pipeline | "ReadFromSource" >> self._source(self.options.messages_source)
+        messages = pipeline | "ReadFromSource" >> self._source(self.options.messages_source,
+                                                               schema=self._input_message_schema())
 
         if self.options.window_size:
             messages = messages | 'timestamp' >> beam.ParDo(AddTimestampDoFn())
@@ -122,7 +112,6 @@ class PipelineDefinition():
 
         segmented = (
             messages
-            | "timestamp2datetime" >> beam.ParDo(Timestamp2DatetimeDoFn())
             | "ExtractMMSI" >> Map(lambda row: (row['mmsi'], row))
             | "GroupByMMSI" >> GroupByKey('mmsi')
             | "Segment" >> Segment(self._segmeter_params())
@@ -131,7 +120,6 @@ class PipelineDefinition():
         segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
         (
             messages
-            | "datetime2timestamp" >> beam.ParDo(Datetime2TimestampDoFn())
             | "WriteToMessagesSink" >> self._sink(path=self.options.messages_sink,
                                                   schema=self._output_message_schema())
         )

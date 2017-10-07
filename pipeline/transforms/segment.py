@@ -24,6 +24,12 @@ class Segment(PTransform):
         self.segmenter_params = segmenter_params or {}
 
     @classmethod
+    def _timestamp2datetime(cls, msg):
+        msg = dict(msg)
+        msg['timestamp'] = timestamp2datetime(msg['timestamp'])
+        return msg
+
+    @classmethod
     def _datetime2timestamp(cls, msg):
         msg = dict(msg)
         msg['timestamp'] = datetime2timestamp(msg['timestamp'])
@@ -39,6 +45,9 @@ class Segment(PTransform):
         return res
 
     def _gpsdio_segment(self, messages):
+
+        messages = map(self._timestamp2datetime, messages)
+
         for seg in Segmentizer(messages, **self.segmenter_params):
             if isinstance(seg, BadSegment):
                 seg_id = "{}-BAD".format(seg.id)
@@ -47,7 +56,8 @@ class Segment(PTransform):
 
             yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, self._convert_seg_state(seg.state))
 
-            for msg in seg:
+            for message in seg:
+                msg = self._datetime2timestamp(message)
                 msg['seg_id'] = seg_id
                 yield msg
 

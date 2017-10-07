@@ -6,7 +6,7 @@ THIS_SCRIPT_DIR="$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )"
 source ${THIS_SCRIPT_DIR}/setup.cfg
 
 
-SINK_TABLE=pipe_segment_v0_9d_test_b
+SINK_TABLE=pipe_segment_v0_9d_test_c
 JOB_NAME=job-${SINK_TABLE//_/-}
 
 # NB: SEGMENTER_LOCAL_PACKAGE is defined in setup.cfg

@@ -76,7 +76,6 @@ class TestPipeline():
             segmented = (
                 p
                 | beam.io.ReadFromText(file_pattern=source, coder=JSONCoder())
-                | "timestamp2datetime" >> beam.ParDo(Timestamp2DatetimeDoFn())
                 | "ExtractMMSI" >> Map(lambda row: (row['mmsi'], row))
                 | "GroupByMMSI" >> GroupByKey('mmsi')
                 | Segment()
@@ -84,7 +83,6 @@ class TestPipeline():
 
             messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
             (messages
-                | "datetime2timestamp" >> beam.ParDo(Datetime2TimestampDoFn())
                 | "WriteToMessagesSink" >> beam.io.WriteToText(
                     file_path_prefix=messages_sink,
                     num_shards=1,
