@@ -8,6 +8,7 @@ DEPENDENCIES = [
     "pytest",
     "nose",
     "ujson",
+    "pandas",
 
     # We would like to just specify the dependency here and pull it from the
     # dependency_links included below.  This works with
