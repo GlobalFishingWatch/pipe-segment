@@ -104,6 +104,7 @@ class TestPipeline():
                 with open_shards('%s*' % messages_sink) as output:
                     assert sorted(expected) == sorted(nlj.load(output))
 
-            with nlj.open(expected_segments) as expected:
-                with open_shards('%s*' % segments_sink) as output:
-                    assert sorted(expected) == sorted(nlj.load(output))
+            with nlj.open(expected_segments) as expected_output:
+                with open_shards('%s*' % segments_sink) as actual_output:
+                    for expected, actual in zip(sorted(expected_output), sorted(nlj.load(actual_output))):
+                        assert set(expected.items()).issubset(set(actual.items()))

@@ -62,6 +62,7 @@ class TestTransforms(unittest.TestCase):
                 for seg in segments:
                     assert seg['seg_id'].startswith(str(seg['mmsi']))
                     assert seg['message_count'] == 1
+                    assert seg['timestamp_count'] == 1
                 return True
 
             return _is_valid
@@ -79,3 +80,5 @@ class TestTransforms(unittest.TestCase):
 
             segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
             assert_that(segments, valid_segment(), label='expected_segments')
+
+

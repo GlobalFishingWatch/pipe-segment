@@ -1,6 +1,7 @@
 import pytest
 import itertools as it
 import collections
+import pandas as pd
 
 from pipeline import stats
 
@@ -62,5 +63,15 @@ class TestStats:
 
         assert ms.frequency_counter.most_common('name') == [('boaty', 1)]
 
+    def test_MessageStats_edge_cases(self):
+        messages = [
+            {'mmsi': 123, 'timestamp': 0.0, 'lat': 1, 'speed': 2},
+        ]
 
+        numeric_fields = ['not_present']
+        frequency_fields = []
+
+        ms = stats.MessageStats(messages, numeric_fields, frequency_fields)
+
+        assert ms.numeric_stats('not_present') == {}
 
