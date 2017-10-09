@@ -6,7 +6,7 @@ from pipeline.transforms.segment import Segment
 FIELD_TYPES = {
     'timestamp': 'TIMESTAMP',
     'lat': 'FLOAT',
-    'lat': 'FLOAT',
+    'lon': 'FLOAT',
 }
 
 STAT_TYPES = {
