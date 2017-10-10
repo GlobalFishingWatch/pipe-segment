@@ -75,3 +75,13 @@ class TestStats:
 
         assert ms.numeric_stats('not_present') == {}
 
+    def test_MessageStats_none(self):
+        messages = [{'not_present': None}]
+
+        numeric_fields = ['not_present']
+        frequency_fields = []
+
+        ms = stats.MessageStats(messages, numeric_fields, frequency_fields)
+
+        assert ms.numeric_stats('not_present') == {}
+

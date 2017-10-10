@@ -8,7 +8,7 @@ from collections import Counter
 def dict_subset(d, fields):
     # return a subset of the provided dict containing only the
     # fields specified in fields
-    return {k: v for k, v in d.iteritems() if k in fields}
+    return {k: v for k, v in d.iteritems() if k in fields and v is not None}
 
 
 class MessageFieldCounter:
@@ -90,14 +90,22 @@ class MessageStats():
         return self.df
 
     def numeric_stats(self, field):
+        def first(col):
+            idx = col.first_valid_index()
+            return col[idx] if idx is not None else None
+
+        def last(col):
+            idx = col.last_valid_index()
+            return col[idx] if idx is not None else None
+
         assert field in self.numeric_fields
         if field in self.df:
             col = self.df[field]
             return dict(
                 min=np.nanmin(col),
                 max=np.nanmax(col),
-                first=col[col.first_valid_index()],
-                last=col[col.last_valid_index()],
+                first=first(col),
+                last=last(col),
                 count=np.count_nonzero(~np.isnan(col)),
             )
         else:
