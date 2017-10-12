@@ -7,18 +7,22 @@ source ${THIS_SCRIPT_DIR}/setup.cfg
 
 
 # A script for system testing.   Not guaranteed to work!!!
+JOB_NAME=test_2017_10_11b
 
 #docker-compose run pipeline \
 #  --messages_source @examples/test.sql \
 #  --messages_schema @examples/test-schema.json \
-#  --messages_sink ./output/messages \
-#  --segments_sink ./output/segments \
+#  --messages_sink bq://world-fishing-827:scratch_paul.${JOB_NAME}_messages \
+#  --segments_sink bq://world-fishing-827:scratch_paul.${JOB_NAME}_segments \
 #  --segmenter_params @examples/segmenter-params.json \
 #  local \
 #  --project world-fishing-827 \
 
 
-JOB_NAME=test_2017_10_09a
+#  --messages_sink ./output/messages \
+#  --segments_sink ./output/segments \
+
+
 
 docker-compose run pipeline \
   --messages_source @examples/test.sql \

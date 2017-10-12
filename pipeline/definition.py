@@ -12,10 +12,10 @@ from apache_beam.transforms import window
 
 from pipeline.transforms.source import BigQuerySource
 from pipeline.transforms.segment import Segment
+from pipeline.transforms.sink import WriteToDatePartitionedBigQuery
 from pipeline.transforms.sink import Sink
 from pipeline.coders import AddTimestampDoFn
-from pipeline.coders import Timestamp2DatetimeDoFn
-from pipeline.coders import Datetime2TimestampDoFn
+from pipeline.coders import timestamp2datetime
 from pipeline.schemas import segment as segment_schema
 from pipeline.schemas import output as output_schema
 from pipeline.schemas import input as input_schema
@@ -26,19 +26,6 @@ from coders import JSONCoder
 class PipelineDefinition():
     def __init__(self, options):
         self.options = options
-
-    def _messages_sink(self, option_value):
-        if self.options.local:
-            sink = io.WriteToText(
-                file_path_prefix=self.options.sink,
-                coder=JSONCoder()
-            )
-        elif self.options.remote:
-            sink = Sink(
-                table=self.options.sink,
-                write_disposition=self.options.sink_write_disposition,
-            )
-        return sink
 
     def _parse_source_sink(self, path):
         scheme = io.filesystems.FileSystems.get_scheme(path)
@@ -72,7 +59,27 @@ class PipelineDefinition():
                 coder=JSONCoder()
             )
 
-    def _sink(self, path, schema):
+    def _messages_sink(self, path, schema):
+        def _partition_fn(msg):
+            return timestamp2datetime(msg['timestamp']).strftime('%Y%m%d')
+
+        scheme, path = self._parse_source_sink(path)
+        if scheme == 'bq':
+            return WriteToDatePartitionedBigQuery(
+                table=path,
+                write_disposition=self.options.sink_write_disposition,
+                schema=schema,
+                partition_fn=_partition_fn
+            )
+        elif scheme == 'query':
+            raise RuntimeError("Cannot use a query as a sink")
+        else:
+            return io.WriteToText(
+                file_path_prefix=path,
+                coder=JSONCoder()
+            )
+
+    def _segments_sink(self, path, schema):
         scheme, path = self._parse_source_sink(path)
         if scheme == 'bq':
             return Sink(
@@ -120,12 +127,12 @@ class PipelineDefinition():
         segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
         (
             messages
-            | "WriteMessages" >> self._sink(path=self.options.messages_sink,
+            | "WriteMessages" >> self._messages_sink(path=self.options.messages_sink,
                                                   schema=self._output_message_schema())
         )
         (
             segments
-            | "WriteSegments" >> self._sink(path=self.options.segments_sink,
+            | "WriteSegments" >> self._segments_sink(path=self.options.segments_sink,
                                                   schema=segment_schema.build())
         )
         return pipeline
