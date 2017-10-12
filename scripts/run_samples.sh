@@ -15,7 +15,7 @@ do
     echo "Processing $FILE_BASE file..."
 
     JOB_NAME=job-${FILE_BASE//_/-}-a
-    SINK_TABLE=v0_9d_${FILE_BASE//-/_}
+    SINK_TABLE=v0_9e_${FILE_BASE//-/_}
 
     docker-compose run pipeline \
       --messages_source @examples/1-month.sql  \

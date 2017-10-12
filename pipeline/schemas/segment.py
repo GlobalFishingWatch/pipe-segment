@@ -3,14 +3,15 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from pipeline.transforms.segment import Segment
 
 
+DEFAULT_FIELD_TYPE = 'STRING'
 FIELD_TYPES = {
     'timestamp': 'TIMESTAMP',
     'lat': 'FLOAT',
     'lon': 'FLOAT',
+    'imo': 'INTEGER',
 }
 
 STAT_TYPES = {
-    'most_common': 'STRING',
     'most_common_count': 'INTEGER',
     'count': 'INTEGER'
 }
@@ -41,7 +42,7 @@ def build(stats_fields=Segment.DEFAULT_STATS_FIELDS):
         for stat_name in stats:
             field = bigquery.TableFieldSchema()
             field.name = Segment.stat_output_field_name(field_name, stat_name)
-            field.type = STAT_TYPES.get(stat_name) or FIELD_TYPES.get(field_name, 'STRING')
+            field.type = STAT_TYPES.get(stat_name) or FIELD_TYPES.get(field_name, DEFAULT_FIELD_TYPE)
             field.mode="NULLABLE"
             schema.fields.append(field)
 

@@ -119,8 +119,8 @@ class PipelineDefinition():
 
         segmented = (
             messages
-            | Map(lambda row: (row['mmsi'], row))
-            | "GroupByMMSI" >> GroupByKey('mmsi')
+            | "Add MMSI Key" >> Map(lambda row: (row['mmsi'], row))
+            | "Group By MMSI Key" >> GroupByKey('mmsi')
             | "Segment" >> Segment(self._segmeter_params())
         )
         messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
