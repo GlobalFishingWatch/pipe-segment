@@ -17,7 +17,7 @@ install:
 
 script:
 - docker-compose --version
-- docker-compose run py.test tests --cov pipeline --cov-report term-missing
+- docker-compose run py.test tests
 
 notifications:
   slack:
