@@ -47,12 +47,13 @@ class WriteToDatePartitionedBigQuery(PTransform):
     'YYYYMMDD'
     """
     def __init__(self, table, schema, partition_fn,
-                 write_disposition=None):
+                 write_disposition=None, intra_day_shards=None):
         self.table = table
         self.write_disposition = write_disposition
         self.partition_fn = partition_fn
         # store schema as dict so that it will be serializeable
         self.table_schema_dict = io.gcp.bigquery.WriteToBigQuery.table_schema_to_dict(parse_table_schema(schema))
+        self.intra_day_shards = intra_day_shards or 1
 
     @property
     def table_schema(self):

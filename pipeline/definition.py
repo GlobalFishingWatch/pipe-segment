@@ -109,6 +109,12 @@ class PipelineDefinition():
     def _output_message_schema(self):
         return output_schema.build(self._input_message_schema())
 
+    @staticmethod
+    def groupby_fn(msg):
+        dt = timestamp2datetime(msg['timestamp']).date()
+        key = '%s-%s-%s' % (dt.year, dt.month, msg['mmsi'])
+        return (key, msg)
+
     def build(self, pipeline):
         messages = pipeline | "ReadFromSource" >> self._source(self.options.messages_source,
                                                                schema=self._input_message_schema())
@@ -119,7 +125,7 @@ class PipelineDefinition():
 
         segmented = (
             messages
-            | "Add MMSI Key" >> Map(lambda row: (row['mmsi'], row))
+            | "Add Groupby Key" >> Map(self.groupby_fn)
             | "Group By MMSI Key" >> GroupByKey('mmsi')
             | "Segment" >> Segment(self._segmeter_params())
         )
