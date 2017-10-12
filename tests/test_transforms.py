@@ -10,10 +10,12 @@ from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
 
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import BeamAssertException
 
 from pipeline.transforms.identity import Identity
 from pipeline.transforms.segment import Segment
 from pipeline.coders import timestamp2datetime
+from pipeline.coders import datetime2timestamp
 from pipeline.coders import Timestamp2DatetimeDoFn
 
 from gpsdio.schema import datetime2str
@@ -23,13 +25,15 @@ from gpsdio.schema import datetime2str
 @pytest.mark.filterwarnings('ignore:Using fallback coder:UserWarning')
 @pytest.mark.filterwarnings('ignore:The compiler package is deprecated and removed in Python 3.x.:DeprecationWarning')
 class TestTransforms(unittest.TestCase):
+    t = datetime2timestamp(datetime(2017,1,1,0,0,0))
+
     SAMPLE_DATA = [
-        (1, [{'mmsi': 1, 'timestamp': datetime(2017,1,1,0,0,0)}]),
-        (1, [{'mmsi': 1, 'timestamp': datetime(2017,1,1,0,0,1)}]),
-        (1, [{'mmsi': 1, 'timestamp': datetime(2017,1,1,0,0,2)}]),
-        (2, [{'mmsi': 2, 'timestamp': datetime(2017,1,1,0,0,0)}]),
-        (2, [{'mmsi': 2, 'timestamp': datetime(2017,1,1,0,0,1)}]),
-        (3, [{'mmsi': 3, 'timestamp': datetime(2017,1,1,0,0,0)}]),
+        (1, [{'mmsi': 1, 'timestamp': t + 0}]),
+        (1, [{'mmsi': 1, 'timestamp': t + 1}]),
+        (1, [{'mmsi': 1, 'timestamp': t + 2}]),
+        (2, [{'mmsi': 2, 'timestamp': t + 0}]),
+        (2, [{'mmsi': 2, 'timestamp': t + 1}]),
+        (3, [{'mmsi': 3, 'timestamp': t + 0}]),
     ]
 
     def test_Identity(self):
@@ -43,18 +47,38 @@ class TestTransforms(unittest.TestCase):
 
     def test_Segment(self):
         def _seg_id_from_message(msg):
-            return '{}-{}'.format(msg['mmsi'], datetime2str(msg['timestamp']))
+            ts = msg['timestamp']
+            if not isinstance(ts, datetime):
+                ts = timestamp2datetime(ts)
+            return '{}-{}'.format(msg['mmsi'], datetime2str(ts))
 
-        def _add_seg_id (row):
-            row[1][0]['seg_id'] = _seg_id_from_message(row[1][0])
+        def _expected (row):
+            row = row[1][0]      # strip off the mmsi key
+            row['seg_id'] = _seg_id_from_message(row)   # add seg_id
             return row
 
-        expected = map(_add_seg_id, deepcopy(self.SAMPLE_DATA))
+        def valid_segment():
+            def _is_valid(segments):
+                for seg in segments:
+                    assert seg['seg_id'].startswith(str(seg['mmsi']))
+                    assert seg['message_count'] == 1
+                    assert seg['timestamp_count'] == 1
+                return True
+
+            return _is_valid
+
+        expected_messages = map(_expected, deepcopy(self.SAMPLE_DATA))
 
         with _TestPipeline() as p:
-            result = (
+            segmented = (
                 p
                 | beam.Create(self.SAMPLE_DATA)
-                | Segment())
+                | "Segment" >> Segment())
 
-            assert_that(result, equal_to(expected))
+            messages = segmented['messages']
+            assert_that(messages, equal_to(expected_messages))
+
+            segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
+            assert_that(segments, valid_segment(), label='expected_segments')
+
+

@@ -25,57 +25,86 @@ from pipeline.coders import Datetime2TimestampDoFn
 @pytest.mark.filterwarnings('ignore:open_shards is experimental.:FutureWarning')
 class TestPipeline():
 
-    def _run_pipeline (self, source, sink, expected, args=[]):
+    def _run_pipeline (self, source, messages_sink, segments_sink, expected, args=[]):
         args += [
+            '--messages_source=%s' % source,
+            '--messages_schema={"fields": []}',
+            '--messages_sink=%s' % messages_sink,
+            '--segments_sink=%s' % segments_sink,
             'local',
-            '--sourcefile=%s' % source,
-            '--sink=%s' % sink
         ]
 
         pipeline.__main__.run(args, force_wait=True)
 
         with nlj.open(expected) as expected:
-            with open_shards('%s*' % sink) as output:
+            with open_shards('%s*' % messages_sink) as output:
                 assert sorted(expected) == sorted(nlj.load(output))
 
     def test_Pipeline_basic_args(self, test_data_dir, temp_dir):
         source = pp.join(test_data_dir, 'input.json')
-        sink = pp.join(temp_dir, 'output')
-        expected = pp.join(test_data_dir, 'expected.json')
+        messages_sink = pp.join(temp_dir, 'messages')
+        segments_sink = pp.join(temp_dir, 'segments')
+        expected = pp.join(test_data_dir, 'expected_messages.json')
 
-        self._run_pipeline(source, sink, expected)
+        self._run_pipeline(source, messages_sink, segments_sink, expected)
 
     def test_Pipeline_window(self, test_data_dir, temp_dir):
         source = pp.join(test_data_dir, 'input.json')
-        sink = pp.join(temp_dir, 'output')
+        messages_sink = pp.join(temp_dir, 'messages')
+        segments_sink = pp.join(temp_dir, 'segments')
         expected = pp.join(test_data_dir, 'expected-window-1.json')
         args = [ '--window_size=1' ]
-        self._run_pipeline(source, sink, expected, args)
+        self._run_pipeline(source, messages_sink, segments_sink, expected, args)
+
+    def test_Pipeline_segmenter_params(self, test_data_dir, temp_dir):
+        source = pp.join(test_data_dir, 'input.json')
+        messages_sink = pp.join(temp_dir, 'messages')
+        segments_sink = pp.join(temp_dir, 'segments')
+        expected = pp.join(test_data_dir, 'expected_messages.json')
+        segmenter_params = pp.join(test_data_dir, 'segmenter_params.json')
+        args = [ '--segmenter_params=@%s' % segmenter_params]
+        self._run_pipeline(source, messages_sink, segments_sink, expected, args)
 
     def test_Pipeline_parts(self, test_data_dir, temp_dir):
         source = pp.join(test_data_dir, 'input.json')
-        sink = pp.join(temp_dir, 'output')
-        expected = pp.join(test_data_dir, 'expected.json')
+        messages_sink = pp.join(temp_dir, 'messages')
+        segments_sink = pp.join(temp_dir, 'segments')
+        expected_messages = pp.join(test_data_dir, 'expected_messages.json')
+        expected_segments = pp.join(test_data_dir, 'expected_segments.json')
 
         with _TestPipeline() as p:
-            result = (
+            segmented = (
                 p
                 | beam.io.ReadFromText(file_pattern=source, coder=JSONCoder())
-                | "timestamp2datetime" >> beam.ParDo(Timestamp2DatetimeDoFn())
                 | "ExtractMMSI" >> Map(lambda row: (row['mmsi'], row))
                 | "GroupByMMSI" >> GroupByKey('mmsi')
                 | Segment()
-                | "Flatten" >> FlatMap(lambda(k,v): v)
-                | "datetime2timestamp" >> beam.ParDo(Datetime2TimestampDoFn())
-                | "WriteToSink" >> beam.io.WriteToText(
-                    file_path_prefix=sink,
+            )
+
+            messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
+            (messages
+                | "WriteToMessagesSink" >> beam.io.WriteToText(
+                    file_path_prefix=messages_sink,
+                    num_shards=1,
+                    coder=JSONCoder()
+                )
+            )
+
+            segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
+            (segments
+                | "WriteToSegmentsSink" >> beam.io.WriteToText(
+                    file_path_prefix=segments_sink,
                     num_shards=1,
                     coder=JSONCoder()
                 )
             )
 
             p.run()
-            with nlj.open(expected) as expected:
-                with open_shards('%s*' % sink) as output:
+            with nlj.open(expected_messages) as expected:
+                with open_shards('%s*' % messages_sink) as output:
                     assert sorted(expected) == sorted(nlj.load(output))
 
+            with nlj.open(expected_segments) as expected_output:
+                with open_shards('%s*' % segments_sink) as actual_output:
+                    for expected, actual in zip(sorted(expected_output), sorted(nlj.load(actual_output))):
+                        assert set(expected.items()).issubset(set(actual.items()))

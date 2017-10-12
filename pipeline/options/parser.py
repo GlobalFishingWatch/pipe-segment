@@ -22,7 +22,7 @@ def setup_local_command(commands):
     local_command = commands.add_parser(
         'local',
         help='Run the pipelines locally',
-        description='Run a local pipeline which outputs results to local json files.',
+        description='Run on the local machine.',
     )
     local_command.set_defaults(local=True, remote=False)
     local.setup(local_command)
