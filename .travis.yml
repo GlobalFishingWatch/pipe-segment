@@ -1,14 +1,24 @@
 language: python
-sudo: false
+
+sudo: required
+
+services:
+  - docker
+
 cache:
   directories:
   - ~/.cache/pip
+
 python:
 - 2.7
+
 install:
-- ./scripts/setup.sh
+- docker-compose build
+
 script:
-- py.test tests --cov pipeline --cov-report term-missing
+- docker-compose --version
+- docker-compose run py.test tests --cov pipeline --cov-report term-missing
+
 notifications:
   slack:
     rooms:
