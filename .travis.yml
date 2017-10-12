@@ -1,0 +1,16 @@
+language: python
+sudo: false
+
+cache:
+  directories:
+    - ~/.cache/pip
+
+python:
+  - 2.7
+
+install:
+  - ./scripts/setup.sh
+
+script:
+  - py.test tests --cov pipeline --cov-report term-missing
+
