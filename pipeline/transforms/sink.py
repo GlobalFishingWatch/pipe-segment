@@ -124,25 +124,10 @@ def parse_table_schema(schema):
 
 
 
-# Supply a partition function, use that to extract dates from the data
-#
-# Provide a transform class that uses the partition function to do a group by key and then
-# invokes the Partitioned Sink
-#
-# sink.initialize_write should create a temporary BQ dataset
-#
-# sink.open writer writes to one temporary table per date
-#  in the temporary data set and returns the list of temporary tables
-#  The date is encoded in the temp table name
-#
-# sink.finalize_write uses the BQ wrapper to create the final table and runs a union
-# query to combine all the temp tables with the same date into each date partition in the
-# output table
-
 from apitools.base.protorpclite import messages as _messages
 
 # Time partitioning is not supported in the V2 api that is included in apache beam
-# TODO: figure out how to write time partitioned tables
+# TODO: figure out how to write time partitioned tables see #19
 # TODO: Also look at using JobConfigurationTableCopy instead of a sql query to combine the temp tables
 class TimePartitioning(_messages.Message):
     type = _messages.StringField(1)
@@ -189,10 +174,6 @@ class ShardedBigQuerySink(io.iobase.Sink):
         self.create_disposition = create_disposition
 
         self.project_id = project or self.table_reference.projectId
-
-        # # TODO: Parse out table_reference
-        # self.project_id = 'world-fishing-827'
-        # self.dataset_id = 'scratch_paul'
 
         # store schema as dict so that it will be serializeable
         self.table_schema_dict = io.gcp.bigquery.WriteToBigQuery.table_schema_to_dict(parse_table_schema(schema))
@@ -306,117 +287,3 @@ class ShardedBigQueryWriter(io.iobase.Writer):
                                    (self.project_id, self.dataset_id,
                                     table_id, errors))
 
-
-#
-# def encode_datetime(value):
-#     return value.strftime('%Y-%m-%d %H:%M:%S.%f UTC')
-#
-# def encode_date(value):
-#     return value.strftime('%Y%m%d')
-#
-#
-# class TestPartitionSink(beam.PTransform):
-#     def __init__(self, table, write_disposition):
-#         self.table = table
-#         self.write_disposition = write_disposition
-#
-#     def encode(self, item):
-#         key, values = item
-#         return key, [{
-#             'mmsi' : msg['mmsi'],
-#             'timestamp': encode_datetime(msg['timestamp']),
-#             } for msg in values]
-#
-#     spec = {
-#             "mmsi": "integer",
-#             "timestamp": "timestamp",
-#             # "_PARTITIONTIME": "timestamp" # This needed to be present to write to partioned table
-#         }
-#
-#     def expand(self, xs):
-#         return (xs
-#             | beam.Map(self.encode)
-#             | io.Write(PartitionedBQSink(
-#                 table=self.table,
-#                 write_disposition=self.write_disposition,
-#                 spec=self.spec
-#                 ))
-#         )
-#
-# # Rudimentary test harness...
-#
-# import argparse
-# from apache_beam import io
-#
-#
-# def add_pipeline_defaults(pipeline_args, name):
-#
-#     defaults = {
-#         '--project' : 'world-fishing-827',
-#         '--staging_location' : 'gs://machine-learning-dev-ttl-30d/anchorages/{}/output/staging'.format(name),
-#         '--temp_location' : 'gs://machine-learning-dev-ttl-30d/anchorages/temp',
-#         '--setup_file' : './setup.py',
-#         '--runner': 'DataflowRunner',
-#         '--max_num_workers' : '200',
-#         '--job_name': name,
-#     }
-#
-#     for name, value in defaults.items():
-#         if name not in pipeline_args:
-#             pipeline_args.extend((name, value))
-#
-#
-# def parse_command_line_args():
-#     parser = argparse.ArgumentParser()
-#
-#     parser.add_argument('--name', required=True,
-#                         help='Name to prefix output and job name if not otherwise specified')
-#
-#     known_args, pipeline_args = parser.parse_known_args()
-#
-#     add_pipeline_defaults(pipeline_args, known_args.name)
-#
-#     pipeline_options = PipelineOptions(pipeline_args)
-#     pipeline_options.view_as(SetupOptions).save_main_session = True
-#
-#     return known_args, pipeline_options
-#
-#
-#
-# query = """
-#     SELECT mmsi, timestamp FROM
-#       TABLE_DATE_RANGE([world-fishing-827:pipeline_classify_p_p429_resampling_2.],
-#                         TIMESTAMP('2016-02-01'), TIMESTAMP('2016-02-28'))
-#     WHERE mmsi in (211534710, 227099050, 226002780, 235001620)
-#     LIMIT 100000
-#     """
-#
-# def reencode_timestamp(msg):
-#     msg['timestamp'] = datetime.datetime.strptime(msg['timestamp'], '%Y-%m-%d %H:%M:%S.%f %Z')
-#     return msg
-#
-# def run():
-#     known_args, pipeline_options = parse_command_line_args()
-#
-#
-#     p = beam.Pipeline(options=pipeline_options)
-#
-#     (p
-#         | io.Read(io.gcp.bigquery.BigQuerySource(query=query))
-#         | beam.Map(lambda x: reencode_timestamp(x))
-#         | beam.Map(lambda x: (encode_date(x['timestamp']), x))
-#         | beam.GroupByKey()
-#         | TestPartitionSink(table='machine_learning_dev_ttl_30d.test_partition_2',
-#                            write_disposition="WRITE_APPEND")
-#         )
-#
-#     result = p.run()
-#     result.wait_until_finish()
-#
-# if __name__ == "__main__":
-#     logging.getLogger().setLevel(logging.DEBUG)
-#     run()
-#
-#
-#
-#
