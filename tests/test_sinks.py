@@ -41,7 +41,7 @@ class TestBigQuerySink():
             )
             (
                 messages
-                | sink.WriteToDatePartitionedBigQuery(table='shard_test_a',
+                | sink.WriteToDatePartitionedBigQuery(table='world-fishing-827:scratch_paul.shard_test_a',
                                                       schema=self.SCHEMA,
                                                       partition_fn=_partition_fn)
                 # | beam.Map(lambda row: (_partition_fn(row), row))

@@ -1,3 +1,4 @@
+import six
 import json
 import uuid
 import logging
@@ -43,8 +44,8 @@ class WriteToDatePartitionedBigQuery(PTransform):
     """
     A transform that will write to a date-partitioned bigquery table
     The date partition is determined per element by calling partition_fn()
-    with each element.   partition_fn() should return a string formatted date
-    'YYYYMMDD'
+    with each element.   partition_fn() should return a string that ends with a
+    formatted date 'YYYYMMDD'.
     """
     def __init__(self, table, schema, partition_fn,
                  write_disposition=None, intra_day_shards=None):
@@ -68,9 +69,9 @@ class WriteToDatePartitionedBigQuery(PTransform):
 
         return (
             pcoll
-            | beam.Map(lambda row: (self.partition_fn(row), row))
-            | "GroupByPartition" >> beam.GroupByKey('partition')
-            | io.Write(bq_sink)
+            | "Add Partition" >> beam.Map(lambda row: (self.partition_fn(row), row))
+            # | "Group By Partition" >> beam.GroupByKey('partition')
+            | "Write to Date Sharded BQ" >> io.Write(bq_sink)
         )
 
 
@@ -200,17 +201,18 @@ class ShardedBigQuerySink(io.iobase.Sink):
         return ShardedBigQueryWriter(self, dataset=temp_dataset, table_prefix=table_prefix)
 
     def finalize_write(self, temp_dataset, writer_results):
+        def _combine_writer_results(r1, r2):
+            # combine two results returned by ShardedBigQueryWriter.close()
+            for k, v in six.iteritems(r2):
+                r1[k].update(v)
+                return r1
+
         # bundle up temporary tables in writer_results and insert them into
         # the target table in the appropriate date partitions
         client = BigQueryWrapper()
-        tables_by_partition = defaultdict(list)
-        for result in writer_results:
-            for table_id in result:
-                # table_id ends with _YYYYMMDD
-                partition = table_id[-8:]
-                tables_by_partition[partition].append(table_id)
+        tables_by_partition = reduce(_combine_writer_results, writer_results, defaultdict(set))
         job_ids = set()
-        for partition, tables in tables_by_partition.items():
+        for partition, tables in six.iteritems(tables_by_partition):
             query = self._get_combine_tables_sql(temp_dataset, tables)
             table_ref = io.gcp.bigquery._parse_table_reference(
                 table = "{}_{}".format(self.table_reference.tableId, partition),
@@ -246,7 +248,7 @@ class ShardedBigQueryWriter(io.iobase.Writer):
 
     def __init__(self, sink, dataset=None, table_prefix=None, buffer_size=None):
         self.sink = sink
-        self.rows_buffer_flush_threshold = buffer_size or 100
+        self.rows_buffer_flush_threshold = buffer_size or 1000
         self.rows_buffer = defaultdict(list)
 
         self.project_id = self.sink.project_id
@@ -254,33 +256,35 @@ class ShardedBigQueryWriter(io.iobase.Writer):
         self.table_prefix = table_prefix or self.sink.table
 
         self.client = io.gcp.bigquery.BigQueryWrapper()
-        self.tables_written = set()
+        self.tables_written = defaultdict(set)
 
     def write(self, item):
-        shard_key, values = item
-        self.rows_buffer[shard_key].extend(values)
-        self._flush_rows_buffer(force=False)
+        partition, value = item
+        assert isinstance(value, dict)
+        self.rows_buffer[partition].append(value)
+        if len(self.rows_buffer[partition]) > self.rows_buffer_flush_threshold:
+            self._flush_rows_buffer(force=False)
 
     def close(self):
         self._flush_rows_buffer(force=True)
         result = self.tables_written
-        self.tables_written = set()
+        self.tables_written = defaultdict(set)
         return result
 
     def _flush_rows_buffer(self, force):
-        for shard_key, values in self.rows_buffer.items():
+        for partition, values in self.rows_buffer.items():
             if force or len(values) > self.rows_buffer_flush_threshold:
-                table_id = '{}_{}'.format(self.table_prefix, shard_key)
-                self.client.get_or_create_table(
-                    self.project_id, self.dataset_id, table_id, self.sink.table_schema,
-                    self.sink.create_disposition, self.sink.write_disposition)
-                for v in values:
-                    assert isinstance(v, dict)
+                table_id = '{}_{}'.format(self.table_prefix, partition)
+                if not table_id in self.tables_written[partition]:
+                    self.client.get_or_create_table(
+                        self.project_id, self.dataset_id, table_id, self.sink.table_schema,
+                        create_disposition=io.gcp.bigquery.BigQueryDisposition.CREATE_IF_NEEDED,
+                        write_disposition=io.gcp.bigquery.BigQueryDisposition.WRITE_EMPTY)
                 passed, errors = self.client.insert_rows(
                   project_id=self.project_id, dataset_id=self.dataset_id,
                   table_id=table_id, rows=values)
-                self.tables_written.add(table_id)
-                del self.rows_buffer[shard_key]
+                self.tables_written[partition].add(table_id)
+                del self.rows_buffer[partition]
                 if not passed:
                     raise RuntimeError('Could not successfully insert rows to BigQuery'
                                    ' table [%s:%s.%s]. Errors: %s'%
