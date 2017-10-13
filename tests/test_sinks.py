@@ -28,7 +28,7 @@ class TestBigQuerySink():
             yield {'mmsi': 1, 'timestamp': ts}
             ts += increment
 
-    @pytest.mark.skip(reason="this runs against bigquery.  For debugging only for now.")
+    @pytest.mark.slow
     def test_partitioned(self):
         def _partition_fn(msg):
             return timestamp2datetime(msg['timestamp']).strftime('%Y%m%d')

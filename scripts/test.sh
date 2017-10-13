@@ -7,7 +7,7 @@ source ${THIS_SCRIPT_DIR}/setup.cfg
 
 
 # A script for system testing.   Not guaranteed to work!!!
-JOB_NAME=test_pipe_segment_2017_10_12d
+JOB_NAME=test_pipe_segment_2017_10_13c
 
 #docker-compose run pipeline \
 #  --messages_source @examples/test.sql \

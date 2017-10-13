@@ -3,6 +3,7 @@ import json
 import uuid
 import logging
 import time
+from datetime import datetime
 from collections import defaultdict
 
 import apache_beam as beam
@@ -240,8 +241,8 @@ class ShardedBigQuerySink(io.iobase.Sink):
                     logging.info('Waiting on response from job: %s ...', job_id)
                 time.sleep(1.0)
 
-        # Delete the temporary dataset
-        client._delete_dataset(self.project_id, temp_dataset, True)
+        # TODO: Delete the temporary dataset
+        # client._delete_dataset(self.project_id, temp_dataset, True)
 
 
 class ShardedBigQueryWriter(io.iobase.Writer):
@@ -280,14 +281,19 @@ class ShardedBigQueryWriter(io.iobase.Writer):
                         self.project_id, self.dataset_id, table_id, self.sink.table_schema,
                         create_disposition=io.gcp.bigquery.BigQueryDisposition.CREATE_IF_NEEDED,
                         write_disposition=io.gcp.bigquery.BigQueryDisposition.WRITE_EMPTY)
+
+                start_ts = datetime.now()
                 passed, errors = self.client.insert_rows(
                   project_id=self.project_id, dataset_id=self.dataset_id,
                   table_id=table_id, rows=values)
-                self.tables_written[partition].add(table_id)
-                del self.rows_buffer[partition]
+                logging.info('%s s completed insert %s records into %s', datetime.utcnow()-start_ts, len(values), table_id)
+
                 if not passed:
                     raise RuntimeError('Could not successfully insert rows to BigQuery'
                                    ' table [%s:%s.%s]. Errors: %s'%
                                    (self.project_id, self.dataset_id,
                                     table_id, errors))
+
+                self.tables_written[partition].add(table_id)
+                del self.rows_buffer[partition]
 
