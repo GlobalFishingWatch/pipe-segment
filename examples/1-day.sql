@@ -20,5 +20,5 @@ SELECT
 FROM
   [world-fishing-827:pipeline_measures_p_p516_daily.20170923] messages
 
-where mmsi >= 200000000 and mmsi < 210000000
+
 

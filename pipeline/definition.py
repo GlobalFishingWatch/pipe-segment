@@ -37,6 +37,9 @@ class PipelineDefinition():
             # path is a reference to a big query table
             # strip off the scheme and just return the table id in path
             path = path[5:]
+        elif scheme == 'gs':
+            # path is a Google Cloud Storage reference
+            scheme = 'file'
         elif scheme is None:
             # could be a local file or a sql query
             if path[0] in ('.', '/'):

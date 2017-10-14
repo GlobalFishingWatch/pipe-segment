@@ -202,16 +202,20 @@ class ShardedBigQuerySink(io.iobase.Sink):
         return ShardedBigQueryWriter(self, dataset=temp_dataset, table_prefix=table_prefix)
 
     def finalize_write(self, temp_dataset, writer_results):
-        def _combine_writer_results(r1, r2):
-            # combine two results returned by ShardedBigQueryWriter.close()
-            for k, v in six.iteritems(r2):
-                r1[k].update(v)
-                return r1
+        # def _combine_writer_results(r1, r2):
+        #     # combine two results returned by ShardedBigQueryWriter.close()
+        #     for k, v in six.iteritems(r2):
+        #         r1[k].update(v)
+        #         return r1
 
         # bundle up temporary tables in writer_results and insert them into
         # the target table in the appropriate date partitions
         client = BigQueryWrapper()
-        tables_by_partition = reduce(_combine_writer_results, writer_results, defaultdict(set))
+        tables_by_partition = defaultdict(set)
+        for result in writer_results:
+            for k,v in six.iteritems(result):
+                tables_by_partition[k].update(v)
+
         job_ids = set()
         for partition, tables in six.iteritems(tables_by_partition):
             query = self._get_combine_tables_sql(temp_dataset, tables)
