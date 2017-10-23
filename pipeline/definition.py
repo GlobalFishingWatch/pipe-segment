@@ -10,6 +10,8 @@ from apache_beam import FlatMap
 from apache_beam import WindowInto
 from apache_beam.transforms import window
 
+from pipe_tools.io import WriteToBigQueryDatePartitioned
+
 from pipeline.transforms.source import BigQuerySource
 from pipeline.transforms.segment import Segment
 from pipeline.transforms.sink import WriteToDatePartitionedBigQuery
@@ -68,12 +70,17 @@ class PipelineDefinition():
 
         scheme, path = self._parse_source_sink(path)
         if scheme == 'bq':
-            return WriteToDatePartitionedBigQuery(
-                table=path,
-                write_disposition=self.options.sink_write_disposition,
-                schema=schema,
-                partition_fn=_partition_fn
+            return WriteToBigQueryDatePartitioned(
+                temp_gcs_location='gs://paul-scratch/dataflow-temp/',
+                table=path, schema=schema,
+                write_disposition=self.options.sink_write_disposition
             )
+            # return WriteToDatePartitionedBigQuery(
+            #     table=path,
+            #     write_disposition=self.options.sink_write_disposition,
+            #     schema=schema,
+            #     partition_fn=_partition_fn
+            # )
         elif scheme == 'query':
             raise RuntimeError("Cannot use a query as a sink")
         else:

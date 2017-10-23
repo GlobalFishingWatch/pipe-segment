@@ -10,6 +10,8 @@ from gpsdio_segment.core import Segmentizer
 from gpsdio_segment.core import BadSegment
 from gpsdio_segment.core import SegmentState
 
+from pipe_tools.coders import JSONDict
+
 from pipeline.coders import timestamp2datetime
 from pipeline.coders import datetime2timestamp
 from pipeline.coders import Datetime2TimestampDoFn
@@ -47,7 +49,7 @@ class Segment(PTransform):
 
     @staticmethod
     def _convert_messages_out(msg, seg_id):
-        msg = dict(msg)
+        msg = JSONDict(msg)
         msg['timestamp'] = datetime2timestamp(msg['timestamp'])
         msg['seg_id'] = seg_id
         return msg

@@ -10,7 +10,9 @@ source ${THIS_SCRIPT_DIR}/setup.cfg
 # with the extra_packages flag in parser.py
 
 curl -sS $SEGMENTER_REMOTE_PACKAGE -o $SEGMENTER_LOCAL_PACKAGE
+curl -sS $PIPE_TOOLS_REMOTE_PACKAGE -o $PIPE_TOOLS_LOCAL_PACKAGE
 
 pip install -e .
 pip install $SEGMENTER_LOCAL_PACKAGE
+pip install $PIPE_TOOLS_LOCAL_PACKAGE
 
