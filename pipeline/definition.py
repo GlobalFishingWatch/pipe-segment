@@ -10,12 +10,14 @@ from apache_beam import FlatMap
 from apache_beam import WindowInto
 from apache_beam.transforms import window
 
+from pipe_tools.io import WriteToBigQueryDatePartitioned
+
 from pipeline.transforms.source import BigQuerySource
 from pipeline.transforms.segment import Segment
+from pipeline.transforms.sink import WriteToDatePartitionedBigQuery
 from pipeline.transforms.sink import Sink
 from pipeline.coders import AddTimestampDoFn
-from pipeline.coders import Timestamp2DatetimeDoFn
-from pipeline.coders import Datetime2TimestampDoFn
+from pipeline.coders import timestamp2datetime
 from pipeline.schemas import segment as segment_schema
 from pipeline.schemas import output as output_schema
 from pipeline.schemas import input as input_schema
@@ -27,19 +29,6 @@ class PipelineDefinition():
     def __init__(self, options):
         self.options = options
 
-    def _messages_sink(self, option_value):
-        if self.options.local:
-            sink = io.WriteToText(
-                file_path_prefix=self.options.sink,
-                coder=JSONCoder()
-            )
-        elif self.options.remote:
-            sink = Sink(
-                table=self.options.sink,
-                write_disposition=self.options.sink_write_disposition,
-            )
-        return sink
-
     def _parse_source_sink(self, path):
         scheme = io.filesystems.FileSystems.get_scheme(path)
         if scheme == 'query':
@@ -50,6 +39,9 @@ class PipelineDefinition():
             # path is a reference to a big query table
             # strip off the scheme and just return the table id in path
             path = path[5:]
+        elif scheme == 'gs':
+            # path is a Google Cloud Storage reference
+            scheme = 'file'
         elif scheme is None:
             # could be a local file or a sql query
             if path[0] in ('.', '/'):
@@ -72,7 +64,32 @@ class PipelineDefinition():
                 coder=JSONCoder()
             )
 
-    def _sink(self, path, schema):
+    def _messages_sink(self, path, schema):
+        def _partition_fn(msg):
+            return timestamp2datetime(msg['timestamp']).strftime('%Y%m%d')
+
+        scheme, path = self._parse_source_sink(path)
+        if scheme == 'bq':
+            return WriteToBigQueryDatePartitioned(
+                temp_gcs_location='gs://paul-scratch/dataflow-temp/',
+                table=path, schema=schema,
+                write_disposition=self.options.sink_write_disposition
+            )
+            # return WriteToDatePartitionedBigQuery(
+            #     table=path,
+            #     write_disposition=self.options.sink_write_disposition,
+            #     schema=schema,
+            #     partition_fn=_partition_fn
+            # )
+        elif scheme == 'query':
+            raise RuntimeError("Cannot use a query as a sink")
+        else:
+            return io.WriteToText(
+                file_path_prefix=path,
+                coder=JSONCoder()
+            )
+
+    def _segments_sink(self, path, schema):
         scheme, path = self._parse_source_sink(path)
         if scheme == 'bq':
             return Sink(
@@ -102,6 +119,12 @@ class PipelineDefinition():
     def _output_message_schema(self):
         return output_schema.build(self._input_message_schema())
 
+    @staticmethod
+    def groupby_fn(msg):
+        dt = timestamp2datetime(msg['timestamp']).date()
+        key = '%s-%s-%s' % (dt.year, dt.month, msg['mmsi'])
+        return (key, msg)
+
     def build(self, pipeline):
         messages = pipeline | "ReadFromSource" >> self._source(self.options.messages_source,
                                                                schema=self._input_message_schema())
@@ -112,7 +135,7 @@ class PipelineDefinition():
 
         segmented = (
             messages
-            | "Add MMSI Key" >> Map(lambda row: (row['mmsi'], row))
+            | "Add Groupby Key" >> Map(self.groupby_fn)
             | "Group By MMSI Key" >> GroupByKey('mmsi')
             | "Segment" >> Segment(self._segmeter_params())
         )
@@ -120,12 +143,12 @@ class PipelineDefinition():
         segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
         (
             messages
-            | "Write Messages" >> self._sink(path=self.options.messages_sink,
+            | "WriteMessages" >> self._messages_sink(path=self.options.messages_sink,
                                                   schema=self._output_message_schema())
         )
         (
             segments
-            | "Write Segments" >> self._sink(path=self.options.segments_sink,
+            | "WriteSegments" >> self._segments_sink(path=self.options.segments_sink,
                                                   schema=segment_schema.build())
         )
         return pipeline
