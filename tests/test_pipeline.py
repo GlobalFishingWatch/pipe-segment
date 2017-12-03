@@ -13,11 +13,10 @@ from apache_beam import Map
 from apache_beam import GroupByKey
 from apache_beam import FlatMap
 
-import pipeline
-from pipeline.transforms.segment import Segment
-from pipeline.coders import JSONCoder
-from pipeline.coders import Timestamp2DatetimeDoFn
-from pipeline.coders import Datetime2TimestampDoFn
+from pipe_tools.coders import JSONDictCoder
+
+import pipe_template
+from pipe_template.transforms.segment import Segment
 
 
 @pytest.mark.filterwarnings('ignore:Using fallback coder:UserWarning')
@@ -34,7 +33,7 @@ class TestPipeline():
             'local',
         ]
 
-        pipeline.__main__.run(args, force_wait=True)
+        pipe_template.__main__.run(args, force_wait=True)
 
         with nlj.open(expected) as expected:
             with open_shards('%s*' % messages_sink) as output:
@@ -75,7 +74,7 @@ class TestPipeline():
         with _TestPipeline() as p:
             segmented = (
                 p
-                | beam.io.ReadFromText(file_pattern=source, coder=JSONCoder())
+                | beam.io.ReadFromText(file_pattern=source, coder=JSONDictCoder())
                 | "ExtractMMSI" >> Map(lambda row: (row['mmsi'], row))
                 | "GroupByMMSI" >> GroupByKey('mmsi')
                 | Segment()
@@ -86,7 +85,7 @@ class TestPipeline():
                 | "WriteToMessagesSink" >> beam.io.WriteToText(
                     file_path_prefix=messages_sink,
                     num_shards=1,
-                    coder=JSONCoder()
+                    coder=JSONDictCoder()
                 )
             )
 
@@ -95,7 +94,7 @@ class TestPipeline():
                 | "WriteToSegmentsSink" >> beam.io.WriteToText(
                     file_path_prefix=segments_sink,
                     num_shards=1,
-                    coder=JSONCoder()
+                    coder=JSONDictCoder()
                 )
             )
 

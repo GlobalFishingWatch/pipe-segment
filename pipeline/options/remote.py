@@ -1,4 +1,4 @@
-from pipeline.options.actions import ReadFileAction
+from pipe_template.options.actions import ReadFileAction
 
 def setup(parser):
     """
@@ -35,8 +35,13 @@ def setup(parser):
     #     required=True,
     # )
     required.add_argument(
-        '--segmenter_local_package',
-        help='local package file containing gpsdio-segment',
+        '--gpsdio_segment_package',
         required=True,
-    )
+        help=
+        ('Local path to a Python package file containing gpsdio-segment'))
 
+    required.add_argument(
+        '--pipe_tools_package',
+        required=True,
+        help=
+        ('Local path to a Python package file containing pipe-tools'))

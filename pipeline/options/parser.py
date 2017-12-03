@@ -1,8 +1,8 @@
 from argparse import ArgumentParser
-import pipeline.options.all as all
-import pipeline.options.local as local
-import pipeline.options.remote as remote
-import pipeline.options.google as google
+import pipe_template.options.all as all
+import pipe_template.options.local as local
+import pipe_template.options.remote as remote
+import pipe_template.options.google as google
 import apache_beam.options.pipeline_options as beam
 
 # We need a custom options class to serialize and store additional options we
@@ -57,5 +57,5 @@ def parse(args=None):
         standard_options.runner = 'DataflowRunner'
         setup_options = pipeline_options.view_as(beam.SetupOptions)
         setup_options.setup_file = './setup.py'
-        setup_options.extra_packages=[options.segmenter_local_package]
+        setup_options.extra_packages=[options.gpsdio_segment_package,options.pipe_tools_package]
     return (options, pipeline_options)

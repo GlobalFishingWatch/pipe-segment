@@ -1,4 +1,7 @@
-from pipeline.options.actions import ReadFileAction
+from apache_beam.io.gcp.bigquery import BigQueryDisposition
+
+from pipe_template.options.actions import ReadFileAction
+
 
 def setup(parser):
     """
@@ -7,6 +10,7 @@ def setup(parser):
     Arguments:
         parser -- argparse.ArgumentParser instance to setup
     """
+    default_write_disposition=BigQueryDisposition.WRITE_TRUNCATE
 
     parser.add_argument(
         '--window_size',
@@ -35,10 +39,23 @@ def setup(parser):
 
     parser.add_argument(
         '--messages_schema',
-        help='JSON schema for the messages input bigquery source.  This is ignored for file sources. '
+        help='JSON schema for the messages input bigquery query.  This is ignored for tables or file sources. '
              'See examples/message-schema.json for an example.  This must match the fields included in the '
-             'messages-source.   You can use "@path/to/file.json" to load this from a file.',
+             'query.   You can use "@path/to/file.json" to load this from a file.',
         action=ReadFileAction,
+    )
+
+    parser.add_argument(
+        '--first_date',
+        help='start of date range to apply to the messages source.  Ignored if the source is not a Bigquery table',
+    )
+    parser.add_argument(
+        '--last_date',
+        help='end of date range to apply to the messages source.  Ignored if the source is not a Bigquery table',
+    )
+    parser.add_argument(
+        '--include_fields',
+        help='comma separated list of field names to read from the messages source.  Ignored if the source is not a Bigquery table',
     )
 
     required = parser.add_argument_group('global required arguments')
@@ -82,9 +99,33 @@ def setup(parser):
     )
 
     parser.add_argument(
+        '--messages_write_disposition',
+        help='How to merge the output of this process with whatever records are already there in the message tables. '
+             'Might be WRITE_TRUNCATE to remove all existing data and write the new data, or WRITE_APPEND to add '
+             'the new date without. Defaults to %s' % default_write_disposition,
+        default=default_write_disposition,
+    )
+
+    parser.add_argument(
         '--sink_write_disposition',
         help='How to merge the output of this process with whatever records are already there in the sink tables. '
              'Might be WRITE_TRUNCATE to remove all existing data and write the new data, or WRITE_APPEND to add '
              'the new date without. Defaults to WRITE_APPEND.',
         default='WRITE_APPEND',
+    )
+
+    parser.add_argument(
+        '--temp_gcs_location',
+        help='temporary gcs location to use for writing intermediate output when writing to date-sharded bigquery tables',
+    )
+
+    parser.add_argument(
+        '--partition_output',
+        type=bool,
+        help='partition the messages output by day',
+    )
+
+    parser.add_argument(
+        '--where_sql',
+        help='SQL where clause used to filter the messages input',
     )

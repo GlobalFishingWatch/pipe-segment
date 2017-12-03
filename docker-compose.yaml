@@ -22,5 +22,9 @@ services:
       - ".:/opt/project"
       - "gcp:/root/.config/"
 
+# Use an external named volume so that we can share gcp auth across containers
+# Before first use, this volume must be manually created with
+#   docker volume create --name=gcp
 volumes:
   gcp:
+    external: true

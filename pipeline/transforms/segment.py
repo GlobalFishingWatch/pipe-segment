@@ -1,21 +1,20 @@
 import datetime as dt
 import itertools as it
-from copy import deepcopy
 
 from apache_beam import PTransform
 from apache_beam import FlatMap
 from apache_beam.pvalue import TaggedOutput
+
 
 from gpsdio_segment.core import Segmentizer
 from gpsdio_segment.core import BadSegment
 from gpsdio_segment.core import SegmentState
 
 from pipe_tools.coders import JSONDict
+from pipe_tools.timestamp import datetimeFromTimestamp
+from pipe_tools.timestamp import timestampFromDatetime
 
-from pipeline.coders import timestamp2datetime
-from pipeline.coders import datetime2timestamp
-from pipeline.coders import Datetime2TimestampDoFn
-from pipeline.stats.stats import MessageStats
+from pipe_template.stats.stats import MessageStats
 
 
 
@@ -44,13 +43,14 @@ class Segment(PTransform):
     @staticmethod
     def _convert_messages_in(msg):
         msg = dict(msg)
-        msg['timestamp'] = timestamp2datetime(msg['timestamp'])
+        msg['timestamp'] = datetimeFromTimestamp(msg['timestamp'])
         return msg
 
     @staticmethod
     def _convert_messages_out(msg, seg_id):
         msg = JSONDict(msg)
-        msg['timestamp'] = datetime2timestamp(msg['timestamp'])
+        timestamp = timestampFromDatetime(msg['timestamp'])
+        msg['timestamp'] = timestamp
         msg['seg_id'] = seg_id
         return msg
 

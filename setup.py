@@ -15,11 +15,12 @@ DEPENDENCIES = [
     #   `pip install . --process-dependency-links`
     # However, this does not work when installing in the remote worker in dataflow
     # because there is no git executable on the remote workers.
-    # So instead we download the package patball in setup.sh and then for local
+    # So instead we download the package tarball in setup.sh and then for local
     # execution we just pip install from that package, and for remote install we pass
     # the tarball along via the extra_packages option in parser.py
 
-    # "gpsdio-segment==0.8",
+    # "gpsdio-segment==0.9",
+    # "pipe-tools==0.1.0",
 ]
 
 # Frozen dependencies for the google cloud dataflow dependency

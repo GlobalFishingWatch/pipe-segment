@@ -1,9 +1,9 @@
-from apache_beam import io
-
-
-def build(schema_string):
-
-    return io.gcp.bigquery.parse_table_schema_from_json(schema_string)
+# from apache_beam import io
+#
+#
+# def build(schema_string, table):
+#
+#     return io.gcp.bigquery.parse_table_schema_from_json(schema_string)
 
     # schema = bigquery.TableSchema()
     #

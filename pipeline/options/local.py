@@ -1,4 +1,4 @@
-from pipeline.options.actions import ReadFileAction
+from pipe_template.options.actions import ReadFileAction
 
 
 def setup(parser):

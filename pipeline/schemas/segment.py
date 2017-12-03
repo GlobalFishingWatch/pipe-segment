@@ -1,6 +1,6 @@
 from apache_beam.io.gcp.internal.clients import bigquery
 
-from pipeline.transforms.segment import Segment
+from pipe_template.transforms.segment import Segment
 
 
 DEFAULT_FIELD_TYPE = 'STRING'

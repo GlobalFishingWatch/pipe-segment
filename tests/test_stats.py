@@ -3,7 +3,7 @@ import itertools as it
 import collections
 import pandas as pd
 
-from pipeline import stats
+from pipe_template import stats
 
 
 # recipe from itertools documentation

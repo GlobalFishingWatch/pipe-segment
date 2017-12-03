@@ -1,6 +1,6 @@
 from apache_beam.io.gcp.internal.clients import bigquery
 
-from pipeline.schemas import input
+from pipe_template.schemas import input
 
 def build(input_schema):
     schema = input_schema

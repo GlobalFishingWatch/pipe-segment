@@ -1,7 +1,7 @@
-from pipeline.definition import PipelineDefinition
+from pipe_template.definition import PipelineDefinition
 import apache_beam as beam
 import logging
-import pipeline.options.parser as parser
+import pipe_template.options.parser as parser
 
 
 def run(args=None, force_wait=False):
