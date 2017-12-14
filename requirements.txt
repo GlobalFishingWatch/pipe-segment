@@ -1,0 +1,2 @@
+https://codeload.github.com/GlobalFishingWatch/pipe-tools/tar.gz/bce4392c2b9305ebbbc613b14e1d1389054e318b#egg=pipe-tools-0.1.1
+https://codeload.github.com/Skytruth/gpsdio-segment/tar.gz/v0.9#egg=gpsdio-segment-0.9

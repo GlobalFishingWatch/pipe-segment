@@ -1,26 +1,26 @@
-from setuptools import setup, find_packages
+#!/usr/bin/env python
 
-PROJECT_NAME = 'pipe-segment'
-PROJECT_VERSION = '1.0.0'
-PROJECT_DESCRIPTION = 'Apache Beam pipeline that runs the segmenter'
+"""
+Setup script for pipe-segement
+"""
+
+import codecs
+import os
+
+from setuptools import find_packages
+from setuptools import setup
+
+package = __import__('pipe_segment')
 
 DEPENDENCIES = [
     "pytest",
     "nose",
     "ujson",
     "pandas",
-
-    # We would like to just specify the dependency here and pull it from the
-    # dependency_links included below.  This works with
-    #   `pip install . --process-dependency-links`
-    # However, this does not work when installing in the remote worker in dataflow
-    # because there is no git executable on the remote workers.
-    # So instead we download the package tarball in setup.sh and then for local
-    # execution we just pip install from that package, and for remote install we pass
-    # the tarball along via the extra_packages option in parser.py
-
-    # "gpsdio-segment==0.9",
-    # "pipe-tools==0.1.0",
+    "pytz",
+    "udatetime",
+    "pipe-tools==0.1.1",
+    "jinja2-cli",
 ]
 
 # Frozen dependencies for the google cloud dataflow dependency
@@ -67,15 +67,24 @@ DATAFLOW_PINNED_DEPENDENCIES = [
     "urllib3==1.22",
 ]
 
-setup(
-    name=PROJECT_NAME,
-    version=PROJECT_VERSION,
-    description=PROJECT_DESCRIPTION,
-    author="Global Fishing Watch",
-    author_email="info@globalfishingwatch.org",
-    license="Apache 2",
-    packages=find_packages(),
-    install_requires=DEPENDENCIES + DATAFLOW_PINNED_DEPENDENCIES,
-    # dependency_links=["git+https://github.com/SkyTruth/gpsdio-segment.git@v0.8#egg=gpsdio-segment-0.8"],
+with codecs.open('README.md', encoding='utf-8') as f:
+    readme = f.read().strip()
 
+with codecs.open('requirements.txt', encoding='utf-8') as f:
+    DEPENDENCY_LINKS=[line for line in f]
+
+setup(
+    author=package.__author__,
+    author_email=package.__email__,
+    description=package.__doc__.strip(),
+    include_package_data=True,
+    install_requires=DEPENDENCIES + DATAFLOW_PINNED_DEPENDENCIES,
+    license="Apache 2.0",
+    long_description=readme,
+    name='pipe-segment',
+    packages=find_packages(exclude=['test*.*', 'tests']),
+    url=package.__source__,
+    version=package.__version__,
+    zip_safe=True,
+    dependency_links=DEPENDENCY_LINKS
 )

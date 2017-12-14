@@ -15,7 +15,7 @@ from apache_beam.testing.util import BeamAssertException
 from pipe_tools.timestamp import timestampFromDatetime
 from pipe_tools.timestamp import datetimeFromTimestamp
 
-from pipe_template.transforms.segment import Segment
+from pipe_segment.transform import Segment
 
 from gpsdio.schema import datetime2str
 

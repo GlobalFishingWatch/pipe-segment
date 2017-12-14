@@ -15,8 +15,8 @@ from apache_beam import FlatMap
 
 from pipe_tools.coders import JSONDictCoder
 
-import pipe_template
-from pipe_template.transforms.segment import Segment
+import pipe_segment
+from pipe_segment.transform import Segment
 
 
 @pytest.mark.filterwarnings('ignore:Using fallback coder:UserWarning')
@@ -26,14 +26,14 @@ class TestPipeline():
 
     def _run_pipeline (self, source, messages_sink, segments_sink, expected, args=[]):
         args += [
-            '--messages_source=%s' % source,
-            '--messages_schema={"fields": []}',
-            '--messages_sink=%s' % messages_sink,
-            '--segments_sink=%s' % segments_sink,
-            'local',
+            '--source=%s' % source,
+            '--source_schema={"fields": []}',
+            '--dest=%s' % messages_sink,
+            '--segments=%s' % segments_sink,
+            '--wait'
         ]
 
-        pipe_template.__main__.run(args, force_wait=True)
+        pipe_segment.run(args)
 
         with nlj.open(expected) as expected:
             with open_shards('%s*' % messages_sink) as output:
@@ -47,13 +47,13 @@ class TestPipeline():
 
         self._run_pipeline(source, messages_sink, segments_sink, expected)
 
-    def test_Pipeline_window(self, test_data_dir, temp_dir):
-        source = pp.join(test_data_dir, 'input.json')
-        messages_sink = pp.join(temp_dir, 'messages')
-        segments_sink = pp.join(temp_dir, 'segments')
-        expected = pp.join(test_data_dir, 'expected-window-1.json')
-        args = [ '--window_size=1' ]
-        self._run_pipeline(source, messages_sink, segments_sink, expected, args)
+    # def test_Pipeline_window(self, test_data_dir, temp_dir):
+    #     source = pp.join(test_data_dir, 'input.json')
+    #     messages_sink = pp.join(temp_dir, 'messages')
+    #     segments_sink = pp.join(temp_dir, 'segments')
+    #     expected = pp.join(test_data_dir, 'expected-window-1.json')
+    #     args = [ '--window_size=1' ]
+    #     self._run_pipeline(source, messages_sink, segments_sink, expected, args)
 
     def test_Pipeline_segmenter_params(self, test_data_dir, temp_dir):
         source = pp.join(test_data_dir, 'input.json')
