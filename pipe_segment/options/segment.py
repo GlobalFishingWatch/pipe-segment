@@ -16,7 +16,8 @@ class SegmentOptions(PipelineOptions):
         required.add_argument(
             '--source',
             required=True,
-            help='Bigquery table or file to read normalized messages')
+            action=ReadFileAction,
+            help='Bigquery table, query or file to read normalized messages')
         optional.add_argument(
             '--source_schema',
             help='JSON schema for the source messages (bigquery).  This is ignored for tables or file sources. '

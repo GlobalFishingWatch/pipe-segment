@@ -3,6 +3,7 @@ import itertools as it
 
 from apache_beam import PTransform
 from apache_beam import FlatMap
+from apache_beam import typehints
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.io.gcp.internal.clients import bigquery
 
@@ -45,6 +46,10 @@ class Segment(PTransform):
         return msg
 
     @staticmethod
+    def _key_by_day(msg):
+        return msg['timestamp'].toordinal()
+
+    @staticmethod
     def _convert_messages_out(msg, seg_id):
         msg = JSONDict(msg)
         timestamp = timestampFromDatetime(msg['timestamp'])
@@ -68,11 +73,12 @@ class Segment(PTransform):
 
         ms = MessageStats(messages, stats_numeric_fields, stats_frequency_fields)
 
-        record = {
-            "seg_id": seg_state.id,
-            "mmsi": seg_state.mmsi,
-            "message_count": seg_state.msg_count
-        }
+        record = JSONDict (
+            seg_id=seg_state.id,
+            mmsi=seg_state.mmsi,
+            timestamp=timestampFromDatetime(seg_state.msgs[-1]['timestamp']),
+            message_count=seg_state.msg_count
+        )
 
         for field, stats in self.stats_fields:
             stat_values = ms.field_stats(field)
@@ -84,20 +90,26 @@ class Segment(PTransform):
     def _gpsdio_segment(self, messages):
 
         messages = it.imap(self._convert_messages_in, messages)
+        seg_states = []
+        for key, messages in it.groupby(messages, self._key_by_day):
+            segments = list(Segmentizer.from_seg_states(seg_states, messages, **self.segmenter_params))
+            seg_states = []
+            for seg in segments:
+                seg_state = seg.state
 
-        for seg in Segmentizer(messages, **self.segmenter_params):
-            if isinstance(seg, BadSegment):
-                seg_id = "{}-BAD".format(seg.id)
-            else:
-                seg_id = seg.id
+                if isinstance(seg, BadSegment):
+                    seg_id = "{}-BAD".format(seg.id)
+                else:
+                    seg_id = seg.id
+                    seg_states.append(seg_state)
 
-            seg_messages = list(it.imap(self._convert_messages_out, seg, it.repeat(seg_id)))
+                seg_messages = list(it.imap(self._convert_messages_out, seg, it.repeat(seg_id)))
 
-            seg_record = self._segment_record(seg_messages, seg.state)
-            yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, seg_record)
+                seg_record = self._segment_record(seg_messages, seg_state)
+                yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, seg_record)
 
-            for msg in seg_messages:
-                yield msg
+                for msg in seg_messages:
+                    yield msg
 
     def segment(self, kv):
         key, messages = kv
@@ -109,7 +121,9 @@ class Segment(PTransform):
 
     def expand(self, xs):
         return (
-            xs | FlatMap(self.segment).with_outputs(self.OUTPUT_TAG_SEGMENTS, main=self.OUTPUT_TAG_MESSAGES)
+            xs | FlatMap(self.segment)
+                .with_outputs(self.OUTPUT_TAG_SEGMENTS, main=self.OUTPUT_TAG_MESSAGES)
+
         )
 
     @property
@@ -144,6 +158,12 @@ class Segment(PTransform):
         field = bigquery.TableFieldSchema()
         field.name = "mmsi"
         field.type = "INTEGER"
+        field.mode = "REQUIRED"
+        schema.fields.append(field)
+
+        field = bigquery.TableFieldSchema()
+        field.name = "timestamp"
+        field.type = "TIMESTAMP"
         field.mode = "REQUIRED"
         schema.fields.append(field)
 

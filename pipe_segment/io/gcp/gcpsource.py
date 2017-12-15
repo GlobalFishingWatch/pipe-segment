@@ -1,3 +1,5 @@
+import logging
+
 import apache_beam as beam
 
 from pipe_tools.coders import JSONDictCoder

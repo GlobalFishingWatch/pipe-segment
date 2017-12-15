@@ -29,13 +29,16 @@ class SegmentPipeline:
         self.message_source = GCPSource(gcp_path=self.options.source,
                            first_date_ts=d1,
                            last_date_ts=d2)
+        self.segment_transform = Segment(self.segmenter_params)
 
+    @property
     def message_input_schema(self):
         schema = self.message_source.schema or self.options.source_schema
         return parse_table_schema(schema)
 
+    @property
     def message_output_schema(self):
-        schema = self.message_input_schema()
+        schema = self.message_input_schema
 
         field = TableFieldSchema()
         field.name = "seg_id"
@@ -45,6 +48,7 @@ class SegmentPipeline:
 
         return schema
 
+    @property
     def segmenter_params(self):
         return ujson.loads(self.options.segmenter_params)
 
@@ -58,15 +62,17 @@ class SegmentPipeline:
         key = '%s-%s-%s' % (dt.year, dt.month, msg['mmsi'])
         return (key, msg)
 
+    @property
     def message_sink(self):
         sink = GCPSink(gcp_path=self.options.dest,
-                       schema=self.message_output_schema(),
+                       schema=self.message_output_schema,
                        temp_gcs_location=self.temp_gcs_location)
         return sink
 
+    @property
     def segment_sink(self):
         sink = GCPSink(gcp_path=self.options.segments,
-                       schema=Segment.segment_schema,
+                       schema=self.segment_transform.segment_schema,
                        temp_gcs_location=self.temp_gcs_location)
         return sink
 
@@ -83,18 +89,19 @@ class SegmentPipeline:
             messages
             | "AddKey" >> beam.Map(self.groupby_fn)
             | "GroupByKey" >> beam.GroupByKey()
-            | "Segment" >> Segment(self.segmenter_params())
+            | "Segment" >> self.segment_transform
         )
         messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
         segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
         (
             messages
-                | beam.ParDo(TimestampedValueDoFn())
-                | "WriteMessages" >> self.message_sink()
+            | "TimestampMessages" >> beam.ParDo(TimestampedValueDoFn())
+            | "WriteMessages" >> self.message_sink
         )
         (
             segments
-            | "WriteSegments" >> self.segment_sink()
+            | "TimestampSegments" >> beam.ParDo(TimestampedValueDoFn())
+            | "WriteSegments" >> self.segment_sink
         )
         return pipeline
 

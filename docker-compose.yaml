@@ -1,8 +1,9 @@
 version: '2'
 services:
-  pipeline:
+  pipe_segment:
     image: gfw/pipe-segment
     build: .
+    entrypoint: python -m pipe_segment
     volumes:
       - ".:/opt/project"
       - "gcp:/root/.config/"
@@ -23,7 +24,7 @@ services:
       - "gcp:/root/.config/"
 
   bash:
-    image: gfw/pipe-orbcomm
+    image: gfw/pipe-segment
     build: .
     entrypoint: /bin/bash
     volumes:

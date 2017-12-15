@@ -1,5 +1,7 @@
 import apache_beam as beam
 
+from apache_beam.io.gcp.bigquery import BigQueryDisposition
+
 from pipe_tools.coders import JSONDictCoder
 from pipe_tools.coders import ReadAsJSONDict
 from pipe_tools.timestamp import ParseBeamBQStrTimestampDoFn
@@ -25,6 +27,7 @@ class GCPSink(beam.PTransform):
             temp_gcs_location=self.temp_gcs_location,
             table=self.path,
             schema=self.schema,
+            write_disposition=BigQueryDisposition.WRITE_TRUNCATE
         )
         return pcoll | "WriteToBigquery" >> sink
 

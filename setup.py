@@ -19,7 +19,9 @@ DEPENDENCIES = [
     "pandas",
     "pytz",
     "udatetime",
+    "newlinejson",
     "pipe-tools==0.1.1",
+    "gpsdio-segment==0.9",
     "jinja2-cli",
 ]
 

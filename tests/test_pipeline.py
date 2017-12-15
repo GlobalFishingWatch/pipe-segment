@@ -15,7 +15,7 @@ from apache_beam import FlatMap
 
 from pipe_tools.coders import JSONDictCoder
 
-import pipe_segment
+from pipe_segment.__main__ import run as  pipe_serment_run
 from pipe_segment.transform import Segment
 
 
@@ -30,10 +30,11 @@ class TestPipeline():
             '--source_schema={"fields": []}',
             '--dest=%s' % messages_sink,
             '--segments=%s' % segments_sink,
+            '--no_pipeline_type_check',
             '--wait'
         ]
 
-        pipe_segment.run(args)
+        pipe_serment_run(args)
 
         with nlj.open(expected) as expected:
             with open_shards('%s*' % messages_sink) as output:
@@ -105,5 +106,6 @@ class TestPipeline():
 
             with nlj.open(expected_segments) as expected_output:
                 with open_shards('%s*' % segments_sink) as actual_output:
-                    for expected, actual in zip(sorted(expected_output), sorted(nlj.load(actual_output))):
+                    for expected, actual in zip(sorted(expected_output, key=lambda x: x['seg_id']),
+                                                sorted(nlj.load(actual_output), key=lambda x: x['seg_id'])):
                         assert set(expected.items()).issubset(set(actual.items()))
