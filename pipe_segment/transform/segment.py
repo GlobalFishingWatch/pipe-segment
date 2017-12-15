@@ -158,7 +158,7 @@ class Segment(PTransform):
         schema.fields.append(field)
 
         field = bigquery.TableFieldSchema()
-        field.name = "mmsi"
+        field.name = "ssvid"
         field.type = "INTEGER"
         field.mode = "REQUIRED"
         schema.fields.append(field)

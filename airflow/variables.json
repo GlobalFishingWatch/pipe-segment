@@ -7,7 +7,7 @@
     "pipeline_bucket": "{{ var.value.PIPELINE_BUCKET }}",
     "pipeline_dataset": "{{ var.value.PIPELINE_DATASET }}",
     "normalized_table": "normalized_orbcomm_{{ ds_nodash }}",
-    "messages_table": "messages_segmented_{{ ds_nodash }}",
-    "segments_table": "segments_{{ ds_nodash }}"
+    "messages_table": "messages_segmented_",
+    "segments_table": "segments_"
   }
 }

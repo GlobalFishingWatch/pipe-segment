@@ -27,7 +27,8 @@ class GCPSink(beam.PTransform):
             temp_gcs_location=self.temp_gcs_location,
             table=self.path,
             schema=self.schema,
-            write_disposition=BigQueryDisposition.WRITE_TRUNCATE
+            write_disposition=BigQueryDisposition.WRITE_TRUNCATE,
+            temp_shards_per_day=16
         )
         return pcoll | "WriteToBigquery" >> sink
 
