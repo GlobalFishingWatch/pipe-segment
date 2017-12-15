@@ -27,12 +27,12 @@ class TestTransforms(unittest.TestCase):
     t = timestampFromDatetime(datetime(2017,1,1,0,0,0, tzinfo=pytz.UTC))
 
     SAMPLE_DATA = [
-        (1, [{'mmsi': 1, 'timestamp': t + 0}]),
-        (1, [{'mmsi': 1, 'timestamp': t + 1}]),
-        (1, [{'mmsi': 1, 'timestamp': t + 2}]),
-        (2, [{'mmsi': 2, 'timestamp': t + 0}]),
-        (2, [{'mmsi': 2, 'timestamp': t + 1}]),
-        (3, [{'mmsi': 3, 'timestamp': t + 0}]),
+        (1, [{'ssvid': 1, 'timestamp': t + 0}]),
+        (1, [{'ssvid': 1, 'timestamp': t + 1}]),
+        (1, [{'ssvid': 1, 'timestamp': t + 2}]),
+        (2, [{'ssvid': 2, 'timestamp': t + 0}]),
+        (2, [{'ssvid': 2, 'timestamp': t + 1}]),
+        (3, [{'ssvid': 3, 'timestamp': t + 0}]),
     ]
 
     def test_Segment(self):
@@ -40,17 +40,17 @@ class TestTransforms(unittest.TestCase):
             ts = msg['timestamp']
             if not isinstance(ts, datetime):
                 ts = datetimeFromTimestamp(ts)
-            return '{}-{}'.format(msg['mmsi'], datetime2str(ts))
+            return '{}-{}'.format(msg['ssvid'], datetime2str(ts))
 
         def _expected (row):
-            row = row[1][0]      # strip off the mmsi key
+            row = row[1][0]      # strip off the ssvid key
             row['seg_id'] = _seg_id_from_message(row)   # add seg_id
             return row
 
         def valid_segment():
             def _is_valid(segments):
                 for seg in segments:
-                    assert seg['seg_id'].startswith(str(seg['mmsi']))
+                    assert seg['seg_id'].startswith(str(seg['ssvid']))
                     assert seg['message_count'] == 1
                     assert seg['timestamp_count'] == 1
                 return True

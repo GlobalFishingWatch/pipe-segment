@@ -29,13 +29,27 @@ case $1 in
       --source_schema @examples/messages-schema.json \
       --dest bq://${PROJECT_ID}:${PIPELINE_DATASET}.${JOB_NAME}_messages_ \
       --segments bq://${PROJECT_ID}:${PIPELINE_DATASET}.${JOB_NAME}_segments_ \
-      --temp_location gs://${TEMP_BUCKET_NAME} \
+      --segmenter_params @examples/segmenter-params.json \
       --project ${PROJECT_ID} \
-      --no_pipeline_type_check
+      --temp_location gs://${TEMP_BUCKET_NAME}
     ;;
 
   remote)
-
+    docker-compose run pipe_segment \
+      --source @examples/local.sql \
+      --source_schema @examples/messages-schema.json \
+      --dest bq://${PROJECT_ID}:${PIPELINE_DATASET}.${JOB_NAME}_messages_ \
+      --segments bq://${PROJECT_ID}:${PIPELINE_DATASET}.${JOB_NAME}_segments_ \
+      --segmenter_params @examples/segmenter-params.json \
+      --runner=DataflowRunner \
+      --project world-fishing-827 \
+      --temp_location gs://${TEMP_BUCKET_NAME}/dataflow-temp/ \
+      --staging_location=gs://${TEMP_BUCKET_NAME}/dataflow-staging/ \
+      --job_name ${JOB_NAME//_/-} \
+      --max_num_workers 4 \
+      --disk_size_gb 50 \
+      --requirements_file=./requirements.txt \
+      --setup_file=./setup.py
     ;;
 
   *)

@@ -58,9 +58,7 @@ class SegmentPipeline:
 
     @staticmethod
     def groupby_fn(msg):
-        dt = datetimeFromTimestamp(msg['timestamp']).date()
-        key = '%s-%s-%s' % (dt.year, dt.month, msg['mmsi'])
-        return (key, msg)
+        return (msg['ssvid'], msg)
 
     @property
     def message_sink(self):

@@ -43,6 +43,7 @@ class Segment(PTransform):
     def _convert_messages_in(msg):
         msg = dict(msg)
         msg['timestamp'] = datetimeFromTimestamp(msg['timestamp'])
+        msg['mmsi'] = msg['ssvid']
         return msg
 
     @staticmethod
@@ -55,6 +56,7 @@ class Segment(PTransform):
         timestamp = timestampFromDatetime(msg['timestamp'])
         msg['timestamp'] = timestamp
         msg['seg_id'] = seg_id
+        del msg['mmsi']
         return msg
 
     @staticmethod
@@ -75,7 +77,7 @@ class Segment(PTransform):
 
         record = JSONDict (
             seg_id=seg_state.id,
-            mmsi=seg_state.mmsi,
+            ssvid=seg_state.mmsi,
             timestamp=timestampFromDatetime(seg_state.msgs[-1]['timestamp']),
             message_count=seg_state.msg_count
         )

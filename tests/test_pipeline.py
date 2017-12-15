@@ -30,7 +30,6 @@ class TestPipeline():
             '--source_schema={"fields": []}',
             '--dest=%s' % messages_sink,
             '--segments=%s' % segments_sink,
-            '--no_pipeline_type_check',
             '--wait'
         ]
 
@@ -76,8 +75,8 @@ class TestPipeline():
             segmented = (
                 p
                 | beam.io.ReadFromText(file_pattern=source, coder=JSONDictCoder())
-                | "ExtractMMSI" >> Map(lambda row: (row['mmsi'], row))
-                | "GroupByMMSI" >> GroupByKey('mmsi')
+                | "ExtractSSVID" >> Map(lambda row: (row['ssvid'], row))
+                | "GroupBySSVID" >> GroupByKey()
                 | Segment()
             )
 
