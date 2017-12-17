@@ -15,7 +15,7 @@ from apache_beam import FlatMap
 
 from pipe_tools.coders import JSONDictCoder
 
-from pipe_segment.__main__ import run as  pipe_serment_run
+from pipe_segment.__main__ import run as  pipe_segment_run
 from pipe_segment.transform import Segment
 
 
@@ -33,7 +33,7 @@ class TestPipeline():
             '--wait'
         ]
 
-        pipe_serment_run(args)
+        pipe_segment_run(args)
 
         with nlj.open(expected) as expected:
             with open_shards('%s*' % messages_sink) as output:
@@ -46,14 +46,6 @@ class TestPipeline():
         expected = pp.join(test_data_dir, 'expected_messages.json')
 
         self._run_pipeline(source, messages_sink, segments_sink, expected)
-
-    # def test_Pipeline_window(self, test_data_dir, temp_dir):
-    #     source = pp.join(test_data_dir, 'input.json')
-    #     messages_sink = pp.join(temp_dir, 'messages')
-    #     segments_sink = pp.join(temp_dir, 'segments')
-    #     expected = pp.join(test_data_dir, 'expected-window-1.json')
-    #     args = [ '--window_size=1' ]
-    #     self._run_pipeline(source, messages_sink, segments_sink, expected, args)
 
     def test_Pipeline_segmenter_params(self, test_data_dir, temp_dir):
         source = pp.join(test_data_dir, 'input.json')
