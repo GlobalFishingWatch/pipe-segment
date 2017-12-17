@@ -13,6 +13,7 @@ python:
 - 2.7
 
 install:
+- docker volume create --name=gcp
 - docker-compose build
 
 script:

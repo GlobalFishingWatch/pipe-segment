@@ -13,11 +13,10 @@ from apache_beam import Map
 from apache_beam import GroupByKey
 from apache_beam import FlatMap
 
-import pipeline
-from pipeline.transforms.segment import Segment
-from pipeline.coders import JSONCoder
-from pipeline.coders import Timestamp2DatetimeDoFn
-from pipeline.coders import Datetime2TimestampDoFn
+from pipe_tools.coders import JSONDictCoder
+
+from pipe_segment.__main__ import run as  pipe_segment_run
+from pipe_segment.transform import Segment
 
 
 @pytest.mark.filterwarnings('ignore:Using fallback coder:UserWarning')
@@ -27,14 +26,14 @@ class TestPipeline():
 
     def _run_pipeline (self, source, messages_sink, segments_sink, expected, args=[]):
         args += [
-            '--messages_source=%s' % source,
-            '--messages_schema={"fields": []}',
-            '--messages_sink=%s' % messages_sink,
-            '--segments_sink=%s' % segments_sink,
-            'local',
+            '--source=%s' % source,
+            '--source_schema={"fields": []}',
+            '--dest=%s' % messages_sink,
+            '--segments=%s' % segments_sink,
+            '--wait'
         ]
 
-        pipeline.__main__.run(args, force_wait=True)
+        pipe_segment_run(args)
 
         with nlj.open(expected) as expected:
             with open_shards('%s*' % messages_sink) as output:
@@ -47,14 +46,6 @@ class TestPipeline():
         expected = pp.join(test_data_dir, 'expected_messages.json')
 
         self._run_pipeline(source, messages_sink, segments_sink, expected)
-
-    def test_Pipeline_window(self, test_data_dir, temp_dir):
-        source = pp.join(test_data_dir, 'input.json')
-        messages_sink = pp.join(temp_dir, 'messages')
-        segments_sink = pp.join(temp_dir, 'segments')
-        expected = pp.join(test_data_dir, 'expected-window-1.json')
-        args = [ '--window_size=1' ]
-        self._run_pipeline(source, messages_sink, segments_sink, expected, args)
 
     def test_Pipeline_segmenter_params(self, test_data_dir, temp_dir):
         source = pp.join(test_data_dir, 'input.json')
@@ -75,9 +66,9 @@ class TestPipeline():
         with _TestPipeline() as p:
             segmented = (
                 p
-                | beam.io.ReadFromText(file_pattern=source, coder=JSONCoder())
-                | "ExtractMMSI" >> Map(lambda row: (row['mmsi'], row))
-                | "GroupByMMSI" >> GroupByKey('mmsi')
+                | beam.io.ReadFromText(file_pattern=source, coder=JSONDictCoder())
+                | "ExtractSSVID" >> Map(lambda row: (row['ssvid'], row))
+                | "GroupBySSVID" >> GroupByKey()
                 | Segment()
             )
 
@@ -86,7 +77,7 @@ class TestPipeline():
                 | "WriteToMessagesSink" >> beam.io.WriteToText(
                     file_path_prefix=messages_sink,
                     num_shards=1,
-                    coder=JSONCoder()
+                    coder=JSONDictCoder()
                 )
             )
 
@@ -95,7 +86,7 @@ class TestPipeline():
                 | "WriteToSegmentsSink" >> beam.io.WriteToText(
                     file_path_prefix=segments_sink,
                     num_shards=1,
-                    coder=JSONCoder()
+                    coder=JSONDictCoder()
                 )
             )
 
@@ -106,5 +97,6 @@ class TestPipeline():
 
             with nlj.open(expected_segments) as expected_output:
                 with open_shards('%s*' % segments_sink) as actual_output:
-                    for expected, actual in zip(sorted(expected_output), sorted(nlj.load(actual_output))):
+                    for expected, actual in zip(sorted(expected_output, key=lambda x: x['seg_id']),
+                                                sorted(nlj.load(actual_output), key=lambda x: x['seg_id'])):
                         assert set(expected.items()).issubset(set(actual.items()))

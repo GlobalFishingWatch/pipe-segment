@@ -32,8 +32,12 @@ instructions there.
 ## Development and Testing
 
 Run unit tests  
+  Quick run
   `docker-compose run py.test tests`
-
+  
+  Run with all tests including ones that hit some GCP API
+  `docker-compose run py.test tests --runslow`
+  
 Re-build the docker environment (needed if you modify setup.py or other environmental change)  
   `docker-compose build`
   
