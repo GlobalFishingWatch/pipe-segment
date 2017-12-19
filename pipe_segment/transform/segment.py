@@ -36,8 +36,6 @@ class Segment(PTransform):
         super(Segment, self).__init__(**kwargs)
         self.segmenter_params = segmenter_params or {}
         self.stats_fields = stats_fields
-        # self.stats_numeric_fields = stats_numeric_fields
-        # self.stats_frequency_fields = stats_frequency_fields
 
     @staticmethod
     def _convert_messages_in(msg):
@@ -70,16 +68,27 @@ class Segment(PTransform):
                 yield cls.stat_output_field_name(field, stat)
 
     def _segment_record(self, messages, seg_state):
+
         stats_numeric_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.NUMERIC_STATS)]
         stats_frequency_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.FREQUENCY_STATS)]
 
         ms = MessageStats(messages, stats_numeric_fields, stats_frequency_fields)
 
+        first_msg = seg_state.msgs[0]
+        last_pos_msg = first_msg
+        for msg in seg_state.msgs:
+            if msg.get('lat') is not None:
+                last_pos_msg = msg
+
         record = JSONDict (
             seg_id=seg_state.id,
             ssvid=seg_state.mmsi,
-            timestamp=timestampFromDatetime(seg_state.msgs[-1]['timestamp']),
-            message_count=seg_state.msg_count
+            message_count=seg_state.msg_count,
+            origin_ts=timestampFromDatetime(first_msg['timestamp']),
+            timestamp=messages[-1]['timestamp'],
+            last_pos_ts=timestampFromDatetime(last_pos_msg['timestamp']),
+            last_pos_lat=last_pos_msg.get('lat'),
+            last_pos_lon=last_pos_msg.get('lon')
         )
 
         for field, stats in self.stats_fields:
@@ -89,10 +98,32 @@ class Segment(PTransform):
 
         return record
 
-    def _gpsdio_segment(self, messages):
+    def _segment_state (self, seg_record):
+        messages = []
+        if seg_record['origin_ts'] != seg_record['timestamp']:
+            messages.append({
+                'ssvid': seg_record['ssvid'],
+                'timestamp': seg_record['timestamp'],
+            })
+        messages.append({
+            'ssvid': seg_record['ssvid'],
+            'timestamp': seg_record['timestamp'],
+            'lat': seg_record['last_pos_lat'],
+            'lon': seg_record['last_pos_lon']
+        })
+
+        state = SegmentState()
+        state.id=seg_record['seg_id']
+        state.mmsi=seg_record['ssvid']
+        state.msg_count=seg_record['message_count']
+        state.msgs = it.imap(self._convert_messages_in, messages)
+
+        return state
+
+    def _gpsdio_segment(self, messages, seg_records):
 
         messages = it.imap(self._convert_messages_in, messages)
-        seg_states = []
+        seg_states = it.imap(self._segment_state, seg_records)
         for key, messages in it.groupby(messages, self._key_by_day):
             segments = list(Segmentizer.from_seg_states(seg_states, messages, **self.segmenter_params))
             seg_states = []
@@ -114,11 +145,12 @@ class Segment(PTransform):
                     yield msg
 
     def segment(self, kv):
-        key, messages = kv
+        key, values = kv
+        messages = values['messages']
+        segments = values['segments']
 
         messages = sorted(messages, key=lambda msg: msg['timestamp'])
-
-        for item in self._gpsdio_segment(messages):
+        for item in self._gpsdio_segment(messages, segments):
             yield item
 
     def expand(self, xs):
@@ -167,6 +199,27 @@ class Segment(PTransform):
         field.name = "timestamp"
         field.type = "TIMESTAMP"
         field.mode = "REQUIRED"
+        schema.fields.append(field)
+
+        field = bigquery.TableFieldSchema()
+        field.name = "origin_ts"
+        field.type = "TIMESTAMP"
+        field.mode = "REQUIRED"
+        schema.fields.append(field)
+
+        field = bigquery.TableFieldSchema()
+        field.name = "last_pos_ts"
+        field.type = "TIMESTAMP"
+        schema.fields.append(field)
+
+        field = bigquery.TableFieldSchema()
+        field.name = "last_pos_lat"
+        field.type = "FLOAT"
+        schema.fields.append(field)
+
+        field = bigquery.TableFieldSchema()
+        field.name = "last_pos_lon"
+        field.type = "FLOAT"
         schema.fields.append(field)
 
         for field_name, stats in self.stats_fields:

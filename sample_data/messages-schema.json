@@ -1,5 +1,4 @@
-{
-  "fields": [
+[
     {
       "name": "type",
       "type": "INTEGER"
@@ -68,5 +67,4 @@
       "name": "gridcode",
       "type": "STRING"
     }
-  ]
-}
+]

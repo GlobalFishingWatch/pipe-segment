@@ -34,7 +34,7 @@ with DAG('pipe_segment', schedule_interval=timedelta(days=1), default_args=defau
 
     source_exists= BigQueryTableSensor(
         task_id='source_exists',
-        table_id=config['normalized_table'],
+        table_id="{normalized_table}{ds}".format(ds="{{ ds_nodash }}", **config),
         poke_interval=10,   #check every 10 seconds for a minute
         timeout=60,
         retries=24*7,       # retry once per hour for a week
@@ -48,6 +48,7 @@ with DAG('pipe_segment', schedule_interval=timedelta(days=1), default_args=defau
         options=dict(
             command='{docker_run} {docker_image} segment'.format(**config),
             startup_log_file=pp.join(Variable.get('DATAFLOW_WRAPPER_LOG_PATH'), 'pipe_segment/segment.log'),
+            date_range='{{ ds }},{{ ds }}',
             source='bq://{project_id}:{pipeline_dataset}.{normalized_table}'.format(**config),
             dest='bq://{project_id}:{pipeline_dataset}.{messages_table}'.format(**config),
             segments='bq://{project_id}:{pipeline_dataset}.{segments_table}'.format(**config),

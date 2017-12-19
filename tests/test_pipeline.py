@@ -64,11 +64,15 @@ class TestPipeline():
         expected_segments = pp.join(test_data_dir, 'expected_segments.json')
 
         with _TestPipeline() as p:
-            segmented = (
+            messages = (
                 p
                 | beam.io.ReadFromText(file_pattern=source, coder=JSONDictCoder())
-                | "ExtractSSVID" >> Map(lambda row: (row['ssvid'], row))
-                | "GroupBySSVID" >> GroupByKey()
+                | "AddKey" >> Map(lambda row: (row['ssvid'], row))
+            )
+            segments = []
+            segmented = (
+                {"messages": messages, "segments":segments}
+                | beam.CoGroupByKey()
                 | Segment()
             )
 

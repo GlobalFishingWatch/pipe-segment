@@ -1,5 +1,7 @@
 import logging
 import ujson
+from datetime import timedelta
+from apitools.base.py.exceptions import HttpError
 
 import apache_beam as beam
 from apache_beam.runners import PipelineState
@@ -8,6 +10,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 
 from pipe_tools.timestamp import TimestampedValueDoFn
 from pipe_tools.timestamp import datetimeFromTimestamp
+from pipe_tools.timestamp import timestampFromDatetime
 from pipe_tools.utils.timestamp import as_timestamp
 from pipe_tools.io.bigquery import parse_table_schema
 
@@ -25,7 +28,8 @@ def parse_date_range(s):
 class SegmentPipeline:
     def __init__(self, options):
         self.options = options.view_as(SegmentOptions)
-        d1, d2 = parse_date_range(self.options.date_range)
+        self.date_range = parse_date_range(self.options.date_range)
+        d1, d2 = self.date_range
         self.message_source = GCPSource(gcp_path=self.options.source,
                            first_date_ts=d1,
                            last_date_ts=d2)
@@ -68,6 +72,26 @@ class SegmentPipeline:
         return sink
 
     @property
+    def segment_source(self):
+        if self.date_range[0] is None:
+            return None
+
+        dt = datetimeFromTimestamp(self.date_range[0])
+        ts = timestampFromDatetime(dt - timedelta(days=1))
+
+        try:
+            sink = GCPSource(gcp_path=self.options.segments,
+                             first_date_ts=ts,
+                             last_date_ts=ts)
+        except HttpError as exn:
+            logging.warn("Segment source not found: %s %s" % (self.options.segments, dt))
+            if exn.status_code == 404:
+                return None
+            else:
+                raise
+        return sink
+
+    @property
     def segment_sink(self):
         sink = GCPSink(gcp_path=self.options.segments,
                        schema=self.segment_transform.segment_schema,
@@ -80,13 +104,22 @@ class SegmentPipeline:
         messages = (
             pipeline
             | "ReadMessages" >> self.message_source
-            | "AddTimestamp" >> beam.ParDo(TimestampedValueDoFn())
+            | "MessagesAddKey" >> beam.Map(self.groupby_fn)
         )
 
+        segment_source = self.segment_source
+        if segment_source is None:
+            segments_in = []
+        else:
+            segments_in = (
+                pipeline
+                | "ReadSegments" >> self.segment_source
+                | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
+            )
+
         segmented = (
-            messages
-            | "AddKey" >> beam.Map(self.groupby_fn)
-            | "GroupByKey" >> beam.GroupByKey()
+            {"messages": messages, "segments":segments_in}
+            | beam.CoGroupByKey()
             | "Segment" >> self.segment_transform
         )
         messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
