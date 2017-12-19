@@ -34,7 +34,7 @@ with DAG('pipe_segment', schedule_interval=timedelta(days=1), default_args=defau
 
     source_exists= BigQueryTableSensor(
         task_id='source_exists',
-        table_id=config['normalized_table'],
+        table_id="{normalized_table}{ds}".format(ds="{{ ds_nodash }}", **config),
         poke_interval=10,   #check every 10 seconds for a minute
         timeout=60,
         retries=24*7,       # retry once per hour for a week
