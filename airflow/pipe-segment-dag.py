@@ -48,6 +48,7 @@ with DAG('pipe_segment', schedule_interval=timedelta(days=1), default_args=defau
         options=dict(
             command='{docker_run} {docker_image} segment'.format(**config),
             startup_log_file=pp.join(Variable.get('DATAFLOW_WRAPPER_LOG_PATH'), 'pipe_segment/segment.log'),
+            date_range='{{ ds }},{{ ds }}',
             source='bq://{project_id}:{pipeline_dataset}.{normalized_table}'.format(**config),
             dest='bq://{project_id}:{pipeline_dataset}.{messages_table}'.format(**config),
             segments='bq://{project_id}:{pipeline_dataset}.{segments_table}'.format(**config),

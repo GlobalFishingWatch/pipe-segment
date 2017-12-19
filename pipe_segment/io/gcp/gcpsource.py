@@ -27,7 +27,6 @@ class GCPSource(beam.PTransform):
         elif self.service == 'query':
             self.query = self.path
 
-
     def expand_file(self, pcoll):
         source = beam.io.ReadFromText(file_pattern=self.path, coder=JSONDictCoder())
         return pcoll | "ReadFromFile" >> source

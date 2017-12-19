@@ -1,6 +1,7 @@
 import logging
 import ujson
 from datetime import timedelta
+from apitools.base.py.exceptions import HttpError
 
 import apache_beam as beam
 from apache_beam.runners import PipelineState
@@ -77,9 +78,17 @@ class SegmentPipeline:
 
         dt = datetimeFromTimestamp(self.date_range[0])
         ts = timestampFromDatetime(dt - timedelta(days=1))
-        sink = GCPSource(gcp_path=self.options.segments,
-                         first_date_ts=ts,
-                         last_date_ts=ts)
+
+        try:
+            sink = GCPSource(gcp_path=self.options.segments,
+                             first_date_ts=ts,
+                             last_date_ts=ts)
+        except HttpError as exn:
+            logging.warn("Segment source not found: %s %s" % (self.options.segments, dt))
+            if exn.status_code == 404:
+                return None
+            else:
+                raise
         return sink
 
     @property
@@ -95,7 +104,7 @@ class SegmentPipeline:
         messages = (
             pipeline
             | "ReadMessages" >> self.message_source
-            | "AddKey" >> beam.Map(self.groupby_fn)
+            | "MessagesAddKey" >> beam.Map(self.groupby_fn)
         )
 
         segment_source = self.segment_source
@@ -105,7 +114,7 @@ class SegmentPipeline:
             segments_in = (
                 pipeline
                 | "ReadSegments" >> self.segment_source
-                | "AddKey" >> beam.Map(self.groupby_fn)
+                | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
             )
 
         segmented = (
