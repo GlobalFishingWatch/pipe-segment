@@ -5,7 +5,7 @@
       "type": "INTEGER"
     },
     {
-      "name": "mmsi",
+      "name": "ssvid",
       "type": "INTEGER"
     },
     {

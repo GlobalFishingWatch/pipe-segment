@@ -1,6 +1,6 @@
 SELECT
   type,
-  mmsi,
+  mmsi as ssvid,
   imo,
   shipname,
   shiptype,

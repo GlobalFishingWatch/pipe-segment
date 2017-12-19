@@ -3,6 +3,8 @@ import unittest
 from copy import deepcopy
 from datetime import datetime
 import pytz
+import posixpath as pp
+import newlinejson as nlj
 
 import apache_beam as beam
 
@@ -12,63 +14,131 @@ from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import BeamAssertException
+from apache_beam.testing.util import open_shards
+
 from pipe_tools.timestamp import timestampFromDatetime
 from pipe_tools.timestamp import datetimeFromTimestamp
+from pipe_tools.coders import JSONDictCoder
 
 from pipe_segment.transform import Segment
 
 from gpsdio.schema import datetime2str
 
 
+# for use with apache_beam.testing.util.assert_that
+# for pcollections that contain dicts
+#
+# for example
+# assert_that(pcoll, contains(expected))
+def contains(subset):
+    subset = list(subset)
+
+    def _contains(superset):
+        sorted_subset = sorted(subset)
+        sorted_superset = sorted(list(superset))
+        for sub, super in zip(sorted_subset, sorted_superset):
+            for k,v in sub.items():
+                if super.get(k) != v:
+                    raise BeamAssertException(
+                        'Failed assert: %s does not contain %s\n'
+                        'mismatch in key "%s"  %s != %s' %
+                        (super, sub, k, super.get(k), v))
+    return _contains
+
+
+def list_contains(superset, subset):
+    for super, sub in zip(superset, subset):
+        for k,v in sub.items():
+            if super.get(k) != v:
+                raise BeamAssertException(
+                    'Failed assert: %s does not contain %s\n'
+                    'mismatch in key "%s"  %s != %s' %
+                    (super, sub, k, super.get(k), v))
+    return True
 
 @pytest.mark.filterwarnings('ignore:Using fallback coder:UserWarning')
 @pytest.mark.filterwarnings('ignore:The compiler package is deprecated and removed in Python 3.x.:DeprecationWarning')
-class TestTransforms(unittest.TestCase):
-    t = timestampFromDatetime(datetime(2017,1,1,0,0,0, tzinfo=pytz.UTC))
+@pytest.mark.filterwarnings('ignore:open_shards is experimental.:FutureWarning')
+class TestTransforms():
+    ts = timestampFromDatetime(datetime(2017, 1, 1, 0, 0, 0, tzinfo=pytz.UTC))
 
-    SAMPLE_DATA = [
-        (1, [{'ssvid': 1, 'timestamp': t + 0}]),
-        (1, [{'ssvid': 1, 'timestamp': t + 1}]),
-        (1, [{'ssvid': 1, 'timestamp': t + 2}]),
-        (2, [{'ssvid': 2, 'timestamp': t + 0}]),
-        (2, [{'ssvid': 2, 'timestamp': t + 1}]),
-        (3, [{'ssvid': 3, 'timestamp': t + 0}]),
-    ]
+    @staticmethod
+    def _seg_id(ssvid, ts):
+        ts = datetimeFromTimestamp(ts)
+        return '{}-{}'.format(ssvid, datetime2str(ts))
 
-    def test_Segment(self):
-        def _seg_id_from_message(msg):
-            ts = msg['timestamp']
-            if not isinstance(ts, datetime):
-                ts = datetimeFromTimestamp(ts)
-            return '{}-{}'.format(msg['ssvid'], datetime2str(ts))
+    @staticmethod
+    def groupby_fn(msg):
+        return (msg['ssvid'], msg)
 
-        def _expected (row):
-            row = row[1][0]      # strip off the ssvid key
-            row['seg_id'] = _seg_id_from_message(row)   # add seg_id
-            return row
-
-        def valid_segment():
-            def _is_valid(segments):
-                for seg in segments:
-                    assert seg['seg_id'].startswith(str(seg['ssvid']))
-                    assert seg['message_count'] == 1
-                    assert seg['timestamp_count'] == 1
-                return True
-
-            return _is_valid
-
-        expected_messages = map(_expected, deepcopy(self.SAMPLE_DATA))
+    def _run_segment(self, messages_in, segments_in, temp_dir):
+        messages_file = pp.join(temp_dir, '_run_segment', 'messages')
+        segments_file = pp.join(temp_dir, '_run_segment', 'segments')
 
         with _TestPipeline() as p:
+            messages = (
+                p | 'CreateMessages' >> beam.Create(messages_in)
+                | 'AddKeyMessages' >> beam.Map(self.groupby_fn)
+            )
+            segments = (
+                p | 'CreateSegments' >> beam.Create(segments_in)
+                | 'AddKeySegments' >> beam.Map(self.groupby_fn)
+            )
             segmented = (
-                p
-                | beam.Create(self.SAMPLE_DATA)
-                | "Segment" >> Segment())
-
+                {"messages": messages, "segments": segments}
+                | beam.CoGroupByKey()
+                | "Segment" >> Segment()
+            )
             messages = segmented['messages']
-            assert_that(messages, equal_to(expected_messages))
-
             segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
-            assert_that(segments, valid_segment(), label='expected_segments')
+            messages | "WriteMessages" >> beam.io.WriteToText(
+                messages_file, coder=JSONDictCoder())
+            segments | "WriteSegments" >> beam.io.WriteToText(
+                segments_file, coder=JSONDictCoder())
 
+            p.run()
+
+            with open_shards('%s*' % messages_file) as output:
+                messages = list(nlj.load(output))
+            with open_shards('%s*' % segments_file) as output:
+                segments = list(nlj.load(output))
+
+            assert list_contains(messages, messages_in)
+
+            return messages, segments
+
+    def test_segment_empty(self, temp_dir):
+        self._run_segment([], [], temp_dir=temp_dir)
+
+    def test_segment_single(self, temp_dir):
+        messages_in = [{'ssvid': 1, 'timestamp': self.ts}]
+        segments_in = []
+        messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
+
+    def test_segment_segments_in(self, temp_dir):
+        prev_ts = self.ts - 1
+        messages_in = [{'ssvid': 1, 'timestamp': self.ts}]
+        segments_in = [{'ssvid': 1, 'timestamp': prev_ts,
+                     'seg_id': self._seg_id(1, prev_ts),
+                     'origin_ts': prev_ts,
+                     'last_pos_lat': 0,
+                     'last_pos_lon': 0,
+                     'message_count': 1}]
+        messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
+        assert messages_out[0]['seg_id'] == segments_in[0]['seg_id']
+
+    def test_segment_out_in(self, temp_dir):
+        prev_ts = self.ts - 1
+        messages_in = [{'ssvid': 1, 'timestamp': self.ts-1},
+                       {'ssvid': 2, 'timestamp': self.ts-1}]
+        segments_in = []
+        messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
+        messages_in = [{'ssvid': 1, 'timestamp': self.ts},
+                       {'ssvid': 2, 'timestamp': self.ts}]
+        segments_in = segments_out
+        messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
+
+        assert len(segments_out) == 2
+        assert all(seg['message_count'] == 2 for seg in segments_out)
+        assert all(seg['seg_id'] == self._seg_id(seg['ssvid'], prev_ts) for seg in segments_out)
 
