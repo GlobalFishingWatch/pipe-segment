@@ -50,6 +50,24 @@ class SegmentPipeline:
         field.mode="NULLABLE"
         schema.fields.append(field)
 
+        field = TableFieldSchema()
+        field.name = "n_shipname"
+        field.type = "STRING"
+        field.mode="NULLABLE"
+        schema.fields.append(field)
+
+        field = TableFieldSchema()
+        field.name = "n_callsign"
+        field.type = "STRING"
+        field.mode="NULLABLE"
+        schema.fields.append(field)
+
+        field = TableFieldSchema()
+        field.name = "n_imo"
+        field.type = "STRING"
+        field.mode="NULLABLE"
+        schema.fields.append(field)
+
         return schema
 
     @property
