@@ -12,7 +12,7 @@ config = Variable.get('pipe_segment', deserialize_json=True)
 
 default_args = {
     'owner': 'airflow',
-    'depends_on_past': False,
+    'depends_on_past': True,
     'start_date': datetime(2017, 11, 1),
     'email': ['airflow@airflow.com'],
     'email_on_failure': False,
