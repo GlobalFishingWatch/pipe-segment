@@ -21,6 +21,7 @@ from pipe_tools.timestamp import datetimeFromTimestamp
 from pipe_tools.coders import JSONDictCoder
 
 from pipe_segment.transform import Segment
+from pipe_segment.transform import NormalizeDoFn
 
 from gpsdio.schema import datetime2str
 
@@ -142,3 +143,17 @@ class TestTransforms():
         assert all(seg['message_count'] == 2 for seg in segments_out)
         assert all(seg['seg_id'] == self._seg_id(seg['ssvid'], prev_ts) for seg in segments_out)
 
+
+    @pytest.mark.parametrize("message, expected", [
+        ({}, {}),
+        ({'shipname': 'f/v boaty Mc Boatface'}, {'n_shipname': 'BOATYMCBOATFACE'}),
+        ({'callsign': '@@123'}, {'n_callsign': '123'}),
+        ({'imo': 8814275}, {'n_imo': 8814275}),
+    ])
+    def test_normalize(self, message, expected):
+        normalize = NormalizeDoFn()
+        assert list_contains(list(normalize.process(message)), [expected])
+
+    def test_normalize_invalid_imo(self):
+        normalize = NormalizeDoFn()
+        assert all ('n_imo' not in m for m in list(normalize.process({'imo': 0000000})))
