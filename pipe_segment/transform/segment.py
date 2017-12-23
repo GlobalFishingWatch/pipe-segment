@@ -9,6 +9,7 @@ from apache_beam.io.gcp.internal.clients import bigquery
 
 from gpsdio_segment.core import Segmentizer
 from gpsdio_segment.core import BadSegment
+from gpsdio_segment.core import NoiseSegment
 from gpsdio_segment.core import SegmentState
 
 from pipe_tools.coders import JSONDict
@@ -67,7 +68,7 @@ class Segment(PTransform):
             for stat in stats:
                 yield cls.stat_output_field_name(field, stat)
 
-    def _segment_record(self, messages, seg_state):
+    def _segment_record(self, messages, seg_state, seg_id):
 
         stats_numeric_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.NUMERIC_STATS)]
         stats_frequency_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.FREQUENCY_STATS)]
@@ -81,7 +82,7 @@ class Segment(PTransform):
                 last_pos_msg = msg
 
         record = JSONDict (
-            seg_id=seg_state.id,
+            seg_id=seg_id,
             ssvid=seg_state.mmsi,
             message_count=seg_state.msg_count,
             origin_ts=timestampFromDatetime(first_msg['timestamp']),
@@ -132,13 +133,15 @@ class Segment(PTransform):
 
                 if isinstance(seg, BadSegment):
                     seg_id = "{}-BAD".format(seg.id)
+                elif isinstance(seg, NoiseSegment):
+                    seg_id = "{}-NOISE".format(seg.id)
                 else:
                     seg_id = seg.id
                     seg_states.append(seg_state)
 
                 seg_messages = list(it.imap(self._convert_messages_out, seg, it.repeat(seg_id)))
 
-                seg_record = self._segment_record(seg_messages, seg_state)
+                seg_record = self._segment_record(seg_messages, seg_state, seg_id)
                 yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, seg_record)
 
                 for msg in seg_messages:
