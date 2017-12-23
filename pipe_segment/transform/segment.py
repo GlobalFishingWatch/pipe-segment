@@ -68,7 +68,7 @@ class Segment(PTransform):
             for stat in stats:
                 yield cls.stat_output_field_name(field, stat)
 
-    def _segment_record(self, messages, seg_state, seg_id):
+    def _segment_record(self, messages, seg_state):
 
         stats_numeric_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.NUMERIC_STATS)]
         stats_frequency_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.FREQUENCY_STATS)]
@@ -80,10 +80,10 @@ class Segment(PTransform):
         for msg in seg_state.msgs:
             if msg.get('lat') is not None:
                 last_pos_msg = msg
-
         record = JSONDict (
-            seg_id=seg_id,
+            seg_id=seg_state.id,
             ssvid=seg_state.mmsi,
+            noise=seg_state.noise,
             message_count=seg_state.msg_count,
             origin_ts=timestampFromDatetime(first_msg['timestamp']),
             timestamp=messages[-1]['timestamp'],
@@ -104,7 +104,7 @@ class Segment(PTransform):
         if seg_record['origin_ts'] != seg_record['timestamp']:
             messages.append({
                 'ssvid': seg_record['ssvid'],
-                'timestamp': seg_record['timestamp'],
+                'timestamp': seg_record['origin_ts'],
             })
         messages.append({
             'ssvid': seg_record['ssvid'],
@@ -112,9 +112,15 @@ class Segment(PTransform):
             'lat': seg_record['last_pos_lat'],
             'lon': seg_record['last_pos_lon']
         })
+        if seg_record['timestamp_last'] != seg_record['timestamp']:
+            messages.append({
+                'ssvid': seg_record['ssvid'],
+                'timestamp': seg_record['timestamp_last'],
+            })
 
         state = SegmentState()
         state.id=seg_record['seg_id']
+        state.noise=seg_record['noise']
         state.mmsi=seg_record['ssvid']
         state.msg_count=seg_record['message_count']
         state.msgs = it.imap(self._convert_messages_in, messages)
@@ -129,23 +135,15 @@ class Segment(PTransform):
             segments = list(Segmentizer.from_seg_states(seg_states, messages, **self.segmenter_params))
             seg_states = []
             for seg in segments:
-                seg_state = seg.state
 
-                if isinstance(seg, BadSegment):
-                    seg_id = "{}-BAD".format(seg.id)
-                elif isinstance(seg, NoiseSegment):
-                    seg_id = "{}-NOISE".format(seg.id)
-                else:
-                    seg_id = seg.id
-                    seg_states.append(seg_state)
-
-                seg_messages = list(it.imap(self._convert_messages_out, seg, it.repeat(seg_id)))
-
-                seg_record = self._segment_record(seg_messages, seg_state, seg_id)
-                yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, seg_record)
-
+                seg_messages = list(it.imap(self._convert_messages_out, seg, it.repeat(seg.id)))
                 for msg in seg_messages:
                     yield msg
+                seg_state = seg.state
+                seg_states.append(seg_state)
+                seg_record = self._segment_record(seg_messages, seg_state)
+                yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, seg_record)
+
 
     def segment(self, kv):
         key, values = kv
@@ -195,6 +193,12 @@ class Segment(PTransform):
         field = bigquery.TableFieldSchema()
         field.name = "ssvid"
         field.type = "INTEGER"
+        field.mode = "REQUIRED"
+        schema.fields.append(field)
+
+        field = bigquery.TableFieldSchema()
+        field.name = "noise"
+        field.type = "BOOLEAN"
         field.mode = "REQUIRED"
         schema.fields.append(field)
 
