@@ -125,6 +125,8 @@ class TestTransforms():
         segments_in = [{'ssvid': 1, 'timestamp': prev_ts,
                      'seg_id': self._seg_id(1, prev_ts),
                      'origin_ts': prev_ts,
+                     'timestamp_last': self.ts,
+                     'noise': False,
                      'last_pos_lat': 0,
                      'last_pos_lon': 0,
                      'message_count': 1}]
@@ -173,13 +175,26 @@ class TestTransforms():
              "ssvid": 338013000,
              "lon": -161.6153106689,
              "lat": -9.6753702164,
-             "speed": 11.3999996185}
+             "speed": 11.3999996185},
+            {"timestamp": as_timestamp("2017-07-20T06:01:00.000000Z"),
+             "ssvid": 338013000}
         ]
-
 
         segments_in = []
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
 
-        assert {seg['seg_id'] for seg in segments_out} == {'338013000-2017-07-20T05:59:35.000000Z',
-                                                    '338013000-2017-07-20T06:00:38.000000Z-NOISE'}
+        seg_stats = {(seg['seg_id'], seg['message_count'], seg['noise']) for seg in segments_out}
+
+        assert seg_stats == {('338013000-2017-07-20T05:59:35.000000Z', 2, False),
+                             ('338013000-2017-07-20T06:00:38.000000Z', 1, True)}
+
+        messages_in = [{"timestamp": as_timestamp("2017-07-20T06:02:00.000000Z"),
+             "ssvid": 338013000}
+        ]
+        segments_in = segments_out
+        messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
+
+        seg_stats = {(seg['seg_id'], seg['message_count'], seg['noise']) for seg in segments_out}
+
+        assert seg_stats == {('338013000-2017-07-20T05:59:35.000000Z', 3, False)}
 
