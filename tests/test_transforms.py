@@ -5,6 +5,7 @@ from datetime import datetime
 import pytz
 import posixpath as pp
 import newlinejson as nlj
+from collections import Counter
 
 import apache_beam as beam
 
@@ -18,6 +19,8 @@ from apache_beam.testing.util import open_shards
 
 from pipe_tools.timestamp import timestampFromDatetime
 from pipe_tools.timestamp import datetimeFromTimestamp
+from pipe_tools.utils.timestamp import as_timestamp
+
 from pipe_tools.coders import JSONDictCoder
 
 from pipe_segment.transform import Segment
@@ -100,7 +103,7 @@ class TestTransforms():
             p.run()
 
             with open_shards('%s*' % messages_file) as output:
-                messages = list(nlj.load(output))
+                messages = sorted(list(nlj.load(output)), key=lambda m: m['timestamp'])
             with open_shards('%s*' % segments_file) as output:
                 segments = list(nlj.load(output))
 
@@ -157,3 +160,26 @@ class TestTransforms():
     def test_normalize_invalid_imo(self):
         normalize = NormalizeDoFn()
         assert all ('n_imo' not in m for m in list(normalize.process({'imo': 0000000})))
+
+
+    def test_noise_segment(self, temp_dir):
+        messages_in = [
+            {"timestamp": as_timestamp("2017-07-20T05:59:35.000000Z"),
+             "ssvid": 338013000,
+             "lon": -161.3321333333,
+             "lat": -9.52616,
+             "speed": 11.1},
+            {"timestamp": as_timestamp("2017-07-20T06:00:38.000000Z"),
+             "ssvid": 338013000,
+             "lon": -161.6153106689,
+             "lat": -9.6753702164,
+             "speed": 11.3999996185}
+        ]
+
+
+        segments_in = []
+        messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
+
+        assert {seg['seg_id'] for seg in segments_out} == {'338013000-2017-07-20T05:59:35.000000Z',
+                                                    '338013000-2017-07-20T06:00:38.000000Z-NOISE'}
+
