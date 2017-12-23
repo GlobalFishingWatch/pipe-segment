@@ -16,6 +16,7 @@ from pipe_tools.io.bigquery import parse_table_schema
 
 from pipe_segment.options import SegmentOptions
 from pipe_segment.transform import Segment
+from pipe_segment.transform import NormalizeDoFn
 from pipe_segment.io.gcp import GCPSource
 from pipe_segment.io.gcp import GCPSink
 
@@ -64,7 +65,7 @@ class SegmentPipeline:
 
         field = TableFieldSchema()
         field.name = "n_imo"
-        field.type = "STRING"
+        field.type = "INTEGER"
         field.mode="NULLABLE"
         schema.fields.append(field)
 
@@ -145,6 +146,7 @@ class SegmentPipeline:
         (
             messages
             | "TimestampMessages" >> beam.ParDo(TimestampedValueDoFn())
+            | "Normalize" >> beam.ParDo(NormalizeDoFn())
             | "WriteMessages" >> self.message_sink
         )
         (
