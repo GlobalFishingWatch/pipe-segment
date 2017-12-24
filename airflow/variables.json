@@ -8,6 +8,8 @@
     "pipeline_dataset": "{{ var.value.PIPELINE_DATASET }}",
     "normalized_table": "normalized_orbcomm_",
     "messages_table": "messages_segmented_",
-    "segments_table": "segments_"
+    "segments_table": "segments_",
+    "identity_messages_monthly_table": "identity_messages_monthly_",
+    "segment_identity_table": "segment_identity_"
   }
 }

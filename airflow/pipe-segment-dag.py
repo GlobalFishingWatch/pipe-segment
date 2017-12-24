@@ -1,12 +1,21 @@
 from datetime import datetime, timedelta
 import posixpath as pp
+import os
 
 from airflow import DAG
 from airflow.contrib.operators.dataflow_operator import DataFlowPythonOperator
 from airflow.contrib.sensors.bigquery_sensor import BigQueryTableSensor
+from airflow.contrib.operators.bigquery_operator import BigQueryOperator
 from airflow.models import Variable
 
 CONNECTION_ID = 'google_cloud_default'
+THIS_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DAG_FILES = THIS_SCRIPT_DIR
+with open(pp.join(DAG_FILES, 'identity_messages_monthly.sql.j2')) as f:
+    IDENTITY_MESSAGES_MONTHLY_SQL = f.read()
+with open(pp.join(DAG_FILES, 'segment_identity.sql.j2')) as f:
+    SEGEMENT_IDENTITY_SQL = f.read()
+FIRST_DAY_OF_MONTH='{{ execution_date.replace(day=1).strftime("%Y%m%d") }}'
 
 config = Variable.get('pipe_segment', deserialize_json=True)
 
@@ -64,4 +73,28 @@ with DAG('pipe_segment', schedule_interval=timedelta(days=1), default_args=defau
         dag=dag
     )
 
-    source_exists >> segment
+    identity_messages_monthly = BigQueryOperator(
+        task_id='identity_messages_monthly',
+        bql=IDENTITY_MESSAGES_MONTHLY_SQL,
+        destination_dataset_table='{project_id}'
+                                  ':{pipeline_dataset}'
+                                  '.{identity_messages_monthly_table}'
+                                  '{first_day_of_month}'.format(first_day_of_month=FIRST_DAY_OF_MONTH, **config),
+        params={
+            'messages_table': '{messages_table}'.format(**config)
+        }
+    )
+
+    segment_identity = BigQueryOperator(
+        task_id = 'segment_identity',
+        bql=SEGEMENT_IDENTITY_SQL,
+        destination_dataset_table='{project_id}'
+                                  ':{pipeline_dataset}'
+                                  '.{segment_identity_table}'
+                                  '{first_day_of_month}'.format(first_day_of_month=FIRST_DAY_OF_MONTH, **config),
+        params={
+            'identity_messages_table': '{identity_messages_monthly_table}'.format(**config),
+        },
+        dag=dag
+    )
+    source_exists >> segment >> identity_messages_monthly >> segment_identity
