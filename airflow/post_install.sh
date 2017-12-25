@@ -2,7 +2,7 @@
 
 python $AIRFLOW_HOME/utils/set_default_variables.py \
     --force docker_image=$1 \
-    pipe_orbcomm \
+    pipe_segment \
     project_id="{{ var.value.PROJECT_ID }}" \
     temp_bucket="{{ var.value.TEMP_BUCKET }}"  \
     pipeline_bucket="{{ var.value.PIPELINE_BUCKET }}" \
