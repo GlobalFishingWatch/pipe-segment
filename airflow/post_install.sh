@@ -1,9 +1,18 @@
 #!/bin/bash
 
-THIS_SCRIPT_DIR="$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )"
+python $AIRFLOW_HOME/utils/set_default_variables.py \
+    --force docker_image=$1 \
+    pipe_orbcomm \
+    project_id="{{ var.value.PROJECT_ID }}" \
+    temp_bucket="{{ var.value.TEMP_BUCKET }}"  \
+    pipeline_bucket="{{ var.value.PIPELINE_BUCKET }}" \
+    pipeline_dataset="{{ var.value.PIPELINE_DATASET }}" \
+    normalized_table="normalized_orbcomm_" \
+    messages_table="messages_segmented_" \
+    segments_table="segments_" \
+    identity_messages_monthly_table="identity_messages_monthly_" \
+    segment_identity_table="segment_identity_"
 
-airflow variables --get pipe_segment || NOT_FOUND=$? && true
+echo "Installation Complete"
 
-if [[ $NOT_FOUND ]]; then
-    airflow variables -i $THIS_SCRIPT_DIR/variables.json
-fi
+

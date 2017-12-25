@@ -1,0 +1,30 @@
+{% macro subquery(field) -%}
+
+SELECT
+  ssvid, seg_id,
+  FIRST({{ field }}) AS {{ field }},
+  SUM(msg_count) as {{ field }}_count
+FROM (
+  SELECT
+    ssvid, seg_id,
+    {{ field }},
+    msg_count,
+    RANK() OVER (PARTITION BY seg_id ORDER BY msg_count DESC) rank,
+  FROM (
+    SELECT
+      ssvid, seg_id,
+      {{ field }},
+      SUM(msg_count) AS msg_count
+    FROM
+      [{{ var.value.PROJECT_ID }}:{{ var.value.PIPELINE_DATASET }}.{{ params.identity_messages_table }}{{ execution_date.replace(day=1).strftime("%Y%m%d") }}]
+    WHERE
+      {{ field }} IS NOT NULL
+    GROUP BY
+      ssvid, seg_id,
+      {{ field }} ) )
+WHERE
+  rank = 1
+GROUP BY
+  ssvid, seg_id
+
+{%- endmacro %}
