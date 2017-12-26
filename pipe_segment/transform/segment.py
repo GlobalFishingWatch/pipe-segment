@@ -74,23 +74,26 @@ class Segment(PTransform):
         stats_frequency_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.FREQUENCY_STATS)]
 
         ms = MessageStats(messages, stats_numeric_fields, stats_frequency_fields)
-
         first_msg = seg_state.msgs[0]
-        last_pos_msg = first_msg
-        for msg in seg_state.msgs:
-            if msg.get('lat') is not None:
-                last_pos_msg = msg
+        last_msg = seg_state.msgs[-1]
+
         record = JSONDict (
             seg_id=seg_state.id,
             ssvid=seg_state.mmsi,
             noise=seg_state.noise,
             message_count=seg_state.msg_count,
             origin_ts=timestampFromDatetime(first_msg['timestamp']),
-            timestamp=messages[-1]['timestamp'],
-            last_pos_ts=timestampFromDatetime(last_pos_msg['timestamp']),
-            last_pos_lat=last_pos_msg.get('lat'),
-            last_pos_lon=last_pos_msg.get('lon')
+            timestamp=timestampFromDatetime(last_msg['timestamp']),
         )
+
+        pos_messages = [msg for msg in seg_state.msgs if msg.get('lat') is not None] or [None]
+        last_pos_msg = pos_messages[-1]
+        if last_pos_msg:
+            record.update(dict(
+                last_pos_ts=timestampFromDatetime(last_pos_msg['timestamp']),
+                last_pos_lat=last_pos_msg['lat'],
+                last_pos_lon=last_pos_msg['lon']
+            ))
 
         for field, stats in self.stats_fields:
             stat_values = ms.field_stats(field)
@@ -101,21 +104,22 @@ class Segment(PTransform):
 
     def _segment_state (self, seg_record):
         messages = []
-        if seg_record['origin_ts'] != seg_record['timestamp']:
+        if seg_record.get('last_pos_ts') is not None:
             messages.append({
+                'ssvid': seg_record['ssvid'],
+                'timestamp': seg_record['last_pos_ts'],
+                'lat': seg_record['last_pos_lat'],
+                'lon': seg_record['last_pos_lon']
+            })
+        if seg_record['origin_ts'] not in [msg['timestamp'] for msg in messages]:
+            messages.insert(0, {
                 'ssvid': seg_record['ssvid'],
                 'timestamp': seg_record['origin_ts'],
             })
-        messages.append({
-            'ssvid': seg_record['ssvid'],
-            'timestamp': seg_record['timestamp'],
-            'lat': seg_record['last_pos_lat'],
-            'lon': seg_record['last_pos_lon']
-        })
-        if seg_record['timestamp_last'] != seg_record['timestamp']:
+        if seg_record['timestamp'] not in [msg['timestamp'] for msg in messages]:
             messages.append({
                 'ssvid': seg_record['ssvid'],
-                'timestamp': seg_record['timestamp_last'],
+                'timestamp': seg_record['origin_ts'],
             })
 
         state = SegmentState()
