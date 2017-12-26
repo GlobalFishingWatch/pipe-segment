@@ -33,11 +33,16 @@ class GCPSource(beam.PTransform):
 
 
     def expand_query(self, pcoll):
+        if self.schema:
+            ts_fields = {f.name for f in self.schema.fields if f.type=='TIMESTAMP'}
+        else:
+            ts_fields = {'timestamp'}
+
         source = beam.io.gcp.bigquery.BigQuerySource(query=self.query)
         return (
             pcoll
             | "ReadFromBigQuery" >> ReadAsJSONDict(source)
-            | "ConvertTimestamp" >> beam.ParDo(ParseBeamBQStrTimestampDoFn())
+            | "ConvertTimestamp" >> beam.ParDo(ParseBeamBQStrTimestampDoFn(fields=list(ts_fields)))
         )
 
     def expand(self, pcoll):

@@ -99,7 +99,7 @@ class SegmentPipeline:
         ts = timestampFromDatetime(dt - timedelta(days=1))
 
         try:
-            sink = GCPSource(gcp_path=self.options.segments,
+            source = GCPSource(gcp_path=self.options.segments,
                              first_date_ts=ts,
                              last_date_ts=ts)
         except HttpError as exn:
@@ -108,7 +108,7 @@ class SegmentPipeline:
                 return None
             else:
                 raise
-        return sink
+        return source
 
     @property
     def segment_sink(self):
