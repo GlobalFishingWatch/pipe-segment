@@ -1,3 +1,3 @@
-https://codeload.github.com/GlobalFishingWatch/pipe-tools/tar.gz/fb9b13967c9eb434b76a805ace9df5911e19c09c#egg=pipe-tools-0.1.2
+https://codeload.github.com/GlobalFishingWatch/pipe-tools/tar.gz/5c56c994edc8ede1337b8418b3516154f4cf5787#egg=pipe-tools-0.1.2
 https://codeload.github.com/Skytruth/gpsdio-segment/tar.gz/fe4b074681bda4bf5c57e639344e38ee536cc41d#egg=gpsdio-segment-0.10
 https://codeload.github.com/GlobalFishingWatch/ShipDataProcess/tar.gz/65c0f744966c225ba1afb6de50870fa3e0591880#egg=shipdataprocess-0.1.0
