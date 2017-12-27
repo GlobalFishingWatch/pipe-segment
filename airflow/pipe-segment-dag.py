@@ -21,7 +21,7 @@ config = Variable.get('pipe_segment', deserialize_json=True)
 
 default_args = {
     'owner': 'airflow',
-    'depends_on_past': True,
+    'depends_on_past': False,
     'start_date': datetime(2017, 11, 1),
     'email': ['airflow@airflow.com'],
     'email_on_failure': False,
@@ -41,7 +41,7 @@ default_args = {
 
 with DAG('pipe_segment', schedule_interval=timedelta(days=1), default_args=default_args) as dag:
 
-    source_exists= BigQueryTableSensor(
+    source_exists=BigQueryTableSensor(
         task_id='source_exists',
         table_id="{normalized_table}{ds}".format(ds="{{ ds_nodash }}", **config),
         poke_interval=10,   #check every 10 seconds for a minute
@@ -53,6 +53,7 @@ with DAG('pipe_segment', schedule_interval=timedelta(days=1), default_args=defau
 
     segment=DataFlowPythonOperator(
         task_id='segment',
+        depends_on_past=True,
         py_file=Variable.get('DATAFLOW_WRAPPER_STUB'),
         options=dict(
             command='{docker_run} {docker_image} segment'.format(**config),
