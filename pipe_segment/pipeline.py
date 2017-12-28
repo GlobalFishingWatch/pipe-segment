@@ -30,15 +30,37 @@ class SegmentPipeline:
     def __init__(self, options):
         self.options = options.view_as(SegmentOptions)
         self.date_range = parse_date_range(self.options.date_range)
-        d1, d2 = self.date_range
-        self.message_source = GCPSource(gcp_path=self.options.source,
-                           first_date_ts=d1,
-                           last_date_ts=d2)
-        self.segment_transform = Segment(self.segmenter_params)
+        self._message_source_list = None
+
+    @property
+    def message_source_list(self):
+        # creating a GCPSource requires calls to the bigquery API if we are
+        # reading from bigquery, so only do this once.
+        if not self._message_source_list:
+            first_date_ts, last_date_ts = self.date_range
+            gcp_paths = self.options.source.split(',')
+            self._message_source_list = []
+            for gcp_path in gcp_paths:
+                s = GCPSource(gcp_path=gcp_path,
+                               first_date_ts=first_date_ts,
+                               last_date_ts=last_date_ts)
+                self._message_source_list.append(s)
+
+        return self._message_source_list
+
+    def message_sources(self, pipeline):
+        def compose(idx, source):
+            return pipeline | "Source%i" % idx >> source
+
+        return (compose (idx, source) for idx, source in enumerate(self.message_source_list))
 
     @property
     def message_input_schema(self):
-        schema = self.message_source.schema or self.options.source_schema
+        schema = self.options.source_schema
+        if schema is None:
+            # no explicit schema provided. Try to find one in the source(s)
+            schemas = [s.schema for s in self.message_source_list if s.schema is not None]
+            schema = schemas[0] if schemas else None
         return parse_table_schema(schema)
 
     @property
@@ -70,6 +92,11 @@ class SegmentPipeline:
         schema.fields.append(field)
 
         return schema
+
+
+    @property
+    def segment_transform(self):
+        return Segment(self.segmenter_params)
 
     @property
     def segmenter_params(self):
@@ -120,9 +147,10 @@ class SegmentPipeline:
 
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.options)
+        messages = self.message_sources(pipeline)
         messages = (
-            pipeline
-            | "ReadMessages" >> self.message_source
+            messages
+            | "MergeMessages" >> beam.Flatten()
             | "MessagesAddKey" >> beam.Map(self.groupby_fn)
         )
 

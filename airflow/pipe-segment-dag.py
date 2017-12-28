@@ -39,17 +39,23 @@ default_args = {
 }
 
 
-with DAG('pipe_segment', schedule_interval=timedelta(days=1), default_args=default_args) as dag:
-
-    source_exists=BigQueryTableSensor(
-        task_id='source_exists',
-        table_id="{normalized_table}{ds}".format(ds="{{ ds_nodash }}", **config),
+def table_sensor(table, dag):
+    return BigQueryTableSensor(
+        task_id='source_exists_{}'.format(table),
+        table_id='{}{}'.format(table, '{{ ds_nodash }}'),
         poke_interval=10,   #check every 10 seconds for a minute
         timeout=60,
         retries=24*7,       # retry once per hour for a week
         retry_delay=timedelta(minutes=60),
         dag=dag
     )
+
+with DAG('pipe_segment', schedule_interval=timedelta(days=1), default_args=default_args) as dag:
+
+    source_dataset = '{project_id}:{pipeline_dataset}'.format(**config)
+    source_tables = config['normalized_tables'].split(',')
+    source_sensors = [table_sensor(table, dag) for table in source_tables]
+    source_paths = ['bq://{}.{}'.format(source_dataset, table) for table in source_tables]
 
     segment=DataFlowPythonOperator(
         task_id='segment',
@@ -59,7 +65,7 @@ with DAG('pipe_segment', schedule_interval=timedelta(days=1), default_args=defau
             command='{docker_run} {docker_image} segment'.format(**config),
             startup_log_file=pp.join(Variable.get('DATAFLOW_WRAPPER_LOG_PATH'), 'pipe_segment/segment.log'),
             date_range='{{ ds }},{{ ds }}',
-            source='bq://{project_id}:{pipeline_dataset}.{normalized_table}'.format(**config),
+            source=','.join(source_paths),
             dest='bq://{project_id}:{pipeline_dataset}.{messages_table}'.format(**config),
             segments='bq://{project_id}:{pipeline_dataset}.{segments_table}'.format(**config),
             runner='DataflowRunner',
@@ -98,4 +104,8 @@ with DAG('pipe_segment', schedule_interval=timedelta(days=1), default_args=defau
         },
         dag=dag
     )
-    source_exists >> segment >> identity_messages_monthly >> segment_identity
+
+    for sensor in source_sensors:
+        sensor >> segment
+
+    segment >> identity_messages_monthly >> segment_identity

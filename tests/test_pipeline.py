@@ -104,3 +104,13 @@ class TestPipeline():
                     for expected, actual in zip(sorted(expected_output, key=lambda x: x['seg_id']),
                                                 sorted(nlj.load(actual_output), key=lambda x: x['seg_id'])):
                         assert set(expected.items()).issubset(set(actual.items()))
+
+
+    def test_Pipeline_multiple_source(self, test_data_dir, temp_dir):
+        source1 = pp.join(test_data_dir, 'input.json')
+        source2 = pp.join(test_data_dir, 'input2.json')
+        source = ",".join([source1, source2])
+        messages_sink = pp.join(temp_dir, 'messages')
+        segments_sink = pp.join(temp_dir, 'segments')
+        expected = pp.join(test_data_dir, 'expected_messages2.json')
+        self._run_pipeline(source, messages_sink, segments_sink, expected)
