@@ -15,9 +15,12 @@ with open(pp.join(DAG_FILES, 'identity_messages_monthly.sql.j2')) as f:
     IDENTITY_MESSAGES_MONTHLY_SQL = f.read()
 with open(pp.join(DAG_FILES, 'segment_identity.sql.j2')) as f:
     SEGEMENT_IDENTITY_SQL = f.read()
-FIRST_DAY_OF_MONTH='{{ execution_date.replace(day=1).strftime("%Y%m%d") }}'
 
 config = Variable.get('pipe_segment', deserialize_json=True)
+config['first_day_of_month']='{{ execution_date.replace(day=1).strftime("%Y-%m-%d") }}'
+config['last_day_of_month']='{{ (execution_date.replace(day=1) + macros.dateutil.relativedelta.relativedelta(months=1, days=-1)).strftime("%Y-%m-%d") }}'
+config['first_day_of_month_nodash']= '{{ execution_date.replace(day=1).strftime("%Y%m%d") }}'
+config['last_day_of_month_nodash']='{{ (execution_date.replace(day=1) + macros.dateutil.relativedelta.relativedelta(months=1, days=-1)).strftime("%Y%m%d") }}'
 
 default_args = {
     'owner': 'airflow',
@@ -39,73 +42,87 @@ default_args = {
 }
 
 
-def table_sensor(table, dag):
+def table_sensor(table, date):
     return BigQueryTableSensor(
         task_id='source_exists_{}'.format(table),
-        table_id='{}{}'.format(table, '{{ ds_nodash }}'),
+        table_id='{}{}'.format(table, date),
         poke_interval=10,   #check every 10 seconds for a minute
         timeout=60,
         retries=24*7,       # retry once per hour for a week
-        retry_delay=timedelta(minutes=60),
-        dag=dag
+        retry_delay=timedelta(minutes=60)
     )
 
-with DAG('pipe_segment', schedule_interval=timedelta(days=1), default_args=default_args) as dag:
+def build_dag(dag_id, schedule_interval):
 
-    source_dataset = '{project_id}:{pipeline_dataset}'.format(**config)
-    source_tables = config['normalized_tables'].split(',')
-    source_sensors = [table_sensor(table, dag) for table in source_tables]
-    source_paths = ['bq://{}.{}'.format(source_dataset, table) for table in source_tables]
+    if schedule_interval=='@daily':
+        source_sensor_date = '{{ ds_nodash }}'
+        date_range = '{{ ds }},{{ ds }}'
+    elif schedule_interval == '@monthly':
+        source_sensor_date = '{last_day_of_month_nodash}'.format(**config)
+        date_range = '{first_day_of_month},{last_day_of_month}'.format(**config)
+    else:
+        raise ValueError('Unsupported schedule interval {}'.format(schedule_interval))
 
-    segment=DataFlowPythonOperator(
-        task_id='segment',
-        depends_on_past=True,
-        py_file=Variable.get('DATAFLOW_WRAPPER_STUB'),
-        options=dict(
-            command='{docker_run} {docker_image} segment'.format(**config),
-            startup_log_file=pp.join(Variable.get('DATAFLOW_WRAPPER_LOG_PATH'), 'pipe_segment/segment.log'),
-            date_range='{{ ds }},{{ ds }}',
-            source=','.join(source_paths),
-            dest='bq://{project_id}:{pipeline_dataset}.{messages_table}'.format(**config),
-            segments='bq://{project_id}:{pipeline_dataset}.{segments_table}'.format(**config),
-            runner='DataflowRunner',
-            project=config['project_id'],
-            disk_size_gb="50",
-            max_num_workers="100",
-            temp_location='gs://{temp_bucket}/dataflow_temp'.format(**config),
-            staging_location='gs://{temp_bucket}/dataflow_staging'.format(**config),
-            requirements_file='./requirements.txt',
-            setup_file='./setup.py'
-        ),
-        dag=dag
-    )
+    with DAG(dag_id, schedule_interval=schedule_interval, default_args=default_args) as dag:
 
-    identity_messages_monthly = BigQueryOperator(
-        task_id='identity_messages_monthly',
-        bql=IDENTITY_MESSAGES_MONTHLY_SQL,
-        destination_dataset_table='{project_id}'
-                                  ':{pipeline_dataset}'
-                                  '.{identity_messages_monthly_table}'
-                                  '{first_day_of_month}'.format(first_day_of_month=FIRST_DAY_OF_MONTH, **config),
-        params={
-            'messages_table': '{messages_table}'.format(**config)
-        }
-    )
+        source_dataset = '{project_id}:{pipeline_dataset}'.format(**config)
+        source_tables = config['normalized_tables'].split(',')
+        source_sensors = [table_sensor(table, source_sensor_date) for table in source_tables]
+        source_paths = ['bq://{}.{}'.format(source_dataset, table) for table in source_tables]
 
-    segment_identity = BigQueryOperator(
-        task_id = 'segment_identity',
-        bql=SEGEMENT_IDENTITY_SQL,
-        destination_dataset_table='{project_id}'
-                                  ':{pipeline_dataset}'
-                                  '.{segment_identity_table}'
-                                  '{first_day_of_month}'.format(first_day_of_month=FIRST_DAY_OF_MONTH, **config),
-        params={
-            'identity_messages_table': '{identity_messages_monthly_table}'.format(**config),
-        },
-        dag=dag
-    )
+        segment=DataFlowPythonOperator(
+            task_id='segment',
+            depends_on_past=True,
+            py_file=Variable.get('DATAFLOW_WRAPPER_STUB'),
+            options=dict(
+                command='{docker_run} {docker_image} segment'.format(**config),
+                startup_log_file=pp.join(Variable.get('DATAFLOW_WRAPPER_LOG_PATH'), 'pipe_segment/segment.log'),
+                date_range=date_range,
+                source=','.join(source_paths),
+                dest='bq://{project_id}:{pipeline_dataset}.{messages_table}'.format(**config),
+                segments='bq://{project_id}:{pipeline_dataset}.{segments_table}'.format(**config),
+                runner='DataflowRunner',
+                project=config['project_id'],
+                disk_size_gb="50",
+                max_num_workers="100",
+                temp_location='gs://{temp_bucket}/dataflow_temp'.format(**config),
+                staging_location='gs://{temp_bucket}/dataflow_staging'.format(**config),
+                requirements_file='./requirements.txt',
+                setup_file='./setup.py'
+            )
+        )
 
-    for sensor in source_sensors:
-        sensor >> segment
+        identity_messages_monthly = BigQueryOperator(
+            task_id='identity_messages_monthly',
+            bql=IDENTITY_MESSAGES_MONTHLY_SQL,
+            destination_dataset_table='{project_id}'
+                                      ':{pipeline_dataset}'
+                                      '.{identity_messages_monthly_table}'
+                                      '{first_day_of_month_nodash}'.format(**config),
+            params={
+                'messages_table': '{messages_table}'.format(**config)
+            }
+        )
 
-    segment >> identity_messages_monthly >> segment_identity
+        segment_identity = BigQueryOperator(
+            task_id = 'segment_identity',
+            bql=SEGEMENT_IDENTITY_SQL,
+            destination_dataset_table='{project_id}'
+                                      ':{pipeline_dataset}'
+                                      '.{segment_identity_table}'
+                                      '{first_day_of_month_nodash}'.format(**config),
+            params={
+                'identity_messages_table': '{identity_messages_monthly_table}'.format(**config),
+            }
+        )
+
+        for sensor in source_sensors:
+            dag >> sensor >> segment
+
+        segment >> identity_messages_monthly >> segment_identity
+
+        return dag
+
+
+segment_daily_dag = build_dag('pipe_segment_daily', '@daily')
+segment_monthly_dag = build_dag('pipe_segment_monthly', '@monthly')
