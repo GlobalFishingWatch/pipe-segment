@@ -88,7 +88,8 @@ def build_dag(dag_id, schedule_interval):
                 temp_location='gs://{temp_bucket}/dataflow_temp'.format(**config),
                 staging_location='gs://{temp_bucket}/dataflow_staging'.format(**config),
                 requirements_file='./requirements.txt',
-                setup_file='./setup.py'
+                setup_file='./setup.py',
+                experiments='shuffle_mode=service'
             )
         )
 
