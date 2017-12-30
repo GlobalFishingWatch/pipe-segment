@@ -83,15 +83,16 @@ class TestTransforms():
             messages = (
                 p | 'CreateMessages' >> beam.Create(messages_in)
                 | 'AddKeyMessages' >> beam.Map(self.groupby_fn)
+                | "MessagesGroupByKey" >> beam.GroupByKey()
             )
             segments = (
                 p | 'CreateSegments' >> beam.Create(segments_in)
                 | 'AddKeySegments' >> beam.Map(self.groupby_fn)
+                | "SegmentsGroupByKey" >> beam.GroupByKey()
             )
             segmented = (
-                {"messages": messages, "segments": segments}
-                | beam.CoGroupByKey()
-                | "Segment" >> Segment()
+                messages
+                | "Segment" >> Segment(segments)
             )
             messages = segmented['messages']
             segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]

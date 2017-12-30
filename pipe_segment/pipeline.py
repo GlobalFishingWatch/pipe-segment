@@ -94,9 +94,8 @@ class SegmentPipeline:
         return schema
 
 
-    @property
-    def segment_transform(self):
-        return Segment(self.segmenter_params)
+    # def segment_transform(self, segments=None):
+    #     return Segment(segmenter_params=self.segmenter_params, segments=segments)
 
     @property
     def segmenter_params(self):
@@ -121,7 +120,7 @@ class SegmentPipeline:
     @property
     def segment_source(self):
         if self.date_range[0] is None:
-            return None
+            return beam.Create([])
 
         dt = datetimeFromTimestamp(self.date_range[0])
         ts = timestampFromDatetime(dt - timedelta(days=1))
@@ -133,15 +132,14 @@ class SegmentPipeline:
         except HttpError as exn:
             logging.warn("Segment source not found: %s %s" % (self.options.segments, dt))
             if exn.status_code == 404:
-                return None
+                return beam.Create([])
             else:
                 raise
         return source
 
-    @property
-    def segment_sink(self):
+    def segment_sink(self, schema):
         sink = GCPSink(gcp_path=self.options.segments,
-                       schema=self.segment_transform.segment_schema,
+                       schema=schema,
                        temp_gcs_location=self.temp_gcs_location)
         return sink
 
@@ -153,23 +151,23 @@ class SegmentPipeline:
             messages
             | "MergeMessages" >> beam.Flatten()
             | "MessagesAddKey" >> beam.Map(self.groupby_fn)
+            | "MessagesGroupByKey" >> beam.GroupByKey()
         )
 
-        segment_source = self.segment_source
-        if segment_source is None:
-            segments_in = []
-        else:
-            segments_in = (
-                pipeline
-                | "ReadSegments" >> self.segment_source
-                | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
-            )
-
-        segmented = (
-            {"messages": messages, "segments":segments_in}
-            | beam.CoGroupByKey()
-            | "Segment" >> self.segment_transform
+        segments = (
+            pipeline
+            | "ReadSegments" >> self.segment_source
+            | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
+            | "SegmentsGroupByKey" >> beam.GroupByKey()
         )
+
+        segmenter = Segment(segments, segmenter_params=self.segmenter_params)
+        segmented = messages | "Segment" >> segmenter
+        # segmented = (
+        #     {"messages": messages, "segments":segments_in}
+        #     | beam.CoGroupByKey()
+        #     | "Segment" >> self.segment_transform
+        # )
         messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
         segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
         (
@@ -181,7 +179,7 @@ class SegmentPipeline:
         (
             segments
             | "TimestampSegments" >> beam.ParDo(TimestampedValueDoFn())
-            | "WriteSegments" >> self.segment_sink
+            | "WriteSegments" >> self.segment_sink(segmenter.segment_schema)
         )
         return pipeline
 

@@ -1,15 +1,14 @@
 import datetime as dt
 import itertools as it
 
+import apache_beam as beam
 from apache_beam import PTransform
 from apache_beam import FlatMap
-from apache_beam import typehints
+from apache_beam.pvalue import AsDict
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.io.gcp.internal.clients import bigquery
 
 from gpsdio_segment.core import Segmentizer
-from gpsdio_segment.core import BadSegment
-from gpsdio_segment.core import NoiseSegment
 from gpsdio_segment.core import SegmentState
 
 from pipe_tools.coders import JSONDict
@@ -31,12 +30,14 @@ class Segment(PTransform):
                             ('imo', MessageStats.FREQUENCY_STATS),
                             ('callsign', MessageStats.FREQUENCY_STATS)]
 
-    def __init__(self, segmenter_params = None,
+    def __init__(self, segments_pcoll_kv,
+                 segmenter_params = None,
                  stats_fields=DEFAULT_STATS_FIELDS,
                  **kwargs):
         super(Segment, self).__init__(**kwargs)
         self.segmenter_params = segmenter_params or {}
         self.stats_fields = stats_fields
+        self.segments_pcoll_kv=segments_pcoll_kv
 
     @staticmethod
     def _convert_messages_in(msg):
@@ -149,10 +150,9 @@ class Segment(PTransform):
                 yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, seg_record)
 
 
-    def segment(self, kv):
-        key, values = kv
-        messages = values['messages']
-        segments = values['segments']
+    def segment(self, kv, segments_map):
+        key, messages = kv
+        segments = segments_map.get(key, [])
 
         messages = sorted(messages, key=lambda msg: msg['timestamp'])
         for item in self._gpsdio_segment(messages, segments):
@@ -160,7 +160,7 @@ class Segment(PTransform):
 
     def expand(self, xs):
         return (
-            xs | FlatMap(self.segment)
+            xs | FlatMap(self.segment, AsDict(self.segments_pcoll_kv))
                 .with_outputs(self.OUTPUT_TAG_SEGMENTS, main=self.OUTPUT_TAG_MESSAGES)
 
         )

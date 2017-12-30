@@ -83,7 +83,7 @@ def build_dag(dag_id, schedule_interval):
                 segments='bq://{project_id}:{pipeline_dataset}.{segments_table}'.format(**config),
                 runner='DataflowRunner',
                 project=config['project_id'],
-                disk_size_gb="50",
+                disk_size_gb="200",
                 max_num_workers="100",
                 temp_location='gs://{temp_bucket}/dataflow_temp'.format(**config),
                 staging_location='gs://{temp_bucket}/dataflow_staging'.format(**config),

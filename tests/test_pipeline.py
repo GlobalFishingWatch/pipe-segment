@@ -17,6 +17,7 @@ from pipe_tools.coders import JSONDictCoder
 
 from pipe_segment.__main__ import run as  pipe_segment_run
 from pipe_segment.transform import Segment
+from pipe_segment.pipeline import SegmentPipeline
 
 
 @pytest.mark.filterwarnings('ignore:Using fallback coder:UserWarning')
@@ -67,14 +68,11 @@ class TestPipeline():
             messages = (
                 p
                 | beam.io.ReadFromText(file_pattern=source, coder=JSONDictCoder())
-                | "AddKey" >> Map(lambda row: (row['ssvid'], row))
+                | "MessagesAddKey" >> beam.Map(SegmentPipeline.groupby_fn)
+                | "MessagesGroupByKey" >> beam.GroupByKey()
             )
-            segments = []
-            segmented = (
-                {"messages": messages, "segments":segments}
-                | beam.CoGroupByKey()
-                | Segment()
-            )
+            segments = p | beam.Create([])
+            segmented = messages | Segment(segments)
 
             messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
             (messages
