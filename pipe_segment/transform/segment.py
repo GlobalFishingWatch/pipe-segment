@@ -1,5 +1,6 @@
 import datetime as dt
 import itertools as it
+import logging
 
 import apache_beam as beam
 from apache_beam import PTransform
@@ -140,14 +141,17 @@ class Segment(PTransform):
             segments = list(Segmentizer.from_seg_states(seg_states, messages, **self.segmenter_params))
             seg_states = []
             for seg in segments:
-
                 seg_messages = list(it.imap(self._convert_messages_out, seg, it.repeat(seg.id)))
-                for msg in seg_messages:
-                    yield msg
-                seg_state = seg.state
-                seg_states.append(seg_state)
-                seg_record = self._segment_record(seg_messages, seg_state)
-                yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, seg_record)
+                if seg_messages:
+                    # ignore segments that come out with no messages, these are just the prior segment states that we
+                    # passed it that were kicked out because they are too old
+                    for msg in seg_messages:
+                        yield msg
+                    seg_state = seg.state
+                    seg_states.append(seg_state)
+                    seg_record = self._segment_record(seg_messages, seg_state)
+                    logging.info('Segmenting key %s yielding segment %s containing %s messages ' % (seg.mmsi, seg.id, len(seg_messages)))
+                    yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, seg_record)
 
 
     def segment(self, kv, segments_map):
@@ -155,6 +159,7 @@ class Segment(PTransform):
         segments = segments_map.get(key, [])
 
         messages = sorted(messages, key=lambda msg: msg['timestamp'])
+        logging.info('Segmenting key %s sorted %s messages' % (key, len(messages)))
         for item in self._gpsdio_segment(messages, segments):
             yield item
 

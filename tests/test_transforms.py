@@ -164,7 +164,6 @@ class TestTransforms():
         normalize = NormalizeDoFn()
         assert all ('n_imo' not in m for m in list(normalize.process({'imo': 0000000})))
 
-
     def test_noise_segment(self, temp_dir):
         messages_in = [
             {"timestamp": as_timestamp("2017-07-20T05:59:35.000000Z"),
@@ -198,4 +197,28 @@ class TestTransforms():
         seg_stats = {(seg['seg_id'], seg['message_count'], seg['noise']) for seg in segments_out}
 
         assert seg_stats == {('338013000-2017-07-20T05:59:35.000000Z', 3, False)}
+
+
+    def test_expected_segments(self, temp_dir):
+        messages_in = [
+            {"timestamp": as_timestamp("2017-11-15T11:14:32.000000Z"),
+             "ssvid": 257666800,
+             "lon": 5.3108466667,
+             "lat": 60.40065,
+             "speed": 6.5},
+            {"timestamp": as_timestamp("2017-11-26T11:20:16.000000Z"),
+             "ssvid": 257666800,
+             "lon": 5.32334,
+             "lat": 60.396235,
+             "speed": 3.2000000477},
+        ]
+
+        segments_in = []
+        messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
+        seg_stats = [(seg['seg_id'], seg['message_count'], seg['noise']) for seg in segments_out]
+
+        expected = [('257666800-2017-11-15T11:14:32.000000Z', 1, False),
+                    ('257666800-2017-11-26T11:20:16.000000Z', 1, False)]
+        assert seg_stats == expected
+
 

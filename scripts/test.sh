@@ -47,7 +47,9 @@ case $1 in
           --segments bq://${PROJECT_ID}:${PIPELINE_DATASET}.${JOB_NAME}_segments_ \
           --segmenter_params @examples/segmenter-params.json \
           --project ${PROJECT_ID} \
-          --temp_location gs://${TEMP_BUCKET_NAME}
+          --temp_location gs://${TEMP_BUCKET_NAME} \
+          --log_level=DEBUG
+
     done
     ;;
 
@@ -66,7 +68,9 @@ case $1 in
       --max_num_workers 4 \
       --disk_size_gb 50 \
       --requirements_file=./requirements.txt \
-      --setup_file=./setup.py
+      --setup_file=./setup.py \
+      --log_level=DEBUG
+
     ;;
 
   *)

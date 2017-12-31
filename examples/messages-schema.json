@@ -1,71 +1,68 @@
 {
   "fields": [
     {
-      "name": "type",
-      "type": "INTEGER"
+      "mode": "NULLABLE",
+      "name": "msgid",
+      "type": "STRING"
     },
     {
+      "mode": "NULLABLE",
+      "name": "source",
+      "type": "STRING"
+    },
+    {
+      "mode": "NULLABLE",
       "name": "ssvid",
       "type": "INTEGER"
     },
     {
-      "name": "imo",
-      "type": "INTEGER"
-    },
-    {
-      "name": "shipname",
-      "type": "STRING"
-    },
-    {
-      "name": "shiptype",
-      "type": "INTEGER"
-    },
-    {
-      "name": "shiptype_text",
-      "type": "STRING"
-    },
-    {
-      "name": "callsign",
-      "type": "STRING"
-    },
-    {
+      "mode": "NULLABLE",
       "name": "timestamp",
       "type": "TIMESTAMP"
     },
     {
+      "mode": "NULLABLE",
       "name": "lon",
       "type": "FLOAT"
     },
     {
+      "mode": "NULLABLE",
       "name": "lat",
       "type": "FLOAT"
     },
     {
+      "mode": "NULLABLE",
       "name": "speed",
       "type": "FLOAT"
     },
     {
+      "mode": "NULLABLE",
       "name": "course",
       "type": "FLOAT"
     },
     {
+      "mode": "NULLABLE",
       "name": "heading",
-      "type": "INTEGER"
-    },
-    {
-      "name": "distance_from_shore",
       "type": "FLOAT"
     },
     {
-      "name": "distance_from_port",
-      "type": "FLOAT"
-    },
-    {
-      "name": "tagblock_station",
+      "mode": "NULLABLE",
+      "name": "shipname",
       "type": "STRING"
     },
     {
-      "name": "gridcode",
+      "mode": "NULLABLE",
+      "name": "callsign",
+      "type": "STRING"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "imo",
+      "type": "STRING"
+    },
+    {
+      "mode": "NULLABLE",
+      "name": "shiptype",
       "type": "STRING"
     }
   ]
