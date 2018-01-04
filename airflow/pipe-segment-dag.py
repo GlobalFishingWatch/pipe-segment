@@ -8,6 +8,7 @@ from airflow.contrib.sensors.bigquery_sensor import BigQueryTableSensor
 from airflow.contrib.operators.bigquery_operator import BigQueryOperator
 from airflow.models import Variable
 
+
 CONNECTION_ID = 'google_cloud_default'
 THIS_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DAG_FILES = THIS_SCRIPT_DIR
@@ -17,10 +18,11 @@ with open(pp.join(DAG_FILES, 'segment_identity.sql.j2')) as f:
     SEGEMENT_IDENTITY_SQL = f.read()
 
 config = Variable.get('pipe_segment', deserialize_json=True)
-config['first_day_of_month']='{{ execution_date.replace(day=1).strftime("%Y-%m-%d") }}'
-config['last_day_of_month']='{{ (execution_date.replace(day=1) + macros.dateutil.relativedelta.relativedelta(months=1, days=-1)).strftime("%Y-%m-%d") }}'
-config['first_day_of_month_nodash']= '{{ execution_date.replace(day=1).strftime("%Y%m%d") }}'
-config['last_day_of_month_nodash']='{{ (execution_date.replace(day=1) + macros.dateutil.relativedelta.relativedelta(months=1, days=-1)).strftime("%Y%m%d") }}'
+config['ds_nodash'] = '{{ ds_nodash }}'
+config['first_day_of_month'] = '{{ execution_date.replace(day=1).strftime("%Y-%m-%d") }}'
+config['last_day_of_month'] = '{{ (execution_date.replace(day=1) + macros.dateutil.relativedelta.relativedelta(months=1, days=-1)).strftime("%Y-%m-%d") }}'
+config['first_day_of_month_nodash'] = '{{ execution_date.replace(day=1).strftime("%Y%m%d") }}'
+config['last_day_of_month_nodash'] = '{{ (execution_date.replace(day=1) + macros.dateutil.relativedelta.relativedelta(months=1, days=-1)).strftime("%Y%m%d") }}'
 
 default_args = {
     'owner': 'airflow',
@@ -46,15 +48,16 @@ def table_sensor(table, date):
     return BigQueryTableSensor(
         task_id='source_exists_{}'.format(table),
         table_id='{}{}'.format(table, date),
-        poke_interval=10,   #check every 10 seconds for a minute
+        poke_interval=10,   # check every 10 seconds for a minute
         timeout=60,
         retries=24*7,       # retry once per hour for a week
         retry_delay=timedelta(minutes=60)
     )
 
+
 def build_dag(dag_id, schedule_interval):
 
-    if schedule_interval=='@daily':
+    if schedule_interval == '@daily':
         source_sensor_date = '{{ ds_nodash }}'
         date_range = '{{ ds }},{{ ds }}'
     elif schedule_interval == '@monthly':
@@ -70,7 +73,7 @@ def build_dag(dag_id, schedule_interval):
         source_sensors = [table_sensor(table, source_sensor_date) for table in source_tables]
         source_paths = ['bq://{}.{}'.format(source_dataset, table) for table in source_tables]
 
-        segment=DataFlowPythonOperator(
+        segment = DataFlowPythonOperator(
             task_id='segment',
             depends_on_past=True,
             py_file=Variable.get('DATAFLOW_WRAPPER_STUB'),

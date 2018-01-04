@@ -1,6 +1,6 @@
 {% import 'most_common.sql.j2' as most_common with context %}
 SELECT
- seg_id, ssvid, msg_count, pos_count,
+ seg_id, ssvid, msg_count, pos_count,  last_timestamp,
  n_imo, n_imo_count,
  n_shipname, n_shipname_count,
  n_callsign, n_callsign_count,
@@ -16,7 +16,7 @@ SELECT
 
 FROM (
 
-    SELECT seg_id, ssvid, msg_count, pos_count,
+    SELECT seg_id, ssvid, msg_count, pos_count, last_timestamp,
         n_imo, n_imo_count,
         n_shipname, n_shipname_count,
         n_callsign, n_callsign_count,
@@ -42,6 +42,7 @@ FROM (
             all_segs.seg_id as seg_id,
             all_segs.msg_count as msg_count,
             all_segs.pos_count as pos_count,
+            all_segs.last_timestamp as last_timestamp,
             ident_segs.n_imo as n_imo,
             ident_segs.n_imo_count as n_imo_count,
             ident_segs.n_callsign as n_callsign,
@@ -50,7 +51,7 @@ FROM (
             ident_segs.n_shipname_count as  n_shipname_count
         FROM(
 
-            SELECT ssvid, seg_id, SUM(msg_count) as msg_count, SUM(pos_count) as pos_count
+            SELECT ssvid, seg_id, SUM(msg_count) as msg_count, SUM(pos_count) as pos_count, max(last_timestamp) as last_timestamp
             FROM [{{ var.value.PROJECT_ID }}:{{ var.value.PIPELINE_DATASET }}.{{ params.identity_messages_table }}{{ execution_date.replace(day=1).strftime("%Y%m%d") }}],
             GROUP BY ssvid, seg_id
 
