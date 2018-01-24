@@ -17,14 +17,14 @@ with open(pp.join(DAG_FILES, 'identity_messages_monthly.sql.j2')) as f:
 with open(pp.join(DAG_FILES, 'segment_identity.sql.j2')) as f:
     SEGEMENT_IDENTITY_SQL = f.read()
 
-config = Variable.get('pipe_segment', deserialize_json=True)
-config['ds_nodash'] = '{{ ds_nodash }}'
-config['first_day_of_month'] = '{{ execution_date.replace(day=1).strftime("%Y-%m-%d") }}'
-config['last_day_of_month'] = '{{ (execution_date.replace(day=1) + macros.dateutil.relativedelta.relativedelta(months=1, days=-1)).strftime("%Y-%m-%d") }}'
-config['first_day_of_month_nodash'] = '{{ execution_date.replace(day=1).strftime("%Y%m%d") }}'
-config['last_day_of_month_nodash'] = '{{ (execution_date.replace(day=1) + macros.dateutil.relativedelta.relativedelta(months=1, days=-1)).strftime("%Y%m%d") }}'
+CONFIG = Variable.get('pipe_segment', deserialize_json=True)
+CONFIG['ds_nodash'] = '{{ ds_nodash }}'
+CONFIG['first_day_of_month'] = '{{ execution_date.replace(day=1).strftime("%Y-%m-%d") }}'
+CONFIG['last_day_of_month'] = '{{ (execution_date.replace(day=1) + macros.dateutil.relativedelta.relativedelta(months=1, days=-1)).strftime("%Y-%m-%d") }}'
+CONFIG['first_day_of_month_nodash'] = '{{ execution_date.replace(day=1).strftime("%Y%m%d") }}'
+CONFIG['last_day_of_month_nodash'] = '{{ (execution_date.replace(day=1) + macros.dateutil.relativedelta.relativedelta(months=1, days=-1)).strftime("%Y%m%d") }}'
 
-default_args = {
+DEFAULT_ARGS = {
     'owner': 'airflow',
     'depends_on_past': False,
     'start_date': datetime(2017, 11, 1),
@@ -33,9 +33,9 @@ default_args = {
     'email_on_retry': False,
     'retries': 2,
     'retry_delay': timedelta(minutes=5),
-    'project_id': config['project_id'],
-    'dataset_id': config['pipeline_dataset'],
-    'bucket': config['pipeline_bucket'],
+    'project_id': CONFIG['project_id'],
+    'dataset_id': CONFIG['pipeline_dataset'],
+    'bucket': CONFIG['pipeline_bucket'],
     'bigquery_conn_id': CONNECTION_ID,
     'gcp_conn_id': CONNECTION_ID,
     'google_cloud_conn_id': CONNECTION_ID,
@@ -55,7 +55,13 @@ def table_sensor(table, date):
     )
 
 
-def build_dag(dag_id, schedule_interval):
+def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra_config=None):
+
+    default_args=DEFAULT_ARGS.copy()
+    default_args.update(extra_default_args or {})
+
+    config=CONFIG.copy()
+    config.update(extra_config or {})
 
     if schedule_interval == '@daily':
         source_sensor_date = '{{ ds_nodash }}'
@@ -75,6 +81,7 @@ def build_dag(dag_id, schedule_interval):
 
         segment = DataFlowPythonOperator(
             task_id='segment',
+            pool='dataflow',
             depends_on_past=True,
             py_file=Variable.get('DATAFLOW_WRAPPER_STUB'),
             options=dict(

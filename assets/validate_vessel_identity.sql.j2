@@ -1,0 +1,18 @@
+/*
+  Verify that there are no vessel_ids associated with more than one mmsi
+*/
+
+select
+ count(*) = 0 from (
+SELECT
+  vessel_id,
+  COUNT(DISTINCT ssvid) AS count_ssvid
+FROM
+  `{{ source }}`
+GROUP BY
+  vessel_id
+HAVING
+  count_ssvid > 1
+)
+
+
