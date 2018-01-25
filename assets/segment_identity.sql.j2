@@ -52,7 +52,7 @@ FROM (
         FROM(
 
             SELECT ssvid, seg_id, SUM(msg_count) as msg_count, SUM(pos_count) as pos_count, max(last_timestamp) as last_timestamp
-            FROM [{{ var.value.PROJECT_ID }}:{{ var.value.PIPELINE_DATASET }}.{{ params.identity_messages_table }}{{ execution_date.replace(day=1).strftime("%Y%m%d") }}],
+            FROM [{{ source }}],
             GROUP BY ssvid, seg_id
 
          ) all_segs

@@ -6,6 +6,7 @@ from airflow import DAG
 from airflow.contrib.operators.dataflow_operator import DataFlowPythonOperator
 from airflow.contrib.sensors.bigquery_sensor import BigQueryTableSensor
 from airflow.contrib.operators.bigquery_operator import BigQueryOperator
+from airflow.operators.bash_operator import BashOperator
 from airflow.models import Variable
 
 
@@ -24,10 +25,17 @@ CONFIG['last_day_of_month'] = '{{ (execution_date.replace(day=1) + macros.dateut
 CONFIG['first_day_of_month_nodash'] = '{{ execution_date.replace(day=1).strftime("%Y%m%d") }}'
 CONFIG['last_day_of_month_nodash'] = '{{ (execution_date.replace(day=1) + macros.dateutil.relativedelta.relativedelta(months=1, days=-1)).strftime("%Y%m%d") }}'
 
+def get_start_date():
+    date_str = CONFIG.get('pipeline_start_date', Variable.get('PIPELINE_START_DATE', ''))
+    if date_str:
+        return datetime.strptime(date_str.strip(), "%Y-%m-%d")
+    else:
+        return datetime.utcnow() - timedelta(days=3)
+
 DEFAULT_ARGS = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2017, 11, 1),
+    'start_date': get_start_date(),
     'email': ['airflow@airflow.com'],
     'email_on_failure': False,
     'email_on_retry': False,
@@ -104,28 +112,19 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
             )
         )
 
-        identity_messages_monthly = BigQueryOperator(
+        identity_messages_monthly = BashOperator(
             task_id='identity_messages_monthly',
-            bql=IDENTITY_MESSAGES_MONTHLY_SQL,
-            destination_dataset_table='{project_id}'
-                                      ':{pipeline_dataset}'
-                                      '.{identity_messages_monthly_table}'
-                                      '{first_day_of_month_nodash}'.format(**config),
-            params={
-                'messages_table': '{messages_table}'.format(**config)
-            }
+            bash_command='{docker_run} {docker_image} identity_messages_monthly '
+                         '{project_id}:{pipeline_dataset}.{messages_table} '
+                         '{project_id}:{pipeline_dataset}.{identity_messages_monthly_table}{first_day_of_month_nodash} '
+                         '{first_day_of_month} {last_day_of_month}'.format(**config)
         )
 
-        segment_identity = BigQueryOperator(
-            task_id = 'segment_identity',
-            bql=SEGEMENT_IDENTITY_SQL,
-            destination_dataset_table='{project_id}'
-                                      ':{pipeline_dataset}'
-                                      '.{segment_identity_table}'
-                                      '{first_day_of_month_nodash}'.format(**config),
-            params={
-                'identity_messages_table': '{identity_messages_monthly_table}'.format(**config),
-            }
+        segment_identity = BashOperator(
+            task_id='segment_identity',
+            bash_command='{docker_run} {docker_image} segment_identity '
+                         '{project_id}:{pipeline_dataset}.{identity_messages_monthly_table}{first_day_of_month_nodash} '
+                         '{project_id}:{pipeline_dataset}.{segment_identity_table}{first_day_of_month_nodash} '.format(**config)
         )
 
         for sensor in source_sensors:
