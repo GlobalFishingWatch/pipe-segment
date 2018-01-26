@@ -11,12 +11,6 @@ from airflow.models import Variable
 
 
 CONNECTION_ID = 'google_cloud_default'
-THIS_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DAG_FILES = THIS_SCRIPT_DIR
-with open(pp.join(DAG_FILES, 'identity_messages_monthly.sql.j2')) as f:
-    IDENTITY_MESSAGES_MONTHLY_SQL = f.read()
-with open(pp.join(DAG_FILES, 'segment_identity.sql.j2')) as f:
-    SEGEMENT_IDENTITY_SQL = f.read()
 
 CONFIG = Variable.get('pipe_segment', deserialize_json=True)
 CONFIG['ds_nodash'] = '{{ ds_nodash }}'
