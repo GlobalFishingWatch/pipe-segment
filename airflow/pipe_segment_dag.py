@@ -46,7 +46,7 @@ DEFAULT_ARGS = {
 }
 
 
-def table_sensor(table, date):
+def table_sensor(dataset, table, date):
     return BigQueryTableSensor(
         task_id='source_exists_{}'.format(table),
         table_id='{}{}'.format(table, date),
@@ -76,10 +76,11 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
 
     with DAG(dag_id, schedule_interval=schedule_interval, default_args=default_args) as dag:
 
-        source_dataset = '{project_id}:{pipeline_dataset}'.format(**config)
+        project = config['project_id']
+        dataset = config['pipeline_dataset']
         source_tables = config['normalized_tables'].split(',')
-        source_sensors = [table_sensor(table, source_sensor_date) for table in source_tables]
-        source_paths = ['bq://{}.{}'.format(source_dataset, table) for table in source_tables]
+        source_sensors = [table_sensor(dataset, table, source_sensor_date) for table in source_tables]
+        source_paths = ['bq://{}:{}.{}'.format(project, dataset, table) for table in source_tables]
 
         segment = DataFlowPythonOperator(
             task_id='segment',
@@ -108,6 +109,7 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
 
         identity_messages_monthly = BashOperator(
             task_id='identity_messages_monthly',
+            pool='bigquery',
             bash_command='{docker_run} {docker_image} identity_messages_monthly '
                          '{project_id}:{pipeline_dataset}.{messages_table} '
                          '{project_id}:{pipeline_dataset}.{identity_messages_monthly_table}{first_day_of_month_nodash} '
@@ -116,6 +118,7 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
 
         segment_identity = BashOperator(
             task_id='segment_identity',
+            pool='bigquery',
             bash_command='{docker_run} {docker_image} segment_identity '
                          '{project_id}:{pipeline_dataset}.{identity_messages_monthly_table}{first_day_of_month_nodash} '
                          '{project_id}:{pipeline_dataset}.{segment_identity_table}{first_day_of_month_nodash} '.format(**config)
