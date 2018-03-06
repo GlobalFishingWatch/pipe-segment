@@ -87,6 +87,7 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
             pool='dataflow',
             depends_on_past=True,
             py_file=Variable.get('DATAFLOW_WRAPPER_STUB'),
+            priority_weight=10,
             options=dict(
                 command='{docker_run} {docker_image} segment'.format(**config),
                 startup_log_file=pp.join(Variable.get('DATAFLOW_WRAPPER_LOG_PATH'), 'pipe_segment/segment.log'),
