@@ -5,6 +5,8 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from pipe_tools.options import ReadFileAction
 
 class SegmentOptions(PipelineOptions):
+    DEFAULT_TEMP_SHARDS_PER_DAY=16
+
     @classmethod
     def _add_argparse_args(cls, parser):
         # Use add_value_provider_argument for arguments to be templatable
@@ -36,11 +38,11 @@ class SegmentOptions(PipelineOptions):
             '--segments',
             required=True,
             help='Bigquery table or file (prefix) to read and write segments')
-        # optional.add_argument(
-        #     '--window_size',
-        #     default=0,
-        #     type=int,
-        #     help='window size in seconds for. (default: %(default)s)')
+        optional.add_argument(
+            '--temp_shards_per_day',
+            help='Number of shards to write per day in messages output temporary storage. '
+                 'A good value for this is the max number of workers.  Default %s'
+                 % cls.DEFAULT_TEMP_SHARDS_PER_DAY)
         optional.add_argument(
             '--wait',
             default=False,
