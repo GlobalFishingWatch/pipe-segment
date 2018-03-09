@@ -40,6 +40,7 @@ class SegmentOptions(PipelineOptions):
             help='Bigquery table or file (prefix) to read and write segments')
         optional.add_argument(
             '--temp_shards_per_day',
+            type=int,
             help='Number of shards to write per day in messages output temporary storage. '
                  'A good value for this is the max number of workers.  Default %s'
                  % cls.DEFAULT_TEMP_SHARDS_PER_DAY)
