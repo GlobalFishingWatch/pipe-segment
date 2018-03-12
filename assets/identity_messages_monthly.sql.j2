@@ -17,9 +17,10 @@ SELECT
   SUM(if (lat is null, 0, 1)) as pos_count
 
 FROM table_date_range(
-    [{{ var.value.PROJECT_ID }}:{{ var.value.PIPELINE_DATASET }}.{{ params.messages_table }}],
-    timestamp('{{ execution_date.replace(day=1) }}'),
-    timestamp('{{ execution_date.replace(day=1) + macros.dateutil.relativedelta.relativedelta(months=1, days=-1) }}')
+    [{{ source }}],
+    timestamp('{{ start_date }}'),
+    timestamp('{{ end_date }}')
+
   )
 GROUP BY
   ssvid,

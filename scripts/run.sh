@@ -16,6 +16,14 @@ fi
 
 
 case $1 in
+  identity_messages_monthly)
+    ${THIS_SCRIPT_DIR}/identity_messages_monthly.sh "${@:2}"
+
+  ;;
+
+  segment_identity)
+    ${THIS_SCRIPT_DIR}/segment_identity.sh "${@:2}"
+  ;;
 
   segment)
 

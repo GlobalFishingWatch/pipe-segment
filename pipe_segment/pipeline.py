@@ -114,7 +114,7 @@ class SegmentPipeline:
         sink = GCPSink(gcp_path=self.options.dest,
                        schema=self.message_output_schema,
                        temp_gcs_location=self.temp_gcs_location,
-                       temp_shards_per_day=64)
+                       temp_shards_per_day=self.options.temp_shards_per_day)
         return sink
 
     @property

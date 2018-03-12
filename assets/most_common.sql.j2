@@ -16,7 +16,7 @@ FROM (
       {{ field }},
       SUM(msg_count) AS msg_count
     FROM
-      [{{ var.value.PROJECT_ID }}:{{ var.value.PIPELINE_DATASET }}.{{ params.identity_messages_table }}{{ execution_date.replace(day=1).strftime("%Y%m%d") }}]
+      [{{ source }}]
     WHERE
       {{ field }} IS NOT NULL
     GROUP BY
