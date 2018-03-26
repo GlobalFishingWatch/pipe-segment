@@ -56,7 +56,6 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
 
         segment = DataFlowDirectRunnerOperator(
             task_id='segment',
-            pool='dataflow',
             depends_on_past=True,
             py_file=Variable.get('DATAFLOW_WRAPPER_STUB'),
             priority_weight=10,

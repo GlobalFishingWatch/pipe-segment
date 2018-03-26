@@ -21,8 +21,8 @@ DEPENDENCIES = [
     "udatetime",
     "newlinejson",
     "python-stdnum",
-    "pipe-tools==0.1.4",
-    "gpsdio-segment==0.10",
+    "pipe-tools==0.1.5",
+    "gpsdio-segment==0.11",
     "shipdataprocess==0.5.0",
     "jinja2-cli",
 ]
