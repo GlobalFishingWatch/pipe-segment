@@ -81,7 +81,7 @@ class Segment(PTransform):
 
         record = JSONDict (
             seg_id=seg_state.id,
-            ssvid=seg_state.mmsi,
+            ssvid=str(seg_state.mmsi),
             noise=seg_state.noise,
             message_count=seg_state.msg_count,
             origin_ts=timestampFromDatetime(first_msg['timestamp']),
@@ -150,7 +150,7 @@ class Segment(PTransform):
                     seg_state = seg.state
                     seg_states.append(seg_state)
                     seg_record = self._segment_record(seg_messages, seg_state)
-                    logging.info('Segmenting key %s yielding segment %s containing %s messages ' % (seg.mmsi, seg.id, len(seg_messages)))
+                    logging.debug('Segmenting key %s yielding segment %s containing %s messages ' % (seg.mmsi, seg.id, len(seg_messages)))
                     yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, seg_record)
 
 
@@ -159,7 +159,7 @@ class Segment(PTransform):
         segments = segments_map.get(key, [])
 
         messages = sorted(messages, key=lambda msg: msg['timestamp'])
-        logging.info('Segmenting key %s sorted %s messages' % (key, len(messages)))
+        logging.debug('Segmenting key %s sorted %s messages' % (key, len(messages)))
         for item in self._gpsdio_segment(messages, segments):
             yield item
 

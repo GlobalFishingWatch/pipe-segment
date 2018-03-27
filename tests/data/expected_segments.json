@@ -1,5 +1,5 @@
-{"seg_id": "1-1970-01-01T00:00:00.000000Z", "ssvid": 1, "message_count": 3, "timestamp_max": 2.0}
-{"seg_id": "2-1970-01-01T00:00:00.000000Z", "ssvid": 2, "message_count": 2, "timestamp_max": 1.0}
-{"seg_id": "3-1970-01-01T00:00:00.000000Z", "ssvid": 3, "message_count": 1, "timestamp_max": 0.0}
-{"seg_id": "4-1970-01-01T00:00:00.000000Z", "ssvid": 4, "message_count": 3, "timestamp_max": 7200.0}
-{"seg_id": "4-1970-01-01T00:00:00.000000Z", "ssvid": 4, "message_count": 5, "timestamp_max": 90000.0}
+{"seg_id": "1-1970-01-01T00:00:00.000000Z", "ssvid": "1", "message_count": 3, "timestamp_max": 2.0}
+{"seg_id": "2-1970-01-01T00:00:00.000000Z", "ssvid": "2", "message_count": 2, "timestamp_max": 1.0}
+{"seg_id": "3-1970-01-01T00:00:00.000000Z", "ssvid": "3", "message_count": 1, "timestamp_max": 0.0}
+{"seg_id": "4-1970-01-01T00:00:00.000000Z", "ssvid": "4", "message_count": 3, "timestamp_max": 7200.0}
+{"seg_id": "4-1970-01-01T00:00:00.000000Z", "ssvid": "4", "message_count": 5, "timestamp_max": 90000.0}

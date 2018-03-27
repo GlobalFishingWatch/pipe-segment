@@ -104,7 +104,7 @@ class TestTransforms():
             p.run()
 
             with open_shards('%s*' % messages_file) as output:
-                messages = sorted(list(nlj.load(output)), key=lambda m: m['timestamp'])
+                messages = sorted(list(nlj.load(output)), key=lambda m: (m['ssvid'], m['timestamp']))
             with open_shards('%s*' % segments_file) as output:
                 segments = list(nlj.load(output))
 
@@ -136,12 +136,12 @@ class TestTransforms():
 
     def test_segment_out_in(self, temp_dir):
         prev_ts = self.ts - 1
-        messages_in = [{'ssvid': 1, 'timestamp': self.ts-1},
-                       {'ssvid': 2, 'timestamp': self.ts-1}]
+        messages_in = [{'ssvid': "1", 'timestamp': self.ts-1},
+                       {'ssvid': "2", 'timestamp': self.ts-1}]
         segments_in = []
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
-        messages_in = [{'ssvid': 1, 'timestamp': self.ts},
-                       {'ssvid': 2, 'timestamp': self.ts}]
+        messages_in = [{'ssvid': "1", 'timestamp': self.ts},
+                       {'ssvid': "2", 'timestamp': self.ts}]
         segments_in = segments_out
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
 
@@ -167,17 +167,17 @@ class TestTransforms():
     def test_noise_segment(self, temp_dir):
         messages_in = [
             {"timestamp": as_timestamp("2017-07-20T05:59:35.000000Z"),
-             "ssvid": 338013000,
+             "ssvid": "338013000",
              "lon": -161.3321333333,
              "lat": -9.52616,
              "speed": 11.1},
             {"timestamp": as_timestamp("2017-07-20T06:00:38.000000Z"),
-             "ssvid": 338013000,
+             "ssvid": "338013000",
              "lon": -161.6153106689,
              "lat": -9.6753702164,
              "speed": 11.3999996185},
             {"timestamp": as_timestamp("2017-07-20T06:01:00.000000Z"),
-             "ssvid": 338013000}
+             "ssvid": "338013000"}
         ]
 
         segments_in = []
@@ -189,7 +189,7 @@ class TestTransforms():
                              ('338013000-2017-07-20T06:00:38.000000Z', 1, True)}
 
         messages_in = [{"timestamp": as_timestamp("2017-07-20T06:02:00.000000Z"),
-             "ssvid": 338013000}
+             "ssvid": "338013000"}
         ]
         segments_in = segments_out
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
