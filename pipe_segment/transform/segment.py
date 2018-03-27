@@ -201,7 +201,7 @@ class Segment(PTransform):
 
         field = bigquery.TableFieldSchema()
         field.name = "ssvid"
-        field.type = "INTEGER"
+        field.type = "STRING"
         field.mode = "REQUIRED"
         schema.fields.append(field)
 
