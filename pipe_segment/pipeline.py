@@ -7,6 +7,7 @@ import apache_beam as beam
 from apache_beam.runners import PipelineState
 from apache_beam.io.gcp.internal.clients.bigquery import TableFieldSchema
 from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import StandardOptions
 
 from pipe_tools.timestamp import TimestampedValueDoFn
 from pipe_tools.timestamp import datetimeFromTimestamp
@@ -194,7 +195,7 @@ def run(options):
 
     success_states = set([PipelineState.DONE])
 
-    if pipeline.options.wait:
+    if pipeline.options.wait or options.view_as(StandardOptions).runner == 'DirectRunner':
         result.wait_until_finish()
     else:
         success_states.add(PipelineState.RUNNING)
