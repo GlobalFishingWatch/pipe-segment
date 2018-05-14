@@ -3,6 +3,16 @@ Changes
 
 Higher level changes affecting the API or data.
 
+0.2.0 - 2018-05-14
+------------------
+
+* [#44](https://github.com/GlobalFishingWatch/pipe-segment/pull/44)
+  pin pip version to 9.0.3
+* [#45](https://github.com/GlobalFishingWatch/pipe-segment/pull/45)
+  Change dataflow machine type to increase memory
+* [#47](https://github.com/GlobalFishingWatch/pipe-segment/pull/47)
+  Update to pipe-tools v0.1.6 
+
 
 0.1.2 - 2018-03-25
 ------------------
