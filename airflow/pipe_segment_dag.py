@@ -25,7 +25,8 @@ def table_sensor(dataset, table, date):
         poke_interval=10,   # check every 10 seconds for a minute
         timeout=60,
         retries=24*7,       # retry once per hour for a week
-        retry_delay=timedelta(minutes=60)
+        retry_delay=timedelta(minutes=60),
+        retry_exponential_backoff=False
     )
 
 
