@@ -44,7 +44,7 @@ class Segment(PTransform):
     def _convert_messages_in(msg):
         msg = dict(msg)
         msg['timestamp'] = datetimeFromTimestamp(msg['timestamp'])
-        msg['mmsi'] = msg['ssvid']
+        msg['mmsi'] = str(msg['ssvid'])
         return msg
 
     @staticmethod
