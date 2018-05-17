@@ -108,7 +108,7 @@ class SegmentPipeline:
 
     @staticmethod
     def groupby_fn(msg):
-        return (msg['ssvid'], msg)
+        return (str(msg['ssvid']), msg)
 
     @property
     def message_sink(self):
