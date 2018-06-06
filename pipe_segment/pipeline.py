@@ -107,6 +107,11 @@ class SegmentPipeline:
         return self.options.view_as(GoogleCloudOptions).temp_location
 
     @staticmethod
+    def ssvid_to_str(msg):
+        msg['ssvid'] = str(msg['ssvid'])
+        return msg
+
+    @staticmethod
     def groupby_fn(msg):
         return (msg['ssvid'], msg)
 
@@ -151,6 +156,7 @@ class SegmentPipeline:
         messages = (
             messages
             | "MergeMessages" >> beam.Flatten()
+            | "MessagesSsvid2Str" >> beam.Map(self.ssvid_to_str)
             | "MessagesAddKey" >> beam.Map(self.groupby_fn)
             | "MessagesGroupByKey" >> beam.GroupByKey()
         )

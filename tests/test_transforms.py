@@ -122,8 +122,8 @@ class TestTransforms():
 
     def test_segment_segments_in(self, temp_dir):
         prev_ts = self.ts - 1
-        messages_in = [{'ssvid': 1, 'timestamp': self.ts}]
-        segments_in = [{'ssvid': 1, 'timestamp': prev_ts,
+        messages_in = [{'ssvid': "1", 'timestamp': self.ts}]
+        segments_in = [{'ssvid': "1", 'timestamp': prev_ts,
                      'seg_id': self._seg_id(1, prev_ts),
                      'origin_ts': prev_ts,
                      'timestamp_last': self.ts,
