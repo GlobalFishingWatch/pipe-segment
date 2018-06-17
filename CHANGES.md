@@ -3,6 +3,12 @@ Changes
 
 Higher level changes affecting the API or data.
 
+0.2.1 - 2018-06-17
+------------------
+ 
+* [#50](https://github.com/GlobalFishingWatch/pipe-segment/pull/50)
+  Force SSVID to string before segmenting
+  
 0.2.0 - 2018-05-14
 ------------------
 
