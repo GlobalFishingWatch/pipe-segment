@@ -3,7 +3,7 @@ Tools for parsing and normalizing AIS from Orbcomm using dataflow
 """
 
 
-__version__ = '0.2.0'
+__version__ = '0.2.1'
 __author__ = 'Paul Woods'
 __email__ = 'paul@globalfishingwatch.org'
 __source__ = 'https://github.com/GlobalFishingWatch/pipe-segment'
