@@ -29,7 +29,7 @@ START_YYYYMMDD=$(yyyymmdd ${START_DATE})
 END_YYYYMMDD=$(yyyymmdd ${END_DATE})
 
 
-SQL=${ASSETS}/segment_identity_2.sql.j2
+SQL=${ASSETS}/segment_identity.sql.j2
 TABLE_DESC=(
   "* Pipeline: ${PIPELINE} ${PIPELINE_VERSION}"
   "* Source: ${INDENTITY_MESSAGES}"
