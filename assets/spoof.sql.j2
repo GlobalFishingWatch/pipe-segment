@@ -1,0 +1,86 @@
+#standardSQL
+WITH
+  #
+  #  Pull out the segments we want to work with
+  #
+  segs AS (
+  SELECT
+    CAST (ssvid AS string) ssvid,
+    seg_id,
+    MIN(timestamp_min) min_ts,
+    MAX(timestamp_max) max_ts
+  FROM
+    `world-fishing-827.pipe_staging_a.segments_*`
+  WHERE
+    _table_suffix BETWEEN '20180301'
+    AND '20180331'
+    AND NOT noise
+    AND message_count > 3
+  GROUP BY
+    ssvid,
+    seg_id),
+
+  #
+  #  Order the segments by timestamp
+  #
+  ordered_segs AS (
+  SELECT
+    ssvid,
+    max_ts AS end_ts,
+    LEAD(min_ts) OVER (PARTITION BY ssvid ORDER BY min_ts) AS next_start_ts
+  FROM
+    segs ),
+
+  #
+  #  Find SSVIDs that do not have any segments that overlap in time
+  #
+  no_overlap_ssvid AS (
+  SELECT
+    ssvid,
+    COUNTIF(end_ts > next_start_ts) AS overlap_count
+  FROM
+    ordered_segs
+  GROUP BY
+    ssvid
+  HAVING
+    overlap_count = 0),
+
+  #
+  #  Get SSVIDs from identity_messages_monthly that have at most
+  #  one non-null value for shipname, callsign and imo
+  #
+  single_ident_ssvid AS (
+  SELECT
+    CAST (ssvid AS STRING) AS ssvid,
+    COUNT(DISTINCT n_shipname) AS shipname_count,
+    COUNT( DISTINCT n_callsign) AS callsign_count,
+    COUNT(DISTINCT n_imo) AS imo_count
+  FROM
+    `world-fishing-827.pipe_staging_a.identity_messages_monthly_20180301`
+  GROUP BY
+    ssvid
+  HAVING
+    shipname_count <= 1
+    AND callsign_count <= 1
+    AND imo_count <= 1 ),
+
+  #
+  #  Get the intersection of the non-overlap  ssvids and the ones with at most one
+  #  shipname, callsign and imo.  This is the set of ssvid that are free of spoofing and
+  #  have only one identity for the time period
+  #
+  no_spoof_single_ident_ssvid AS (
+  SELECT
+    ssvid
+  FROM
+    single_ident_ssvid
+  JOIN
+    no_overlap_ssvid
+  USING
+    (ssvid) )
+SELECT
+  *
+FROM
+  no_spoof_single_ident_ssvid
+LIMIT
+  1000
