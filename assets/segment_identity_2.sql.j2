@@ -4,23 +4,28 @@ WITH
   #  Get montly identity message summaries
   #
   identity_messages_monthly AS (
-  SELECT
-    CAST(ssvid AS string) AS ssvid,
-    seg_id,
-    n_shipname,
-    n_callsign,
-    cast(n_imo as string) as n_imo,
-    msg_count,
-    pos_count,
-    first_timestamp,
-    last_timestamp
-  FROM
-    `world-fishing-827.pipe_staging_a.identity_messages_monthly_20170101` ),
+    SELECT
+      CAST(ssvid AS string) AS ssvid,
+      seg_id,
+      n_shipname,
+      n_callsign,
+      cast(n_imo as string) as n_imo,
+      msg_count,
+      pos_count,
+      first_timestamp,
+      last_timestamp
+    FROM
+      `{{ identity_messages_monthly }}*`
+    WHERE
+      _table_suffix BETWEEN '{{ start_yyyymmdd }}'
+      AND '{{ end_yyyymmdd }}'
+
+    ),
 
   #
   #  Pull out the segments we want to work with
   #
-  segs AS (
+  segments AS (
     SELECT
       CAST (ssvid AS string) ssvid,
       seg_id,
@@ -29,14 +34,10 @@ WITH
       LOGICAL_OR(noise) as noise,
       sum(message_count) as message_count
     FROM
-       `world-fishing-827.pipe_staging_a.segments_2017*`
+       `{{ segments }}*`
     WHERE
-      _table_suffix BETWEEN '0101'
-      AND '0131'
---       `world-fishing-827.pipe_staging_a.segments_*`
---     WHERE
---       _table_suffix BETWEEN '20171201'
---       AND '20171201'
+      _table_suffix BETWEEN '{{ start_yyyymmdd }}'
+      AND '{{ end_yyyymmdd }}'
     GROUP BY
       ssvid,
       seg_id
@@ -50,47 +51,50 @@ WITH
       * except(noise),
       noise or message_count <= 3 as noise
     from
-      segs
+      segments
   ),
 
   #
   #  Order the segments by timestamp, and ignore noise segments
   #
   ordered_segs AS (
-  SELECT
-    ssvid,
-    max_ts AS end_ts,
-    LEAD(min_ts) OVER (PARTITION BY ssvid ORDER BY min_ts) AS next_start_ts
-  FROM
-    noise_segs
-  where
-    not noise),
+    SELECT
+      ssvid,
+      max_ts AS end_ts,
+      LEAD(min_ts) OVER (PARTITION BY ssvid ORDER BY min_ts) AS next_start_ts
+    FROM
+      noise_segs
+    WHERE
+      not noise
+  ),
 
   #
   #  Find SSVIDs that do not have any (non-noise) segments that overlap in time
   #
   no_overlap_ssvid AS (
-  SELECT
-    ssvid,
-    COUNTIF(end_ts > next_start_ts) AS overlap_count
-  FROM
-    ordered_segs
-  GROUP BY
-    ssvid
-  having
-    overlap_count = 0),
+    SELECT
+      ssvid,
+      COUNTIF(end_ts > next_start_ts) AS overlap_count
+    FROM
+      ordered_segs
+    GROUP BY
+      ssvid
+    HAVING
+      overlap_count = 0
+  ),
 
   #
   # Suppress identity values (and combinations of values) that only occur once
   #
   identity_messages_no_noise AS (
-  SELECT
-    * except (n_shipname, n_callsign, n_imo),
-    if (msg_count > 1, n_shipname, null) as n_shipname,
-    if (msg_count > 1, n_callsign, null) as n_callsign,
-    if (msg_count > 1, n_imo, null) as n_imo
-  FROM
-    identity_messages_monthly ),
+    SELECT
+      * except (n_shipname, n_callsign, n_imo),
+      if (msg_count > 1, n_shipname, null) as n_shipname,
+      if (msg_count > 1, n_callsign, null) as n_callsign,
+      if (msg_count > 1, n_imo, null) as n_imo
+    FROM
+      identity_messages_monthly
+  ),
 
   #
   #  Get SSVIDs from identity_messages_no_noise that have at most
@@ -109,7 +113,8 @@ WITH
   HAVING
     shipname_count <= 1
     AND callsign_count <= 1
-    AND imo_count <= 1 ),
+    AND imo_count <= 1
+  ),
 
   #
   #  Get the intersection of the non-overlap ssvids and the ones with at most one
@@ -124,7 +129,8 @@ WITH
   JOIN
     no_overlap_ssvid
   USING
-    (ssvid) ),
+    (ssvid)
+  ),
 
   #
   # suppress msg_count for null values
@@ -136,7 +142,8 @@ WITH
     if(n_callsign is null, 0, msg_count) as callsign_msg_count,
     if(n_imo is null, 0, msg_count) as imo_msg_count
   FROM
-    identity_messages_no_noise ),
+    identity_messages_no_noise
+  ),
 
   #
   # Get message counts for the identity field values
@@ -151,7 +158,8 @@ WITH
     SUM(callsign_msg_count) OVER (PARTITION BY ssvid, seg_id, n_callsign) AS segid_callsign_msg_count,
     SUM(imo_msg_count) OVER (PARTITION BY ssvid, seg_id, n_imo) AS segid_imo_msg_count
   FROM
-    identity_count_not_null ),
+    identity_count_not_null
+  ),
 
   #
   # Get the most common identity fields by seg_id and by ssvid
@@ -182,7 +190,8 @@ WITH
     ) as segid_ident
 
   FROM
-    identity_count ),
+    identity_count
+  ),
 
   #
   #  Group the most common identity fields to one per seg_id
@@ -201,7 +210,8 @@ WITH
     most_common
   GROUP BY
     ssvid,
-    seg_id ),
+    seg_id
+  ),
 
   #
   # Combine most common identity values with segment overlap
@@ -232,9 +242,10 @@ WITH
 
   #
   #  Pull it all together with each segment having the complete set of identifiers
+  #  and assign a vessel id hash based on ssvid, imo, shipname and callsign
   #
   segment_identity as (
-    select
+    SELECT
       * except (ident),
       ident.*,
       if(ident.n_imo is not null,
@@ -242,7 +253,7 @@ WITH
        TO_HEX(MD5(FORMAT("AIS|%s|%s|%s|%s", ssvid, '', ifnull(ident.n_shipname, ''), ifnull(ident.n_callsign, ''))))
       ) AS vessel_id
 
-    from
+    FROM
       most_common_with_overlap
   )
 
