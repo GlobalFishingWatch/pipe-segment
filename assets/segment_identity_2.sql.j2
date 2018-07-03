@@ -12,10 +12,14 @@ WITH
       LOGICAL_OR(noise) as noise,
       sum(message_count) as message_count
     FROM
-      `world-fishing-827.pipe_staging_a.segments_*`
+       `world-fishing-827.pipe_staging_a.segments_2017*`
     WHERE
-      _table_suffix BETWEEN '20180301'
-      AND '20180331'
+      _table_suffix BETWEEN '1201'
+      AND '1231'
+--       `world-fishing-827.pipe_staging_a.segments_*`
+--     WHERE
+--       _table_suffix BETWEEN '20171201'
+--       AND '20171201'
     GROUP BY
       ssvid,
       seg_id
@@ -67,7 +71,7 @@ WITH
     first_timestamp,
     last_timestamp
   FROM
-    `world-fishing-827.pipe_staging_a.identity_messages_monthly_20180301` ),
+    `world-fishing-827.pipe_staging_a.identity_messages_monthly_20171201` ),
   #
   #  Get SSVIDs from identity_messages_monthly that have at most
   #  one non-null value for shipname, callsign and imo
@@ -224,7 +228,3 @@ SELECT
   *
 FROM
   segment_identity
-
-
-
-
