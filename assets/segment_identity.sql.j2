@@ -257,6 +257,9 @@ WITH
       most_common_with_overlap
   ),
 
+  #
+  #  Format the vessel_id as a guid  xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  #
   segment_identity_formatted as (
     SELECT
       * except (vessel_id),
@@ -267,6 +270,8 @@ WITH
         SUBSTR(vessel_id, 17, 4),
         SUBSTR(vessel_id, 21, 12)
       ) as vessel_id
+    FROM
+      segment_identity
   )
 
 SELECT
