@@ -255,10 +255,21 @@ WITH
 
     FROM
       most_common_with_overlap
-  )
+  ),
 
+  segment_identity_formatted as (
+    SELECT
+      * except (vessel_id),
+      FORMAT('%s-%s-%s-%s-%s',
+        SUBSTR(vessel_id, 1,  9),
+        SUBSTR(vessel_id, 9,  4),
+        SUBSTR(vessel_id, 13, 4),
+        SUBSTR(vessel_id, 17, 4),
+        SUBSTR(vessel_id, 21, 12)
+      ) as vessel_id
+  )
 
 SELECT
   *
 FROM
-  segment_identity
+  segment_identity_formatted
