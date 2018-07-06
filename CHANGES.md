@@ -3,7 +3,7 @@ Changes
 
 Higher level changes affecting the API or data.
 
-0.2.1 - 2018-07-06
+0.2.2 - 2018-07-06
 ------------------
  
 * [#53](https://github.com/GlobalFishingWatch/pipe-segment/pull/53)
