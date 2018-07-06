@@ -1,80 +1,280 @@
-{% import 'most_common.sql.j2' as most_common with context %}
+#standardSQL
+WITH
+  #
+  #  Get montly identity message summaries
+  #
+  identity_messages_monthly AS (
+    SELECT
+      CAST(ssvid AS string) AS ssvid,
+      seg_id,
+      n_shipname,
+      n_callsign,
+      cast(n_imo as string) as n_imo,
+      msg_count,
+      pos_count,
+      first_timestamp,
+      last_timestamp
+    FROM
+      `{{ identity_messages_monthly }}*`
+    WHERE
+      _table_suffix BETWEEN '{{ start_yyyymmdd }}'
+      AND '{{ end_yyyymmdd }}'
+
+    ),
+
+  #
+  #  Pull out the segments we want to work with
+  #
+  segments AS (
+    SELECT
+      CAST (ssvid AS string) ssvid,
+      seg_id,
+      MIN(timestamp_min) min_ts,
+      MAX(timestamp_max) max_ts,
+      LOGICAL_OR(noise) as noise,
+      sum(message_count) as message_count
+    FROM
+       `{{ segments }}*`
+    WHERE
+      _table_suffix BETWEEN '{{ start_yyyymmdd }}'
+      AND '{{ end_yyyymmdd }}'
+    GROUP BY
+      ssvid,
+      seg_id
+    ),
+
+  #
+  # mark segments as noise if they do not have enough messages
+  #
+  noise_segs as (
+    select
+      * except(noise),
+      noise or message_count <= 3 as noise
+    from
+      segments
+  ),
+
+  #
+  #  Order the segments by timestamp, and ignore noise segments
+  #
+  ordered_segs AS (
+    SELECT
+      ssvid,
+      max_ts AS end_ts,
+      LEAD(min_ts) OVER (PARTITION BY ssvid ORDER BY min_ts) AS next_start_ts
+    FROM
+      noise_segs
+    WHERE
+      not noise
+  ),
+
+  #
+  #  Find SSVIDs that do not have any (non-noise) segments that overlap in time
+  #
+  no_overlap_ssvid AS (
+    SELECT
+      ssvid,
+      COUNTIF(end_ts > next_start_ts) AS overlap_count
+    FROM
+      ordered_segs
+    GROUP BY
+      ssvid
+    HAVING
+      overlap_count = 0
+  ),
+
+  #
+  # Suppress identity values (and combinations of values) that only occur once
+  #
+  identity_messages_no_noise AS (
+    SELECT
+      * except (n_shipname, n_callsign, n_imo),
+      if (msg_count > 1, n_shipname, null) as n_shipname,
+      if (msg_count > 1, n_callsign, null) as n_callsign,
+      if (msg_count > 1, n_imo, null) as n_imo
+    FROM
+      identity_messages_monthly
+  ),
+
+  #
+  #  Get SSVIDs from identity_messages_no_noise that have at most
+  #  one non-null value for shipname, callsign and imo
+  #
+  single_ident_ssvid AS (
+  SELECT
+    CAST (ssvid AS STRING) AS ssvid,
+    COUNT(DISTINCT n_shipname) AS shipname_count,
+    COUNT( DISTINCT n_callsign) AS callsign_count,
+    COUNT(DISTINCT n_imo) AS imo_count
+  FROM
+    identity_messages_no_noise
+  GROUP BY
+    ssvid
+  HAVING
+    shipname_count <= 1
+    AND callsign_count <= 1
+    AND imo_count <= 1
+  ),
+
+  #
+  #  Get the intersection of the non-overlap ssvids and the ones with at most one
+  #  shipname, callsign and imo.  This is the set of ssvid that are free of spoofing and
+  #  have only one identity for the time period
+  #
+  no_spoof_single_ident_ssvid AS (
+  SELECT
+    ssvid, True as single_id
+  FROM
+    single_ident_ssvid
+  JOIN
+    no_overlap_ssvid
+  USING
+    (ssvid)
+  ),
+
+  #
+  # suppress msg_count for null values
+  #
+  identity_count_not_null AS (
+  SELECT
+    *,
+    if(n_shipname is null, 0, msg_count) as shipname_msg_count,
+    if(n_callsign is null, 0, msg_count) as callsign_msg_count,
+    if(n_imo is null, 0, msg_count) as imo_msg_count
+  FROM
+    identity_messages_no_noise
+  ),
+
+  #
+  # Get message counts for the identity field values
+  #
+  identity_count AS (
+  SELECT
+    *,
+    SUM(shipname_msg_count) OVER (PARTITION BY ssvid, n_shipname) AS ssvid_shipname_msg_count,
+    SUM(callsign_msg_count) OVER (PARTITION BY ssvid, n_callsign) AS ssvid_callsign_msg_count,
+    SUM(imo_msg_count) OVER (PARTITION BY ssvid, n_imo) AS ssvid_imo_msg_count,
+    SUM(shipname_msg_count) OVER (PARTITION BY ssvid, seg_id, n_shipname) AS segid_shipname_msg_count,
+    SUM(callsign_msg_count) OVER (PARTITION BY ssvid, seg_id, n_callsign) AS segid_callsign_msg_count,
+    SUM(imo_msg_count) OVER (PARTITION BY ssvid, seg_id, n_imo) AS segid_imo_msg_count
+  FROM
+    identity_count_not_null
+  ),
+
+  #
+  # Get the most common identity fields by seg_id and by ssvid
+  #
+  most_common AS (
+  SELECT
+    *,
+    STRUCT(
+      FIRST_VALUE(n_shipname IGNORE NULLS) OVER (PARTITION BY ssvid ORDER BY ssvid_shipname_msg_count DESC) AS n_shipname,
+      FIRST_VALUE(ssvid_shipname_msg_count) OVER (PARTITION BY ssvid ORDER BY ssvid_shipname_msg_count DESC) AS n_shipname_count,
+
+      FIRST_VALUE(n_callsign IGNORE NULLS) OVER (PARTITION BY ssvid ORDER BY ssvid_callsign_msg_count DESC) AS n_callsign,
+      FIRST_VALUE(ssvid_callsign_msg_count IGNORE NULLS) OVER (PARTITION BY ssvid ORDER BY ssvid_callsign_msg_count DESC) AS n_callsign_count,
+
+      FIRST_VALUE(n_imo IGNORE NULLS) OVER (PARTITION BY ssvid ORDER BY ssvid_imo_msg_count DESC) AS n_imo,
+      FIRST_VALUE(ssvid_imo_msg_count IGNORE NULLS) OVER (PARTITION BY ssvid ORDER BY ssvid_imo_msg_count DESC) AS n_imo_count
+    ) as ssvid_ident,
+
+    STRUCT(
+      FIRST_VALUE(n_shipname IGNORE NULLS) OVER (PARTITION BY ssvid, seg_id ORDER BY segid_shipname_msg_count DESC) AS n_shipname,
+      FIRST_VALUE(segid_shipname_msg_count IGNORE NULLS) OVER (PARTITION BY ssvid, seg_id ORDER BY segid_shipname_msg_count DESC) AS n_shipname_count,
+
+      FIRST_VALUE(n_callsign IGNORE NULLS) OVER (PARTITION BY ssvid, seg_id ORDER BY segid_callsign_msg_count DESC) AS n_callsign,
+      FIRST_VALUE(segid_callsign_msg_count IGNORE NULLS) OVER (PARTITION BY ssvid, seg_id ORDER BY segid_callsign_msg_count DESC) AS n_callsign_count,
+
+      FIRST_VALUE(n_imo IGNORE NULLS) OVER (PARTITION BY ssvid, seg_id ORDER BY segid_imo_msg_count DESC) AS n_imo,
+      FIRST_VALUE(segid_imo_msg_count IGNORE NULLS) OVER (PARTITION BY ssvid, seg_id ORDER BY segid_imo_msg_count DESC) AS n_imo_count
+    ) as segid_ident
+
+  FROM
+    identity_count
+  ),
+
+  #
+  #  Group the most common identity fields to one per seg_id
+  #
+  most_common_by_seg_id AS (
+  SELECT
+    ssvid,
+    seg_id,
+    sum(msg_count) as msg_count,
+    sum(pos_count) as pos_count,
+    min(first_timestamp) as first_timestamp,
+    max(last_timestamp) as last_timestamp,
+    ANY_VALUE(ssvid_ident) AS ssvid_ident,
+    ANY_VALUE(segid_ident) AS segid_ident
+  FROM
+    most_common
+  GROUP BY
+    ssvid,
+    seg_id
+  ),
+
+  #
+  # Combine most common identity values with segment overlap
+  #
+  most_common_with_overlap AS (
+  SELECT
+    ssvid,
+    seg_id,
+    msg_count,
+    pos_count,
+    first_timestamp,
+    last_timestamp,
+    noise,
+    IF(single_id,
+      ssvid_ident,
+      segid_ident) AS ident
+  FROM
+    most_common_by_seg_id
+  JOIN
+    noise_segs
+  USING
+    (ssvid, seg_id)
+  LEFT JOIN
+    no_spoof_single_ident_ssvid
+  USING
+    (ssvid)
+  ),
+
+  #
+  #  Pull it all together with each segment having the complete set of identifiers
+  #  and assign a vessel id hash based on ssvid, imo, shipname and callsign
+  #
+  segment_identity as (
+    SELECT
+      * except (ident),
+      ident.*,
+      if(ident.n_imo is not null,
+       TO_HEX(MD5(FORMAT("AIS|%s|%s|%s|%s", ssvid, ident.n_imo, '', ''))),
+       TO_HEX(MD5(FORMAT("AIS|%s|%s|%s|%s", ssvid, '', ifnull(ident.n_shipname, ''), ifnull(ident.n_callsign, ''))))
+      ) AS vessel_id
+
+    FROM
+      most_common_with_overlap
+  ),
+
+  #
+  #  Format the vessel_id as a guid  xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  #
+  segment_identity_formatted as (
+    SELECT
+      * except (vessel_id),
+      FORMAT('%s-%s-%s-%s-%s',
+        SUBSTR(vessel_id, 1,  9),
+        SUBSTR(vessel_id, 9,  4),
+        SUBSTR(vessel_id, 13, 4),
+        SUBSTR(vessel_id, 17, 4),
+        SUBSTR(vessel_id, 21, 12)
+      ) as vessel_id
+    FROM
+      segment_identity
+  )
+
 SELECT
- seg_id, ssvid, msg_count, pos_count,  last_timestamp,
- n_imo, n_imo_count,
- n_shipname, n_shipname_count,
- n_callsign, n_callsign_count,
- concat (SUBSTR(hex_seg_grp,0,8),
-    '-',
-    SUBSTR(hex_seg_grp,9,4),
-    '-',
-    SUBSTR(hex_seg_grp,13,4),
-    '-',
-    SUBSTR(hex_seg_grp,17,4),
-    '-',
-    SUBSTR(hex_seg_grp,21,12) ) AS vessel_id
-
-FROM (
-
-    SELECT seg_id, ssvid, msg_count, pos_count, last_timestamp,
-        n_imo, n_imo_count,
-        n_shipname, n_shipname_count,
-        n_callsign, n_callsign_count,
-        LOWER(CONCAT(
-            HEX_STRING(HASH('AIS')),
-            HEX_STRING(HASH(
-            concat(
-                string(ssvid), ':',
-                string(ifnull(n_imo, 0)), ':',
-                IF (n_imo is NULL,
-                    CONCAT(
-                        ifnull(n_shipname, ''), ':',
-                        ifnull(n_callsign,'')
-                    ),
-                    ':'
-                )
-            )))
-        )) as hex_seg_grp
-
-    FROM (
-        SELECT
-            all_segs.ssvid as ssvid,
-            all_segs.seg_id as seg_id,
-            all_segs.msg_count as msg_count,
-            all_segs.pos_count as pos_count,
-            all_segs.last_timestamp as last_timestamp,
-            ident_segs.n_imo as n_imo,
-            ident_segs.n_imo_count as n_imo_count,
-            ident_segs.n_callsign as n_callsign,
-            ident_segs.n_callsign_count as n_callsign_count,
-            ident_segs.n_shipname as n_shipname,
-            ident_segs.n_shipname_count as  n_shipname_count
-        FROM(
-
-            SELECT ssvid, seg_id, SUM(msg_count) as msg_count, SUM(pos_count) as pos_count, max(last_timestamp) as last_timestamp
-            FROM [{{ source }}],
-            GROUP BY ssvid, seg_id
-
-         ) all_segs
-        LEFT JOIN (
-            SELECT
-                COALESCE(AB.ssvid, C.ssvid) as ssvid,
-                COALESCE(AB.seg_id, C.seg_id) as seg_id,
-                n_imo, n_imo_count,
-                n_callsign, n_callsign_count,
-                n_shipname, n_shipname_count
-            FROM (
-                select
-                    COALESCE(A.ssvid, B.ssvid) as ssvid,
-                    COALESCE(A.seg_id, B.seg_id) as seg_id,
-                    n_imo, n_imo_count,
-                    n_callsign, n_callsign_count
-                from ( {{ most_common.subquery(field='n_imo')}} ) A
-                full outer join each ( {{ most_common.subquery(field='n_callsign') }} ) B on A.seg_id = B.seg_id
-            ) AB
-
-            full outer join each ( {{ most_common.subquery(field='n_shipname') }} ) C on AB.seg_id = C.seg_id
-        ) ident_segs
-        ON all_segs.seg_id = ident_segs.seg_id
-    )
-)
+  *
+FROM
+  segment_identity_formatted

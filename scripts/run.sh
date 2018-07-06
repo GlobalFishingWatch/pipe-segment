@@ -5,7 +5,11 @@ THIS_SCRIPT_DIR="$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )"
 
 display_usage() {
 	echo "Available Commands"
-	echo "  segment       run the segmenter in dataflow"
+	echo "  segment                     run the segmenter in dataflow"
+	echo "  identity_messages_monthly   generate monthly identity message summaries"
+	echo "                              per segment"
+	echo "  segment_identity            generate monthly vessel_ids per segment"
+	echo "  segment_info                create a segment_info table with one row per segment"
 	}
 
 
@@ -24,6 +28,10 @@ case $1 in
 
   segment_identity)
     ${THIS_SCRIPT_DIR}/segment_identity.sh "${@:2}"
+  ;;
+
+  segment_info)
+    ${THIS_SCRIPT_DIR}/segment_info.sh "${@:2}"
   ;;
 
   segment)

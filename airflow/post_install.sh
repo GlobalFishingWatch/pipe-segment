@@ -16,6 +16,7 @@ python $AIRFLOW_HOME/utils/set_default_variables.py \
     project_id="{{ var.value.PROJECT_ID }}" \
     segment_identity_table="segment_identity_" \
     segments_table="segments_" \
+    segment_info_table="segment_info" \
     source_dataset="{{ var.value.PIPELINE_DATASET }}" \
     temp_bucket="{{ var.value.TEMP_BUCKET }}"  \
 
