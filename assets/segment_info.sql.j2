@@ -1,0 +1,10 @@
+#standardSQL
+SELECT
+ seg_id,
+ ssvid,
+ vessel_id
+FROM `{{ segment_identity }}*`
+GROUP BY
+  vessel_id,
+  ssvid,
+  seg_id

@@ -100,10 +100,19 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
                          '{project_id}:{pipeline_dataset}.{segment_identity_table}{first_day_of_month_nodash} '.format(**config)
         )
 
+        segment_info = BashOperator(
+            task_id='segment_info',
+            pool='bigquery',
+            bash_command='{docker_run} {docker_image} segment_info '
+                         '{project_id}:{pipeline_dataset}.{segment_identity_table} '
+                         '{project_id}:{pipeline_dataset}.{segment_info_table} '.format(**config)
+        )
+
+
         for sensor in source_sensors:
             dag >> sensor >> segment
 
-        segment >> identity_messages_monthly >> segment_identity
+        segment >> identity_messages_monthly >> segment_identity >> segment_info
 
         return dag
 
