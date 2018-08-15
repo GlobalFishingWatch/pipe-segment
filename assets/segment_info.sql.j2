@@ -2,7 +2,12 @@
 SELECT
  seg_id,
  ssvid,
- vessel_id
+ vessel_id,
+ SUM(msg_count) as msg_count,
+ SUM(pos_count) as pos_count,
+ MIN(first_timestamp) as first_timestamp,
+ MIN(last_timestamp) as last_timestamp,
+ LOGICAL_OR(noise) as noise
 FROM `{{ segment_identity }}*`
 GROUP BY
   vessel_id,

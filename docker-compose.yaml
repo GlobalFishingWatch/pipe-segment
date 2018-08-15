@@ -3,7 +3,6 @@ services:
   pipe_segment:
     image: gfw/pipe-segment
     build: .
-    entrypoint: python -m pipe_segment
     volumes:
       - ".:/opt/project"
       - "gcp:/root/.config/"

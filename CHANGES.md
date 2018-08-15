@@ -3,6 +3,11 @@ Changes
 
 Higher level changes affecting the API or data.
 
+DEV
+--- 
+* [#61](https://github.com/GlobalFishingWatch/pipe-segment/pull/61)
+  Include additional noise and message count fields in segment_info table 
+  
 0.2.2 - 2018-07-06
 ------------------
  
