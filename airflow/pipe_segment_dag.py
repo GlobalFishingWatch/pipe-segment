@@ -71,7 +71,7 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
                 runner='{dataflow_runner}'.format(**config),
                 project=config['project_id'],
                 disk_size_gb="50",
-                max_num_workers="100",
+                max_num_workers="{max_num_workers}".format(**config),
                 worker_machine_type='custom-1-15360-ext',
                 temp_location='gs://{temp_bucket}/dataflow_temp'.format(**config),
                 staging_location='gs://{temp_bucket}/dataflow_staging'.format(**config),
