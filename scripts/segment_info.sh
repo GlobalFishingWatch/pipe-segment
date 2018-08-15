@@ -22,7 +22,7 @@ fi
 SEGMENT_IDENTITY_TABLE=$1
 DEST_TABLE=$2
 
-
+SCHEMA=${ASSETS}/segment_info.schema.json
 SQL=${ASSETS}/segment_info.sql.j2
 TABLE_DESC=(
   "* Pipeline: ${PIPELINE} ${PIPELINE_VERSION}"
@@ -30,6 +30,7 @@ TABLE_DESC=(
   "* Command:"
   "$(basename $0)"
   "$@"
+  "Summary table for segments.  One row per segement id. This table can be used to filter out noise segments and to map between ssvid and vesssel_id "
 )
 TABLE_DESC=$( IFS=$'\n'; echo "${TABLE_DESC[*]}" )
 
@@ -40,6 +41,8 @@ jinja2 ${SQL} \
    -D segment_identity=${SEGMENT_IDENTITY_TABLE//:/.} \
    | bq query --max_rows=0 --allow_large_results --replace \
      --destination_table ${DEST_TABLE}
+
+bq update --schema ${SCHEMA} --description "${TABLE_DESC}" ${DEST_TABLE}
 
 echo "  ${DEST} Done."
 
