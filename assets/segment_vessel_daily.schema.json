@@ -1,0 +1,245 @@
+[
+  {
+    "mode": "NULLABLE",
+    "name": "vessel_id",
+    "type": "STRING",
+    "description": "vessel_id assigned to this segment for the current day.  The vessel_id is a hash of ssvid, n_imo, n_shipname and n_callsign, where n_imo, n_shipname and n_callsign are the most commonly occuring values within the segment or within the ssvid, depending on the value of single_ident_ssvid"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "single_ident_ssvid",
+    "type": "BOOLEAN",
+    "description": "If true, then ssvid for this segment was found to have a single dominant identity over WINDOW_DAYS, so the aggregate identity of all segments in this ssvid is used to produce vessel_id."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "seg_id",
+    "type": "STRING",
+    "description": "Unique segment id.  This table has one row per segment id per day"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "ssvid",
+    "type": "STRING",
+    "description": "Source specific vessel id.  This is the transponder id, and for AIS this is the MMSI"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "day",
+    "type": "DATE",
+    "description": "The date when the vessel_id was associated with this seg_id.  This is the same as the table date shard.  A seg_id can be associated with more than one vessel_id, but it will only have a single vessel_id for any given day."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "first_timestamp",
+    "type": "TIMESTAMP",
+    "description": "Timestamp of the first message in the segment for this day"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "last_timestamp",
+    "type": "TIMESTAMP",
+    "description": "Timestamp of the last message in the segment for this day"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "msg_count",
+    "type": "INTEGER",
+    "description": "Total number of messages (positional and identity messages) in the segment over WINDOW_DAYS"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "pos_count",
+    "type": "INTEGER",
+    "description": "Number of positional messages in the segment over WINDOW_DAYS"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "noise",
+    "type": "BOOLEAN",
+    "description": "If true, then this is a noise segment, usually because of an invalid lat or lon value.  Messages in these segments should be filtered out"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment for this day"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "shipname",
+    "type": "RECORD",
+    "description": "Most commonly occuring shipname (unnormalized) for this segment over WINDOW_DAYS"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment for this day"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "callsign",
+    "type": "RECORD",
+    "description": "Most commonly occuring callsign (unnormalized) for this segment over WINDOW_DAYS"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment for this day"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "imo",
+    "type": "RECORD",
+    "description": "Most commonly occuring imo number (unvalidated) for this segment over WINDOW_DAYS"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment for this day"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "n_shipname",
+    "type": "RECORD",
+    "description": "Most commonly occuring normalized shipname for this segment over WINDOW_DAYS"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment for this day"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "n_callsign",
+    "type": "RECORD",
+    "description": "Most commonly occuring normalized callsign for this segment over WINDOW_DAYS"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment for this day"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "n_imo",
+    "type": "RECORD",
+    "description": "Most commonly occuring valid imo number for this segment over WINDOW_DAYS"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment for this day"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "shiptype",
+    "type": "RECORD",
+    "description": "Most commonly occuring shiptype for this segment over WINDOW_DAYS.  Note that shiptype is already normalized in the source messages."
+  }
+]
+
