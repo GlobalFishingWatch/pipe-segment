@@ -1,15 +1,59 @@
 #standardSQL
+#
+# Create a segment info table with one row per seg_id from segment_identity_daily
+# Includes the entire time range from the source table
+#
+# FUNCTIONS
+#
+# Simple map/reduce that finds the most common string value in a list of string,int tuples
+# Finds and returns the string with the highest sum of the associated integer values, and
+# computes the frequency of that value relative to the total of all values in the list
+#
+CREATE TEMP FUNCTION mostCommon(arr ARRAY<STRUCT<value STRING, count INT64>>) AS (
+  (
+   select as struct
+     value,
+     count,
+     count/(select sum(r.count) from unnest(arr) as r ) as freq
+   from (
+     select as struct r.value as value, sum(r.count) as count from unnest(arr) as r group by r.value order by count DESC limit 1
+     )
+   )
+);
+WITH
+  segments as (
+  SELECT
+    *
+  FROM
+    `world-fishing-827.scratch_paul_ttl_100.segment_identity_daily_*`
+  ),
+  #
+  # Aggregate daily segment identity counts over the full time range
+  # and reduce each identity field to just the most commonly occuring value
+  segment_most_common as (
+  SELECT
+    seg_id,
+    ssvid,
+    MIN(first_timestamp) as first_timestamp,
+    MAX(last_timestamp) as last_timestamp,
+    SUM(msg_count) as msg_count,
+    SUM(pos_count) as pos_count,
+    LOGICAL_OR(noise) as noise,
+    mostCommon(ARRAY_CONCAT_AGG(shipname)) as shipname,
+    mostCommon(ARRAY_CONCAT_AGG(callsign)) as callsign,
+    mostCommon(ARRAY_CONCAT_AGG(imo)) as imo,
+    mostCommon(ARRAY_CONCAT_AGG(n_shipname)) as n_shipname,
+    mostCommon(ARRAY_CONCAT_AGG(n_callsign)) as n_callsign,
+    mostCommon(ARRAY_CONCAT_AGG(n_imo)) as n_imo,
+    mostCommon(ARRAY_CONCAT_AGG(shiptype)) as shiptype
+  FROM
+    segments
+  GROUP by
+    ssvid,
+    seg_id
+  )
+
 SELECT
- seg_id,
- ssvid,
- vessel_id,
- SUM(msg_count) as msg_count,
- SUM(pos_count) as pos_count,
- MIN(first_timestamp) as first_timestamp,
- MIN(last_timestamp) as last_timestamp,
- LOGICAL_OR(noise) as noise
-FROM `{{ segment_identity }}*`
-GROUP BY
-  vessel_id,
-  ssvid,
-  seg_id
+  *
+FROM
+  segment_most_common

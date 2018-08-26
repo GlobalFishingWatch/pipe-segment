@@ -1,0 +1,24 @@
+#standardSQL
+#
+# Create a many-to-many table mapping all segment_ids to vessel_ids
+#
+WITH
+  segments as (
+  SELECT
+    seg_id,
+    ssvid,
+    vessel_id
+  FROM
+    `world-fishing-827.scratch_paul_ttl_100.segment_vessel_daily_*`
+  )
+SELECT
+  seg_id,
+  ssvid,
+  vessel_id,
+  count(DISTINCT day) as days
+FROM
+  segments
+GROUP BY
+  seg_id,
+  ssvid,
+  vessel_id

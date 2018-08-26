@@ -1,0 +1,115 @@
+#standardSQL
+#
+# Create a vessel info table with one row per vessel_id from segment_identity_daily
+# using seg_id to vesse_id mappings from segment_identity_window
+# Includes the entire time range from the source tables
+#
+#
+# FUNCTIONS
+#
+# Simple map/reduce that finds the most common string value in a list of string,int tuples
+# Finds and returns the string with the highest sum of the associated integer values, and
+# computes the frequency of that value relative to the total of all values in the list
+#
+CREATE TEMP FUNCTION mostCommon(arr ARRAY<STRUCT<value STRING, count INT64>>) AS (
+  (
+   select as struct
+     value,
+     count,
+     count/(select sum(r.count) from unnest(arr) as r ) as freq
+   from (
+     select as struct r.value as value, sum(r.count) as count from unnest(arr) as r group by r.value order by count DESC limit 1
+     )
+   )
+);
+#
+# Build the query
+#
+WITH
+  #
+  # Daily segment identity counts over the entire time range
+  # There is one row per seg_id per day
+  #git
+  segments as (
+  SELECT
+    *
+  FROM
+    `world-fishing-827.scratch_paul_ttl_100.segment_identity_daily_*`
+  ),
+  #
+  # vessel_id mapped to seg_id
+  # note that the source table is a daily snapshot of segmetn activity over a multi-day window
+  # All entries for a given day will have last_timestamp fall within that day (which is the last day of the window)
+  # For any given day, there will be a one-to-one mapping between seg_id and vessel_id, but over
+  # many days, there is a many-to-many mapping
+  #
+  vessels as (
+  SELECT
+    vessel_id,
+    seg_id,
+    last_timestamp
+  FROM
+    `world-fishing-827.scratch_paul_ttl_100.segment_identity_window_*`
+  ),
+  #
+  # Get the day for each row in segments
+  segments_by_day as (
+  SELECT
+    *,
+    TIMESTAMP_TRUNC(last_timestamp, DAY) as day
+  FROM
+    segments
+  ),
+  #
+  # Get the day for each vessel_id to seg_id association
+  vessels_by_day as (
+  SELECT
+    vessel_id,
+    seg_id,
+    TIMESTAMP_TRUNC(last_timestamp, DAY) as day
+  FROM
+    vessels
+  GROUP BY
+    vessel_id,
+    seg_id,
+    day
+  ),
+  segments_by_vessel as (
+  SELECT
+    *
+  FROM
+    segments_by_day JOIN vessels_by_day USING (seg_id, day)
+  ),
+  #
+  # Aggregate daily identity counts over the full time range
+  # group each segment day by vessel_id, so the daily stats for a single segment
+  # are grouped into vessels depending on what vessel_id was assigned to the seg_id
+  # for that day
+  #
+  # reduce each identity field to just the most commonly occuring value
+  vessel_most_common as (
+  SELECT
+    vessel_id,
+    ssvid,
+    MIN(first_timestamp) as first_timestamp,
+    MAX(last_timestamp) as last_timestamp,
+    SUM(msg_count) as msg_count,
+    SUM(pos_count) as pos_count,
+    mostCommon(ARRAY_CONCAT_AGG(shipname)) as shipname,
+    mostCommon(ARRAY_CONCAT_AGG(callsign)) as callsign,
+    mostCommon(ARRAY_CONCAT_AGG(imo)) as imo,
+    mostCommon(ARRAY_CONCAT_AGG(n_shipname)) as n_shipname,
+    mostCommon(ARRAY_CONCAT_AGG(n_callsign)) as n_callsign,
+    mostCommon(ARRAY_CONCAT_AGG(n_imo)) as n_imo,
+    mostCommon(ARRAY_CONCAT_AGG(shiptype)) as shiptype
+  FROM
+    segments_by_vessel
+  GROUP by
+    ssvid,
+    vessel_id
+  )
+
+SELECT
+  *
+FROM
+  vessel_most_common

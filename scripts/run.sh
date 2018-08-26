@@ -9,8 +9,12 @@ display_usage() {
 	echo "  identity_messages_monthly   generate monthly identity message summaries"
 	echo "                              per segment"
 	echo "  segment_identity            generate monthly vessel_ids per segment"
-	echo "  segment_info                create a segment_info table with one row per segment"
-	}
+	echo "  segment_identity_daily      generate daily summary of identity messages"
+	echo "                              per segment"
+	echo "  segment_vessel_daily        generate daily vessel_ids per segment"
+	echo "  segment_info                create a segment_info table with one row"
+	echo "                              per segment"
+}
 
 
 if [[ $# -le 0 ]]
@@ -23,11 +27,18 @@ fi
 case $1 in
   identity_messages_monthly)
     ${THIS_SCRIPT_DIR}/identity_messages_monthly.sh "${@:2}"
-
   ;;
 
   segment_identity)
     ${THIS_SCRIPT_DIR}/segment_identity.sh "${@:2}"
+  ;;
+
+  segment_identity_daily)
+    xdaterange ${THIS_SCRIPT_DIR}/segment_identity_daily.sh "${@:2}"
+  ;;
+
+  segment_vessel_daily)
+    xdaterange ${THIS_SCRIPT_DIR}/segment_vessel_daily.sh "${@:2}"
   ;;
 
   segment_info)
@@ -35,7 +46,6 @@ case $1 in
   ;;
 
   segment)
-
     python -m pipe_segment "${@:2}"
     ;;
 
