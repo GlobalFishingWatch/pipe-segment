@@ -14,6 +14,8 @@ display_usage() {
 	echo "  segment_vessel_daily        generate daily vessel_ids per segment"
 	echo "  segment_info                create a segment_info table with one row"
 	echo "                              per segment"
+	echo "  vessel_info                 create a vessel_info table with one row"
+	echo "                              per vessel_id"
 }
 
 
@@ -43,6 +45,10 @@ case $1 in
 
   segment_info)
     ${THIS_SCRIPT_DIR}/segment_info.sh "${@:2}"
+  ;;
+
+  vessel_info)
+    ${THIS_SCRIPT_DIR}/vessel_info.sh "${@:2}"
   ;;
 
   segment)
