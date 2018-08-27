@@ -54,6 +54,7 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
         source_tables = config['normalized_tables'].split(',')
         source_sensors = [table_sensor(dataset, table, source_sensor_date) for table in source_tables]
         source_paths = ['bq://{}:{}.{}'.format(project, dataset, table) for table in source_tables]
+        config['date_range'] = date_range
 
         segment = DataFlowDirectRunnerOperator(
             task_id='segment',
@@ -100,19 +101,60 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
                          '{project_id}:{pipeline_dataset}.{segment_identity_table}{first_day_of_month_nodash} '.format(**config)
         )
 
+        segment_identity_daily = BashOperator(
+            task_id='segment_identity_daily',
+            pool='bigquery',
+            bash_command='{docker_run} {docker_image} segment_identity_daily '
+                         '{date_range} '
+                         '{project_id}:{pipeline_dataset}.{messages_table} '
+                         '{project_id}:{pipeline_dataset}.{segments_table} '
+                         '{project_id}:{pipeline_dataset}.{segment_identity_daily_table} '.format(**config)
+        )
+
+        segment_vessel_daily = BashOperator(
+            task_id='segment_vessel_daily',
+            pool='bigquery',
+            bash_command='{docker_run} {docker_image} segment_vessel_daily '
+                         '{date_range} '
+                         '{window_days} '
+                         '{single_ident_min_freq} '
+                         '{project_id}:{pipeline_dataset}.{segment_identity_daily_table} '
+                         '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table} '.format(**config)
+        )
+
         segment_info = BashOperator(
             task_id='segment_info',
             pool='bigquery',
             bash_command='{docker_run} {docker_image} segment_info '
-                         '{project_id}:{pipeline_dataset}.{segment_identity_table} '
+                         '{project_id}:{pipeline_dataset}.{segment_identity_daily_table} '
                          '{project_id}:{pipeline_dataset}.{segment_info_table} '.format(**config)
         )
 
+        vessel_info = BashOperator(
+            task_id='vessel_info',
+            pool='bigquery',
+            bash_command='{docker_run} {docker_image} vessel_info '
+                         '{project_id}:{pipeline_dataset}.{segment_identity_daily_table} '
+                         '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table} '
+                         '{project_id}:{pipeline_dataset}.{vessel_info_table} '.format(**config)
+        )
+
+        segment_vessel = BashOperator(
+            task_id='segment_vessel',
+            pool='bigquery',
+            bash_command='{docker_run} {docker_image} segment_vessel '
+                         '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table} '
+                         '{project_id}:{pipeline_dataset}.{segment_vessel_table} '.format(**config)
+        )
 
         for sensor in source_sensors:
             dag >> sensor >> segment
 
-        segment >> identity_messages_monthly >> segment_identity >> segment_info
+        segment >> identity_messages_monthly >> segment_identity >> segment_identity_daily
+        segment_identity_daily >> segment_info
+        segment_identity_daily >> segment_vessel_daily
+        segment_vessel_daily >> vessel_info
+        segment_vessel_daily >> segment_vessel
 
         return dag
 
