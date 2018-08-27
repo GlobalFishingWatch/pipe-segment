@@ -42,7 +42,7 @@ done
 TABLE_DESC+=(${PARAMS[*]})
 TABLE_DESC=$( IFS=$'\n'; echo "${TABLE_DESC[*]}" )
 YYYYMMDD=$(yyyymmdd ${PROCESS_DATE})
-DEST_TABLE=${DEST_TABLE}${PROCESS_DATE}
+DEST_TABLE=${DEST_TABLE}${YYYYMMDD}
 
 
 echo "Publishing ${PROCESS} to ${DEST_TABLE}..."
