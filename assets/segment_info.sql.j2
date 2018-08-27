@@ -3,29 +3,16 @@
 # Create a segment info table with one row per seg_id from segment_identity_daily
 # Includes the entire time range from the source table
 #
-# FUNCTIONS
-#
-# Simple map/reduce that finds the most common string value in a list of string,int tuples
-# Finds and returns the string with the highest sum of the associated integer values, and
-# computes the frequency of that value relative to the total of all values in the list
-#
-CREATE TEMP FUNCTION mostCommon(arr ARRAY<STRUCT<value STRING, count INT64>>) AS (
-  (
-   select as struct
-     value,
-     count,
-     count/(select sum(r.count) from unnest(arr) as r ) as freq
-   from (
-     select as struct r.value as value, sum(r.count) as count from unnest(arr) as r group by r.value order by count DESC limit 1
-     )
-   )
-);
+
+# Include some utility functions
+{% include 'util.sql.j2' %}
+
 WITH
   segments as (
   SELECT
     *
   FROM
-    `world-fishing-827.scratch_paul_ttl_100.segment_identity_daily_*`
+    `{{ segment_identity_daily }}*`
   ),
   #
   # Aggregate daily segment identity counts over the full time range

@@ -8,46 +8,54 @@ THIS_SCRIPT_DIR="$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )"
 ASSETS=${THIS_SCRIPT_DIR}/../assets
 source ${THIS_SCRIPT_DIR}/pipeline.sh
 
-display_usage() {
-	echo -e "\nUsage:\nsegment_info.sh SEGMENT_IDENTITY_TABLE DEST_TABLE \n"
-	}
+PROCESS=$(basename $0 .sh)
+ARGS=( SEGMENT_IDENTITY_TABLE DEST_TABLE )
+SCHEMA=${ASSETS}/${PROCESS}.schema.json
+SQL=${ASSETS}/${PROCESS}.sql.j2
+TABLE_DESC=(
+  "Comprehensive table of all segments for all time.  One row per segement"
+  ""
+  "* Pipeline: ${PIPELINE} ${PIPELINE_VERSION}"
+  "* Source: ${SEGMENT_IDENTITY_TABLE}"
+  "* Command: $(basename $0)"
+)
 
+display_usage()
+{
+  echo -e "\nUsage:\n${PROCESS}.sh ${ARGS[*]} \n"
+}
 
-if [[ $# -ne 2  ]]
+if [[ $# -ne ${#ARGS[@]} ]]
 then
     display_usage
     exit 1
 fi
 
-SEGMENT_IDENTITY_TABLE=$1
-DEST_TABLE=$2
+ARG_VALUES=("$@")
+PARAMS=()
+for index in ${!ARGS[*]}; do
+  echo ${ARG_VALUES[$index]}
+  declare "${ARGS[$index]}"="${ARG_VALUES[$index]}"
+  PARAMS+=("${ARGS[$index]}=${ARG_VALUES[$index]}")
+done
 
-SCHEMA=${ASSETS}/segment_info.schema.json
-SQL=${ASSETS}/segment_info.sql.j2
-TABLE_DESC=(
-  "* Pipeline: ${PIPELINE} ${PIPELINE_VERSION}"
-  "* Source: ${SEGMENT_IDENTITY_TABLE}"
-  "* Command:"
-  "$(basename $0)"
-  "$@"
-  "Summary table for segments.  One row per segement id. This table can be used to filter out noise segments and to map between ssvid and vesssel_id "
-)
+TABLE_DESC+=(${PARAMS[*]})
 TABLE_DESC=$( IFS=$'\n'; echo "${TABLE_DESC[*]}" )
 
-echo "Publishing segment_info to ${DEST_TABLE}..."
-echo "${TABLE_DESC}"
 
+echo "Publishing ${PROCESS} to ${DEST_TABLE}..."
+echo ""
+echo "Table Description" | indent
+echo "${TABLE_DESC}" | indent
+echo ""
+echo "Executing query..." | indent
 jinja2 ${SQL} \
-   -D segment_identity=${SEGMENT_IDENTITY_TABLE//:/.} \
-   | bq query --max_rows=0 --allow_large_results --replace \
-     --destination_table ${DEST_TABLE}
+   -D segment_identity_daily=${SEGMENT_IDENTITY_TABLE//:/.}${YYYYMMDD} \
+   | bq query --headless --max_rows=0 --allow_large_results --replace \
+     --destination_table ${DEST_TABLE}  | indent
 
-bq update --schema ${SCHEMA} --description "${TABLE_DESC}" ${DEST_TABLE}
+echo ""
+bq update --schema ${SCHEMA} --description "${TABLE_DESC}" ${DEST_TABLE} | indent
 
-echo "  ${DEST} Done."
-
-
-
-
-
-
+echo ""
+echo "DONE ${DEST_TABLE}."
