@@ -1,21 +1,25 @@
 #standardSQL
 #
-# Create a many-to-many table mapping all segment_ids to vessel_ids
+# Create a many-to-many table mapping between segment_id, vessel_id and ssvid
 #
 WITH
   segments as (
   SELECT
     seg_id,
     ssvid,
-    vessel_id
+    vessel_id,
+    day
   FROM
-    `world-fishing-827.scratch_paul_ttl_100.segment_vessel_daily_*`
+    `{{ segment_vessel_daily }}*`
   )
+
 SELECT
   seg_id,
   ssvid,
   vessel_id,
-  count(DISTINCT day) as days
+  count(DISTINCT day) as days,
+  min(day) as first_date,
+  max(day) as last_date
 FROM
   segments
 GROUP BY
