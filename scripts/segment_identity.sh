@@ -31,6 +31,8 @@ END_YYYYMMDD=$(yyyymmdd ${END_DATE})
 
 SQL=${ASSETS}/segment_identity.sql.j2
 TABLE_DESC=(
+  "DEPRECATED"
+  " "
   "* Pipeline: ${PIPELINE} ${PIPELINE_VERSION}"
   "* Source: ${INDENTITY_MESSAGES}"
   "* Command:"
