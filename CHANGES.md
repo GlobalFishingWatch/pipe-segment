@@ -3,13 +3,18 @@ Changes
 
 Higher level changes affecting the API or data.
 
-DEV
---- 
-* [#61](https://github.com/GlobalFishingWatch/pipe-segment/pull/61)
-  Include additional noise and message count fields in segment_info table 
+0.2.4-dev
+---------
 * [#66](https://github.com/GlobalFishingWatch/pipe-segment/pull/66)
   Refactor Segment Identity
-  
+
+0.2.3 - 2018-09-03
+------------------
+* [#61](https://github.com/GlobalFishingWatch/pipe-segment/pull/61)
+  Include additional noise and message count fields in segment_info table 
+* [#68](https://github.com/GlobalFishingWatch/pipe-segment/pull/68)
+  Bump version of pipe-tools to 0.1.7
+
 0.2.2 - 2018-07-06
 ------------------
  
