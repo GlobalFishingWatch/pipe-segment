@@ -16,10 +16,17 @@ python $AIRFLOW_HOME/utils/set_default_variables.py \
     pipeline_dataset="{{ var.value.PIPELINE_DATASET }}" \
     project_id="{{ var.value.PROJECT_ID }}" \
     segment_identity_table="segment_identity_" \
-    segments_table="segments_" \
+    segment_identity_daily_table="segment_identity_daily_" \
     segment_info_table="segment_info" \
+    segment_vessel_daily_table="segment_vessel_daily_" \
+    segment_vessel_table="segment_vessel" \
+    segments_table="segments_" \
+    single_ident_min_freq="0.99" \
     source_dataset="{{ var.value.PIPELINE_DATASET }}" \
+    vessel_info_table="vessel_info" \
     temp_bucket="{{ var.value.TEMP_BUCKET }}"  \
+    window_days="30"  \
+
 
 echo "Installation Complete"
 

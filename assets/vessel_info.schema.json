@@ -1,9 +1,9 @@
 [
   {
     "mode": "NULLABLE",
-    "name": "seg_id",
+    "name": "vessel_id",
     "type": "STRING",
-    "description": "unique segment id.  This table has one row per segment id"
+    "description": "unique vessel id.  This table has one row per vessel_id"
   },
   {
     "mode": "NULLABLE",
@@ -53,7 +53,7 @@
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this segment"
+        "description": "Number of times the this field value occured for this vessel"
       },
       {
         "mode": "NULLABLE",
@@ -65,7 +65,7 @@
     "mode": "NULLABLE",
     "name": "shipname",
     "type": "RECORD",
-    "description": "Most commonly occuring shipname (unnormalized) for this segment"
+    "description": "Most commonly occuring shipname (unnormalized) for this vessel"
   },
   {
     "fields": [
@@ -79,7 +79,7 @@
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this segment"
+        "description": "Number of times the this field value occured for this vessel"
       },
       {
         "mode": "NULLABLE",
@@ -91,7 +91,7 @@
     "mode": "NULLABLE",
     "name": "callsign",
     "type": "RECORD",
-    "description": "Most commonly occuring callsign (unnormalized) for this segment"
+    "description": "Most commonly occuring callsign (unnormalized) for this vessel"
   },
   {
     "fields": [
@@ -105,7 +105,7 @@
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this segment"
+        "description": "Number of times the this field value occured for this vessel"
       },
       {
         "mode": "NULLABLE",
@@ -117,7 +117,7 @@
     "mode": "NULLABLE",
     "name": "imo",
     "type": "RECORD",
-    "description": "Most commonly occuring imo number (unvalidated) for this segment"
+    "description": "Most commonly occuring imo number (unvalidated) for this vessel"
   },
   {
     "fields": [
@@ -131,7 +131,7 @@
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this segment"
+        "description": "Number of times the this field value occured for this vessel"
       },
       {
         "mode": "NULLABLE",
@@ -143,7 +143,7 @@
     "mode": "NULLABLE",
     "name": "n_shipname",
     "type": "RECORD",
-    "description": "Most commonly occuring normalized shipname for this segment"
+    "description": "Most commonly occuring normalized shipname for this vessel"
   },
   {
     "fields": [
@@ -157,7 +157,7 @@
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this segment"
+        "description": "Number of times the this field value occured for this vessel"
       },
       {
         "mode": "NULLABLE",
@@ -169,7 +169,7 @@
     "mode": "NULLABLE",
     "name": "n_callsign",
     "type": "RECORD",
-    "description": "Most commonly occuring normalized callsign for this segment"
+    "description": "Most commonly occuring normalized callsign for this vessel"
   },
   {
     "fields": [
@@ -183,7 +183,7 @@
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this segment"
+        "description": "Number of times the this field value occured for this vessel"
       },
       {
         "mode": "NULLABLE",
@@ -195,7 +195,7 @@
     "mode": "NULLABLE",
     "name": "n_imo",
     "type": "RECORD",
-    "description": "Most commonly occuring valid imo number for this segment"
+    "description": "Most commonly occuring valid imo number for this vessel"
   },
   {
     "fields": [
@@ -209,7 +209,7 @@
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this segment "
+        "description": "Number of times the this field value occured for this vessel "
       },
       {
         "mode": "NULLABLE",
@@ -221,7 +221,7 @@
     "mode": "NULLABLE",
     "name": "shiptype",
     "type": "RECORD",
-    "description": "Most commonly occuring shiptype for this segment.  Note that shiptype is already normalized in the source messages."
+    "description": "Most commonly occuring shiptype for this vessel.  Note that shiptype is already normalized in the source messages."
   }
 
 ]

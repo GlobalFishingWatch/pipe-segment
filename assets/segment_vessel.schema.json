@@ -1,0 +1,40 @@
+[
+  {
+    "mode": "NULLABLE",
+    "name": "seg_id",
+    "type": "STRING",
+    "description": "Unique segment  id.  Each seg_id can be associated with many vessel_ids, though usually a small number and most commonly 1. A seg_id is associated with only one ssvid "
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "ssvid",
+    "type": "STRING",
+    "description": "Source specific vessel id.  This is the transponder id, and for AIS this is the MMSI"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "vessel_id",
+    "type": "STRING",
+    "description": "Unique vessel id. Each vessel_id can be associated with many seg_ids, and only one ssvid"
+
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "days",
+    "type": "INTEGER",
+    "description": "Number of days in which this seg_id exists and is mapped to this vessel_id.  Use this to determine the dominant vessel_id for a seg_id. To find out eactly which days, query seg_id, vessel_id and day from segment_vessel_daily_*"
+
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "first_date",
+    "type": "DATE",
+    "description": "Earliest date when this seg_id was associated with this vessel_id"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "last_date",
+    "type": "DATE",
+    "description": "Latest date when this seg_id was associated with this vessel_id"
+  }
+]

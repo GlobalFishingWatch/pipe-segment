@@ -1,0 +1,185 @@
+[
+  {
+    "mode": "NULLABLE",
+    "name": "seg_id",
+    "type": "STRING",
+    "description": "unique segment id.  This table has one row per segment id per day"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "ssvid",
+    "type": "STRING",
+    "description": "source specific vessel id.  This is the transponder id, and for AIS this is the MMSI"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "first_timestamp",
+    "type": "TIMESTAMP",
+    "description": "Timestamp of the first message in the segment for this day"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "last_timestamp",
+    "type": "TIMESTAMP",
+    "description": "Timestamp of the last message in the segment for this day"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "msg_count",
+    "type": "INTEGER",
+    "description": "Total number of messages (positional and identity messages) in the segment for this day"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "pos_count",
+    "type": "INTEGER",
+    "description": "Number of positional messages in the segment for this day"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "noise",
+    "type": "BOOLEAN",
+    "description": "If true, then this is a noise segment, usually because of an invalid lat or lon value.  Messages in these segments should be filtered out"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "Unique field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the unique field value occured for this segment for this day"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "shipname",
+    "type": "RECORD",
+    "description": "Array of all unique shipnames (unnormalized) for this segment for this day."
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "Unique field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the unique field value occured for this segment for this day"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "callsign",
+    "type": "RECORD",
+    "description": "Array of all unique callsigns (unnormalized) for this segment for this day."
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "Unique field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the unique field value occured for this segment for this day"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "imo",
+    "type": "RECORD",
+    "description": "Array of all unique imo numbers (unvalidated) for this segment for this day."
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "Unique field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the unique field value occured for this segment for this day"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "n_shipname",
+    "type": "RECORD",
+    "description": "Array of all unique normalized shipnames for this segment for this day."
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "Unique field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the unique field value occured for this segment for this day"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "n_callsign",
+    "type": "RECORD",
+    "description": "Array of all unique normalized callsigns for this segment for this day."
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "Unique field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the unique field value occured for this segment for this day"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "n_imo",
+    "type": "RECORD",
+    "description": "Array of all unique valid imo numbers for this segment for this day."
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "Unique field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the unique field value occured for this segment for this day"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "shiptype",
+    "type": "RECORD",
+    "description": "Array of all unique shiptypes for this segment for this day. Note that this field is already normalized in the messages"
+  }
+]
+

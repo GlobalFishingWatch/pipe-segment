@@ -1,0 +1,144 @@
+#standardSQL
+#
+# Aggregates segment identity field counts from segment_identity_daily across a
+# multi-day window and assigns a vessel_id guid to each segment for the current day
+# which is the last day of the window
+#
+
+WITH
+  #
+  # Get segmented messages, including posititional and identity messages
+  #
+  messages AS (
+  SELECT
+    ssvid,
+    seg_id,
+    timestamp,
+    lat,
+    shipname,
+    callsign,
+    imo,
+    n_shipname,
+    n_callsign,
+    n_imo,
+    shiptype
+  FROM
+    `{{ messages }}`
+  ),
+  #
+  # Get the noise flag that indicates that the segment has bad position data
+  #
+  segment_noise as (
+  SELECT
+    seg_id,
+    LOGICAL_OR(noise) as noise
+  FROM
+    `{{ segments }}`
+  GROUP BY
+    seg_id
+  ),
+  #
+  # Compute overall statistics for each segment, preserve ssvid
+  #
+  segment_summary AS (
+  SELECT
+    ssvid,
+    seg_id,
+    min(timestamp) as first_timestamp,
+    max(timestamp) as last_timestamp,
+    COUNT(*) AS msg_count,
+    COUNTIF(lat IS NOT NULL) AS pos_count
+  FROM
+    messages
+  GROUP BY
+    ssvid,
+    seg_id ),
+  #
+  # Shipname: count of occurences per segment for each non-null value
+  #
+  segment_shipname AS (
+    SELECT seg_id, ARRAY_AGG(STRUCT(value, count)) as shipname FROM (
+      SELECT seg_id, shipname as value, COUNT(*) AS count FROM messages
+      WHERE shipname IS NOT NULL GROUP BY seg_id, value
+      ) GROUP BY seg_id
+    ),
+  #
+  # Callsign: count of occurences per segment for each non-null value
+  #
+  segment_callsign AS (
+    SELECT seg_id, ARRAY_AGG(STRUCT(value, count)) as callsign FROM (
+      SELECT seg_id, callsign as value, COUNT(*) AS count FROM messages
+      WHERE callsign IS NOT NULL GROUP BY seg_id, value
+      ) GROUP BY seg_id
+    ),
+  #
+  # IMO: count of occurences per segment for each non-null value
+  #
+  segment_imo AS (
+    SELECT seg_id, ARRAY_AGG(STRUCT(value, count)) as imo FROM (
+      SELECT seg_id, imo as value, COUNT(*) AS count FROM messages
+      WHERE imo IS NOT NULL GROUP BY seg_id, value
+      ) GROUP BY seg_id
+    ),
+  #
+  # n_shipname: count of occurences per segment for each non-null value
+  #
+  segment_n_shipname AS (
+    SELECT seg_id, ARRAY_AGG(STRUCT(value, count)) as n_shipname FROM (
+      SELECT seg_id, n_shipname as value, COUNT(*) AS count FROM messages
+      WHERE n_shipname IS NOT NULL GROUP BY seg_id, value
+      ) GROUP BY seg_id
+    ),
+  #
+  # n_callsign: count of occurences per segment for each non-null value
+  #
+  segment_n_callsign AS (
+    SELECT seg_id, ARRAY_AGG(STRUCT(value, count)) as n_callsign FROM (
+      SELECT seg_id, n_callsign as value, COUNT(*) AS count FROM messages
+      WHERE n_callsign IS NOT NULL GROUP BY seg_id, value
+      ) GROUP BY seg_id
+    ),
+  #
+  # n_imo: count of occurences per segment for each non-null value
+  #
+  segment_n_imo AS (
+    SELECT seg_id, ARRAY_AGG(STRUCT(value, count)) as n_imo FROM (
+      SELECT seg_id, CAST(n_imo as STRING) as value, COUNT(*) AS count FROM messages
+      WHERE n_imo IS NOT NULL GROUP BY seg_id, value
+      ) GROUP BY seg_id
+    ),
+  #
+  # shiptype: count of occurences per segment for each non-null value
+  #
+  segment_shiptype AS (
+    SELECT seg_id, ARRAY_AGG(STRUCT(value, count)) as shiptype FROM (
+      SELECT seg_id, shiptype as value, COUNT(*) AS count FROM messages
+      WHERE shiptype IS NOT NULL GROUP BY seg_id, value
+      ) GROUP BY seg_id
+    ),
+  #
+  # Stitch all the pieces together for one row per segment
+  #
+  segment_daily as (
+    SELECT
+      *
+    FROM
+      segment_summary
+      LEFT JOIN segment_noise USING (seg_id)
+      LEFT JOIN segment_shipname USING (seg_id)
+      LEFT JOIN segment_callsign USING (seg_id)
+      LEFT JOIN segment_imo USING (seg_id)
+      LEFT JOIN segment_n_shipname USING (seg_id)
+      LEFT JOIN segment_n_callsign USING (seg_id)
+      LEFT JOIN segment_n_imo USING (seg_id)
+      LEFT JOIN segment_shiptype USING (seg_id)
+  )
+
+
+SELECT
+  *
+FROM
+  segment_daily
+
+
+
