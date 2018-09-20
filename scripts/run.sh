@@ -50,6 +50,11 @@ case $1 in
   vessel_info)
     ${THIS_SCRIPT_DIR}/vessel_info.sh "${@:2}"
   ;;
+  
+  segment_vessel)
+    ${THIS_SCRIPT_DIR}/segment_vessel.sh "${@:2}"
+  ;;
+
 
   segment)
     python -m pipe_segment "${@:2}"
@@ -57,6 +62,6 @@ case $1 in
 
   *)
     display_usage
-    exit 0
+    exit 1
     ;;
 esac
