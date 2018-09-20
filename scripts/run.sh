@@ -16,6 +16,8 @@ display_usage() {
 	echo "                              per segment"
 	echo "  vessel_info                 create a vessel_info table with one row"
 	echo "                              per vessel_id"
+  echo "  segment_vessel              Create a many-to-many table mapping between"
+  echo "                              segment_id, vessel_id and ssvid"
 }
 
 
