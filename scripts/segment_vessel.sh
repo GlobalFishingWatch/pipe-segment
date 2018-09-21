@@ -52,10 +52,10 @@ echo "Executing query..." | indent
 jinja2 ${SQL} \
    -D segment_vessel_daily=${SEGMENT_VESSEL_TABLE//:/.} \
    | bq query --headless --max_rows=0 --allow_large_results --replace \
-     --destination_table ${DEST_TABLE}  | indent
+     --destination_table ${DEST_TABLE}
 
 echo ""
-bq update --schema ${SCHEMA} --description "${TABLE_DESC}" ${DEST_TABLE} | indent
+bq update --schema ${SCHEMA} --description "${TABLE_DESC}" ${DEST_TABLE}
 
 echo ""
 echo "DONE ${DEST_TABLE}."
