@@ -12,23 +12,35 @@ CREATE TEMP FUNCTION YYYYMMDD(d DATE) AS (
 );
 
 
-CREATE TEMP FUNCTION mostCommon(arr ARRAY<STRUCT<value STRING, count INT64>>) AS (
+CREATE TEMP FUNCTION mostCommon(
+  arr ARRAY<STRUCT<value STRING, count INT64>>
+) AS (
   #
   # Simple map/reduce that finds the most common string value in a list of (string,int) tuples
   # Finds and returns the string with the highest sum of the associated integer values, and
   # computes the frequency of that value relative to the total of all values in the list
 
   (
-   select as struct
+   SELECT as struct
      value,
      count,
      count/(select sum(r.count) from unnest(arr) as r ) as freq
-   from (
-     select as struct r.value as value, sum(r.count) as count from unnest(arr) as r group by r.value order by count DESC limit 1
+   FROM (
+     SELECT as struct r.value as value, sum(r.count) as count
+     FROM unnest(arr) as r group by r.value
+     ORDER BY count DESC
+     LIMIT 1
      )
    )
 );
 
+CREATE TEMP FUNCTION minFreqFilter(
+  record STRUCT<value STRING, count INT64, freq FLOAT64>,
+  total_count INT64,
+  min_freq FLOAT64
+) AS (
+  IF (SAFE_DIVIDE(record.count, total_count) > min_freq, record, NULL)
+);
 
 CREATE TEMP FUNCTION vesselID(ssvid STRING, imo STRING, shipname STRING, callsign STRING) AS (
   #
