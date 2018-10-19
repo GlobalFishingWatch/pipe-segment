@@ -7,6 +7,10 @@ Higher level changes affecting the API or data.
 ---------
 * [#66](https://github.com/GlobalFishingWatch/pipe-segment/pull/66)
   Refactor Segment Identity
+* [#71](https://github.com/GlobalFishingWatch/pipe-segment/pull/71)
+  Add param MOST_COMMON_MIN_FREQ which is used to filter noise values 
+  when determinig the most commonly occuring identity value used to
+  assign vessel_id
 
 0.2.3 - 2018-09-03
 ------------------
