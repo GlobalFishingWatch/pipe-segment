@@ -3,6 +3,11 @@ Changes
 
 Higher level changes affecting the API or data.
 
+0.2.4 - 
+---------
+* [#66](https://github.com/GlobalFishingWatch/pipe-segment/pull/66)
+  Refactor Segment Identity
+
 0.2.3 - 2018-09-03
 ------------------
 * [#61](https://github.com/GlobalFishingWatch/pipe-segment/pull/61)

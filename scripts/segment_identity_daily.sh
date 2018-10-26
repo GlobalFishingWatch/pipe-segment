@@ -9,14 +9,14 @@ ASSETS=${THIS_SCRIPT_DIR}/../assets
 source ${THIS_SCRIPT_DIR}/pipeline.sh
 
 PROCESS=$(basename $0 .sh)
-ARGS=( SEGMENT_IDENTITY_TABLE DEST_TABLE )
+ARGS=( PROCESS_DATE MESSAGES_TABLE SEGMENTS_TABLE DEST_TABLE )
 SCHEMA=${ASSETS}/${PROCESS}.schema.json
 SQL=${ASSETS}/${PROCESS}.sql.j2
 TABLE_DESC=(
-  "Comprehensive table of all segments for all time.  One row per segement"
+  "Daily summary of identity messages by segment"
   ""
   "* Pipeline: ${PIPELINE} ${PIPELINE_VERSION}"
-  "* Source: ${SEGMENT_IDENTITY_TABLE}"
+  "* Source: ${MESSAGES_TABLE}"
   "* Command: $(basename $0)"
 )
 
@@ -41,6 +41,8 @@ done
 
 TABLE_DESC+=(${PARAMS[*]})
 TABLE_DESC=$( IFS=$'\n'; echo "${TABLE_DESC[*]}" )
+YYYYMMDD=$(yyyymmdd ${PROCESS_DATE})
+DEST_TABLE=${DEST_TABLE}${YYYYMMDD}
 
 
 echo "Publishing ${PROCESS} to ${DEST_TABLE}..."
@@ -50,7 +52,8 @@ echo "${TABLE_DESC}" | indent
 echo ""
 echo "Executing query..." | indent
 jinja2 ${SQL} \
-   -D segment_identity_daily=${SEGMENT_IDENTITY_TABLE//:/.} \
+   -D messages=${MESSAGES_TABLE//:/.}${YYYYMMDD} \
+   -D segments=${SEGMENTS_TABLE//:/.}${YYYYMMDD} \
    | bq query --headless --max_rows=0 --allow_large_results --replace \
      --destination_table ${DEST_TABLE}
 

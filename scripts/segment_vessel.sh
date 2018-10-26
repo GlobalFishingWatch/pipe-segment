@@ -9,14 +9,14 @@ ASSETS=${THIS_SCRIPT_DIR}/../assets
 source ${THIS_SCRIPT_DIR}/pipeline.sh
 
 PROCESS=$(basename $0 .sh)
-ARGS=( SEGMENT_IDENTITY_TABLE DEST_TABLE )
+ARGS=( SEGMENT_VESSEL_TABLE DEST_TABLE )
 SCHEMA=${ASSETS}/${PROCESS}.schema.json
 SQL=${ASSETS}/${PROCESS}.sql.j2
 TABLE_DESC=(
-  "Comprehensive table of all segments for all time.  One row per segement"
+  "Many to many mapping between seg_id, vessel_id and ssvid"
   ""
   "* Pipeline: ${PIPELINE} ${PIPELINE_VERSION}"
-  "* Source: ${SEGMENT_IDENTITY_TABLE}"
+  "* Source: ${SEGMENT_VESSEL_TABLE}"
   "* Command: $(basename $0)"
 )
 
@@ -50,7 +50,7 @@ echo "${TABLE_DESC}" | indent
 echo ""
 echo "Executing query..." | indent
 jinja2 ${SQL} \
-   -D segment_identity_daily=${SEGMENT_IDENTITY_TABLE//:/.} \
+   -D segment_vessel_daily=${SEGMENT_VESSEL_TABLE//:/.} \
    | bq query --headless --max_rows=0 --allow_large_results --replace \
      --destination_table ${DEST_TABLE}
 

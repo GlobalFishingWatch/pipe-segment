@@ -1,0 +1,55 @@
+#standardSQL
+#
+# Utility Bigquery Functions
+#
+
+
+CREATE TEMP FUNCTION YYYYMMDD(d DATE) AS (
+  # Format a date as YYYYMMDD
+  # e.g. DATE('2018-01-01') => '20180101'
+
+  FORMAT_DATE('%Y%m%d', d)
+);
+
+
+CREATE TEMP FUNCTION mostCommon(arr ARRAY<STRUCT<value STRING, count INT64>>) AS (
+  #
+  # Simple map/reduce that finds the most common string value in a list of (string,int) tuples
+  # Finds and returns the string with the highest sum of the associated integer values, and
+  # computes the frequency of that value relative to the total of all values in the list
+
+  (
+   select as struct
+     value,
+     count,
+     count/(select sum(r.count) from unnest(arr) as r ) as freq
+   from (
+     select as struct r.value as value, sum(r.count) as count from unnest(arr) as r group by r.value order by count DESC limit 1
+     )
+   )
+);
+
+
+CREATE TEMP FUNCTION vesselID(ssvid STRING, imo STRING, shipname STRING, callsign STRING) AS (
+  #
+  # Format a vessel_id as a guid xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx using
+  # ssvid, imo, shipname, callsign
+  #
+  (
+    SELECT
+      FORMAT('%s-%s-%s-%s-%s',
+        SUBSTR(vessel_id, 1,  9),
+        SUBSTR(vessel_id, 9,  4),
+        SUBSTR(vessel_id, 13, 4),
+        SUBSTR(vessel_id, 17, 4),
+        SUBSTR(vessel_id, 21, 12)
+      ) as vessel_id
+    FROM (
+      SELECT
+        IF(imo IS NOT NULL,
+          TO_HEX(MD5(FORMAT("AIS|%s|%s|%s|%s", ssvid, imo, '', ''))),
+          TO_HEX(MD5(FORMAT("AIS|%s|%s|%s|%s", ssvid, '', IFNULL(shipname, ''), IFNULL(callsign, ''))))
+        ) AS vessel_id
+    )
+  )
+);
