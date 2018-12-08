@@ -36,5 +36,11 @@
     "name": "last_date",
     "type": "DATE",
     "description": "Latest date when this seg_id was associated with this vessel_id"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "vessel_id_rank",
+    "type": "INT64",
+    "description": "rank of this vessel_id relative to the seg_id. The vessel_id with vessel_id_rank=1 is the 'best' vessel_id for each seg_id"
   }
 ]

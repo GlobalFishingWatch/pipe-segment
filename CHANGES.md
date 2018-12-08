@@ -5,7 +5,8 @@ Higher level changes affecting the API or data.
 
 0.3.1-dev 
 ------------------
-
+* [#76](https://github.com/GlobalFishingWatch/pipe-segment/pull/76)
+  Ranked vessel_id per segment in segment_vessel table
 
 0.3.0 - 2018-10-26
 ------------------
