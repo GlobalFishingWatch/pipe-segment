@@ -11,18 +11,28 @@ WITH
     day
   FROM
     `{{ segment_vessel_daily }}*`
+  ),
+  seg_vessel_ssvid as (
+    SELECT
+      seg_id,
+      ssvid,
+      vessel_id,
+      count(DISTINCT day) as days,
+      min(day) as first_date,
+      max(day) as last_date
+    FROM
+      segments
+    GROUP BY
+      seg_id,
+      ssvid,
+      vessel_id
+  ),
+  ranked_vessel_id as (
+    SELECT
+      *,
+      ROW_NUMBER() OVER (PARTITION BY seg_id ORDER BY last_date DESC, vessel_id) as vessel_id_rank
+    FROM
+      seg_vessel_ssvid
   )
 
-SELECT
-  seg_id,
-  ssvid,
-  vessel_id,
-  count(DISTINCT day) as days,
-  min(day) as first_date,
-  max(day) as last_date
-FROM
-  segments
-GROUP BY
-  seg_id,
-  ssvid,
-  vessel_id
+SELECT * FROM ranked_vessel_id
