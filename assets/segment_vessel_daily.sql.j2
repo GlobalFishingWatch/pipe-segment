@@ -11,6 +11,7 @@ CREATE TEMP FUNCTION processDate() AS (DATE('{{ date }}'));
 CREATE TEMP FUNCTION windowDays() AS ({{ window_days }});
 CREATE TEMP FUNCTION windowStart() AS (DATE_SUB(processDate(), INTERVAL (windowDays() - 1) DAY));
 CREATE TEMP FUNCTION singleIdentMinFreq() AS ({{ single_ident_min_freq }});
+CREATE TEMP FUNCTION mostCommonMinFreq() AS ({{most_common_min_freq}});
 
 # Include some utility functions
 {% include 'util.sql.j2' %}
@@ -46,13 +47,13 @@ WITH
     SUM(msg_count) as msg_count,
     SUM(pos_count) as pos_count,
     LOGICAL_OR(noise) as noise,
-    mostCommon(ARRAY_CONCAT_AGG(shipname)) as shipname,
-    mostCommon(ARRAY_CONCAT_AGG(callsign)) as callsign,
-    mostCommon(ARRAY_CONCAT_AGG(imo)) as imo,
-    mostCommon(ARRAY_CONCAT_AGG(n_shipname)) as n_shipname,
-    mostCommon(ARRAY_CONCAT_AGG(n_callsign)) as n_callsign,
-    mostCommon(ARRAY_CONCAT_AGG(n_imo)) as n_imo,
-    mostCommon(ARRAY_CONCAT_AGG(shiptype)) as shiptype
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(shipname  )), SUM(ident_count), mostCommonMinFreq()) as shipname,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(callsign  )), SUM(ident_count), mostCommonMinFreq()) as callsign,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(imo       )), SUM(ident_count), mostCommonMinFreq()) as imo,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_shipname)), SUM(ident_count), mostCommonMinFreq()) as n_shipname,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_callsign)), SUM(ident_count), mostCommonMinFreq()) as n_callsign,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_imo     )), SUM(ident_count), mostCommonMinFreq()) as n_imo,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(shiptype  )), SUM(ident_count), mostCommonMinFreq()) as shiptype
   FROM
     segments
   GROUP BY
@@ -66,10 +67,10 @@ WITH
   ssvid_most_common as (
   SELECT
     ssvid,
-    mostCommon(ARRAY_CONCAT_AGG(n_shipname)) as n_shipname,
-    mostCommon(ARRAY_CONCAT_AGG(n_callsign)) as n_callsign,
-    mostCommon(ARRAY_CONCAT_AGG(n_imo)) as n_imo,
-    mostCommon(ARRAY_CONCAT_AGG(shiptype)) as shiptype
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_shipname)), SUM(ident_count), mostCommonMinFreq()) as n_shipname,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_callsign)), SUM(ident_count), mostCommonMinFreq()) as n_callsign,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_imo     )), SUM(ident_count), mostCommonMinFreq()) as n_imo,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(shiptype  )), SUM(ident_count), mostCommonMinFreq()) as shiptype
   FROM
     segments
   GROUP BY
