@@ -3,11 +3,6 @@ Changes
 
 Higher level changes affecting the API or data.
 
-0.3.1-dev 
-------------------
-* [#76](https://github.com/GlobalFishingWatch/pipe-segment/pull/76)
-  Ranked vessel_id per segment in segment_vessel table
-
 0.3.0 - 2018-10-26
 ------------------
 * [#66](https://github.com/GlobalFishingWatch/pipe-segment/pull/66)
@@ -16,6 +11,8 @@ Higher level changes affecting the API or data.
   Add param MOST_COMMON_MIN_FREQ which is used to filter noise values 
   when determinig the most commonly occuring identity value used to
   assign vessel_id
+* [#76](https://github.com/GlobalFishingWatch/pipe-segment/pull/76)
+  Ranked vessel_id per segment in segment_vessel table
 
 0.2.3 - 2018-09-03
 ------------------
