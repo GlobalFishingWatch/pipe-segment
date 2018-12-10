@@ -37,6 +37,12 @@
   },
   {
     "mode": "NULLABLE",
+    "name": "ident_count",
+    "type": "INTEGER",
+    "description": "Number of identity messages in the segment for this day. Note that some messages can contain both position and identity"
+  },
+  {
+    "mode": "NULLABLE",
     "name": "noise",
     "type": "BOOLEAN",
     "description": "If true, then this is a noise segment, usually because of an invalid lat or lon value.  Messages in these segments should be filtered out"
