@@ -36,12 +36,6 @@
     "description": "Total number or positional messages in the segment.   Consider filtering out messages in segments with only a small number of positional messagess"
   },
   {
-    "mode": "NULLABLE",
-    "name": "noise",
-    "type": "BOOLEAN",
-    "description": "If true, then this is a noise segment, usually because of an invalid lat or lon value.  Messages in these segments should be filtered out"
-  },
-  {
     "fields": [
       {
         "mode": "NULLABLE",

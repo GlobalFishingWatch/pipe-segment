@@ -47,7 +47,8 @@ WITH
     min(timestamp) as first_timestamp,
     max(timestamp) as last_timestamp,
     COUNT(*) AS msg_count,
-    COUNTIF(lat IS NOT NULL) AS pos_count
+    COUNTIF(lat IS NOT NULL) AS pos_count,
+    COUNTIF(COALESCE(shipname, callsign, imo) IS NOT NULL) as ident_count
   FROM
     messages
   GROUP BY

@@ -22,6 +22,7 @@ python $AIRFLOW_HOME/utils/set_default_variables.py \
     segment_vessel_table="segment_vessel" \
     segments_table="segments_" \
     single_ident_min_freq="0.99" \
+    most_common_min_freq="0.05" \
     source_dataset="{{ var.value.PIPELINE_DATASET }}" \
     vessel_info_table="vessel_info" \
     temp_bucket="{{ var.value.TEMP_BUCKET }}"  \

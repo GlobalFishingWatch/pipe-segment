@@ -9,13 +9,15 @@
 # Include some utility functions
 {% include 'util.sql.j2' %}
 
+CREATE TEMP FUNCTION mostCommonMinFreq() AS ({{most_common_min_freq}});
+
 # Build the query
 #
 WITH
   #
   # Daily segment identity counts over the entire time range
   # There is one row per seg_id per day
-  #git
+  #
   segments as (
   SELECT
     *
@@ -46,31 +48,50 @@ WITH
   FROM
     segments
   ),
+
   #
-  # Get the day for each vessel_id to seg_id association
-  vessels_by_day as (
+  # get the latest date for each seg_id/vessel_id pair
+  #
+  vessel_id_latest_day as (
   SELECT
     vessel_id,
     seg_id,
-    day
+    MAX(day) as latest_day
   FROM
     vessels
   GROUP BY
     vessel_id,
-    seg_id,
-    day
+    seg_id
   ),
+
+  #
+  # Rank vessel_id values for each seg_id with the latest day having the highest rank
+  # and keep only the vessel_id with the highest rank for each seg_id
+  best_vessel_id as (
+    SELECT
+      * except (vessel_id_rank)
+    FROM (
+      SELECT
+        seg_id,
+        vessel_id,
+        ROW_NUMBER() OVER (PARTITION BY seg_id ORDER BY latest_day DESC, vessel_id) as vessel_id_rank
+      FROM
+        vessel_id_latest_day
+    )
+    WHERE vessel_id_rank = 1
+  ),
+
   segments_by_vessel as (
   SELECT
     *
   FROM
-    segments_by_day JOIN vessels_by_day USING (seg_id, day)
+    segments_by_day JOIN best_vessel_id USING (seg_id)
   ),
+
   #
   # Aggregate daily identity counts over the full time range
   # group each segment day by vessel_id, so the daily stats for a single segment
-  # are grouped into vessels depending on what vessel_id was assigned to the seg_id
-  # for that day
+  # are grouped into vessels
   #
   # reduce each identity field to just the most commonly occuring value
   vessel_most_common as (
@@ -81,13 +102,13 @@ WITH
     MAX(last_timestamp) as last_timestamp,
     SUM(msg_count) as msg_count,
     SUM(pos_count) as pos_count,
-    mostCommon(ARRAY_CONCAT_AGG(shipname)) as shipname,
-    mostCommon(ARRAY_CONCAT_AGG(callsign)) as callsign,
-    mostCommon(ARRAY_CONCAT_AGG(imo)) as imo,
-    mostCommon(ARRAY_CONCAT_AGG(n_shipname)) as n_shipname,
-    mostCommon(ARRAY_CONCAT_AGG(n_callsign)) as n_callsign,
-    mostCommon(ARRAY_CONCAT_AGG(n_imo)) as n_imo,
-    mostCommon(ARRAY_CONCAT_AGG(shiptype)) as shiptype
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(shipname  )), SUM(ident_count), mostCommonMinFreq()) as shipname,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(callsign  )), SUM(ident_count), mostCommonMinFreq()) as callsign,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(imo       )), SUM(ident_count), mostCommonMinFreq()) as imo,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_shipname)), SUM(ident_count), mostCommonMinFreq()) as n_shipname,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_callsign)), SUM(ident_count), mostCommonMinFreq()) as n_callsign,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_imo     )), SUM(ident_count), mostCommonMinFreq()) as n_imo,
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(shiptype  )), SUM(ident_count), mostCommonMinFreq()) as shiptype
   FROM
     segments_by_vessel
   GROUP by
