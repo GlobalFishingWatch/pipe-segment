@@ -25,7 +25,8 @@ WITH
   #
   segments as (
   SELECT
-    *
+    * except (ident_count),
+    IFNULL(ident_count, msg_count - pos_count) as ident_count
   FROM
     `{{ segment_identity_daily }}*`
   WHERE
