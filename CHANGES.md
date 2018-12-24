@@ -3,6 +3,11 @@ Changes
 
 Higher level changes affecting the API or data.
 
+DEV
+---
+* [#83](https://github.com/GlobalFishingWatch/pipe-segment/pull/83)
+  Add vessel_id field to segment_info table
+
 0.3.1 - 2018-12-10
 ------------------
 * [#66](https://github.com/GlobalFishingWatch/pipe-segment/pull/66)

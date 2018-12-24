@@ -128,6 +128,7 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
             pool='bigquery',
             bash_command='{docker_run} {docker_image} segment_info '
                          '{project_id}:{pipeline_dataset}.{segment_identity_daily_table} '
+                         '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table} '
                          '{most_common_min_freq} '
                          '{project_id}:{pipeline_dataset}.{segment_info_table} '.format(**config)
         )
