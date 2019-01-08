@@ -1,7 +1,17 @@
-Changes
-=======
+# Changelog
 
-Higher level changes affecting the API or data.
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a
+Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+* [#80](https://github.com/GlobalFishingWatch/pipe-segment/issues/80) and  [#77](https://github.com/GlobalFishingWatch/pipe-segment/issues/77) Take into account if the message is of type A or B to generate the segment. Uses the change done in [GPSDIO version 0.12](https://github.com/SkyTruth/gpsdio-segment/pull/60)
+
 
 0.3.1 - 2018-12-10
 ------------------
