@@ -95,9 +95,6 @@ class SegmentPipeline:
         return schema
 
 
-    # def segment_transform(self, segments=None):
-    #     return Segment(segmenter_params=self.segmenter_params, segments=segments)
-
     @property
     def segmenter_params(self):
         return ujson.loads(self.options.segmenter_params)
@@ -157,6 +154,7 @@ class SegmentPipeline:
             messages
             | "MergeMessages" >> beam.Flatten()
             | "MessagesSsvid2Str" >> beam.Map(self.ssvid_to_str)
+            | "Normalize" >> beam.ParDo(NormalizeDoFn())
             | "MessagesAddKey" >> beam.Map(self.groupby_fn)
             | "MessagesGroupByKey" >> beam.GroupByKey()
         )
@@ -170,17 +168,12 @@ class SegmentPipeline:
 
         segmenter = Segment(segments, segmenter_params=self.segmenter_params)
         segmented = messages | "Segment" >> segmenter
-        # segmented = (
-        #     {"messages": messages, "segments":segments_in}
-        #     | beam.CoGroupByKey()
-        #     | "Segment" >> self.segment_transform
-        # )
+
         messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
         segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
         (
             messages
             | "TimestampMessages" >> beam.ParDo(TimestampedValueDoFn())
-            | "Normalize" >> beam.ParDo(NormalizeDoFn())
             | "WriteMessages" >> self.message_sink
         )
         (

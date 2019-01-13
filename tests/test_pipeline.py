@@ -112,3 +112,10 @@ class TestPipeline():
         segments_sink = pp.join(temp_dir, 'segments')
         expected = pp.join(test_data_dir, 'expected_messages2.json')
         self._run_pipeline(source, messages_sink, segments_sink, expected)
+
+    def test_Pipeline_ident_messages(self, test_data_dir, temp_dir):
+        source = pp.join(test_data_dir, 'ident-messages-in.json')
+        messages_sink = pp.join(temp_dir, 'messages')
+        segments_sink = pp.join(temp_dir, 'segments')
+        expected = pp.join(test_data_dir, 'ident-messages-expected.json')
+        self._run_pipeline(source, messages_sink, segments_sink, expected)
