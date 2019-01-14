@@ -222,3 +222,39 @@ class TestTransforms():
         assert seg_stats == expected
 
 
+    def test_message_type(self, temp_dir):
+        messages_in = [
+            {"timestamp": as_timestamp("2018-01-01 00:00"),
+             "ssvid": "123456789",
+             "type": "AIS.1",
+             "lon": 0.0,
+             "lat": 0.0},
+            {"timestamp": as_timestamp("2018-01-01 01:00"),
+             "ssvid": "123456789",
+             "type": "AIS.18",
+             "lon": 0.0,
+             "lat": 2.0},
+            {"timestamp": as_timestamp("2018-01-01 02:00"),
+             "ssvid": "123456789",
+             "type": "AIS.1",
+             "lon": 0.0,
+             "lat": 0.5},
+            {"timestamp": as_timestamp("2018-01-01 03:00"),
+             "ssvid": "123456789",
+             "type": "AIS.18",
+             "lon": 0.0,
+             "lat": 1.5},
+            {"timestamp": as_timestamp("2018-01-01 04:00"),
+             "ssvid": "123456789",
+             "type": "AIS.5",
+             "shipname": "Boaty"},
+        ]
+
+        segments_in = []
+        messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
+        seg_stats = [(seg['seg_id'], seg['message_count'], seg['shipname_most_common']) for seg in segments_out]
+
+        expected = [('123456789-2018-01-01T00:00:00.000000Z', 3, 'Boaty'),
+                    ('123456789-2018-01-01T01:00:00.000000Z', 2, None)]
+        assert seg_stats == expected
+

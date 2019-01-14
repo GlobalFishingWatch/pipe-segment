@@ -45,6 +45,14 @@ class Segment(PTransform):
         msg = dict(msg)
         msg['timestamp'] = datetimeFromTimestamp(msg['timestamp'])
         msg['mmsi'] = msg['ssvid']
+        type = msg.get('type')
+        if type is not None:
+            msg['old_type'] = type
+            if (type.startswith('AIS.')):
+                try:
+                    msg['type'] = int(type[4:])
+                except ValueError:
+                    pass
         return msg
 
     @staticmethod
@@ -57,6 +65,10 @@ class Segment(PTransform):
         timestamp = timestampFromDatetime(msg['timestamp'])
         msg['timestamp'] = timestamp
         msg['seg_id'] = seg_id
+        type = msg.get('old_type')
+        if type is not None:
+            msg['type'] = type
+            del msg['old_type']
         del msg['mmsi']
         return msg
 
