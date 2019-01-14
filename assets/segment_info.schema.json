@@ -13,6 +13,13 @@
   },
   {
     "mode": "NULLABLE",
+    "name": "vessel_id",
+    "type": "STRING",
+    "description": "Unique vessel id. Each vessel_id can be associated with many seg_ids, and only one ssvid"
+
+  },
+  {
+    "mode": "NULLABLE",
     "name": "first_timestamp",
     "type": "TIMESTAMP",
     "description": "Timestamp of the first message in the segment"
