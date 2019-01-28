@@ -12,6 +12,7 @@ CREATE TEMP FUNCTION windowDays() AS ({{ window_days }});
 CREATE TEMP FUNCTION windowStart() AS (DATE_SUB(processDate(), INTERVAL (windowDays() - 1) DAY));
 CREATE TEMP FUNCTION singleIdentMinFreq() AS ({{ single_ident_min_freq }});
 CREATE TEMP FUNCTION mostCommonMinFreq() AS ({{most_common_min_freq}});
+CREATE TEMP FUNCTION spoofingThreshold() AS ({{spoofing_threshold}});
 
 # Include some utility functions
 {% include 'util.sql.j2' %}
@@ -89,7 +90,7 @@ WITH
   FROM
     segments
   WHERE
-    NOT noise AND msg_count > 3
+    NOT noise AND msg_count > spoofingThreshold()
   ),
   #
   # Order all the good segments within a single SSVID and capture the start timestamp of the following segment

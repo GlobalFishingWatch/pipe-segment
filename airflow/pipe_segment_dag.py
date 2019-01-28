@@ -119,6 +119,7 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
                          '{window_days} '
                          '{single_ident_min_freq} '
                          '{most_common_min_freq} '
+                         '{spoofing_threshold} '
                          '{project_id}:{pipeline_dataset}.{segment_identity_daily_table} '
                          '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table} '.format(**config)
         )
