@@ -9,7 +9,7 @@ ASSETS=${THIS_SCRIPT_DIR}/../assets
 source ${THIS_SCRIPT_DIR}/pipeline.sh
 
 PROCESS=$(basename $0 .sh)
-ARGS=( PROCESS_DATE WINDOW_DAYS SINGLE_IDENT_MIN_FREQ MOST_COMMON_MIN_FREQ SEGMENT_IDENTITY_TABLE DEST_TABLE )
+ARGS=( PROCESS_DATE WINDOW_DAYS SINGLE_IDENT_MIN_FREQ MOST_COMMON_MIN_FREQ SPOOFING_THRESHOLD SEGMENT_IDENTITY_TABLE DEST_TABLE )
 SCHEMA=${ASSETS}/${PROCESS}.schema.json
 SQL=${ASSETS}/${PROCESS}.sql.j2
 TABLE_DESC=(
@@ -50,14 +50,16 @@ echo "Table Description" | indent
 echo "${TABLE_DESC}" | indent
 echo ""
 echo "Executing query..." | indent
+
 jinja2 ${SQL} \
    -D date="${PROCESS_DATE}" \
    -D window_days=${WINDOW_DAYS} \
    -D single_ident_min_freq=${SINGLE_IDENT_MIN_FREQ} \
    -D most_common_min_freq=${MOST_COMMON_MIN_FREQ} \
+   -D spoofing_threshold=${SPOOFING_THRESHOLD} \
    -D segment_identity_daily=${SEGMENT_IDENTITY_TABLE//:/.} \
    | bq query --headless --max_rows=0 --allow_large_results --replace \
-     --destination_table ${DEST_TABLE} 
+     --destination_table ${DEST_TABLE}
 
 echo ""
 bq update --schema ${SCHEMA} --description "${TABLE_DESC}" ${DEST_TABLE}
