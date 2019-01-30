@@ -153,6 +153,7 @@ class TestTransforms():
     @pytest.mark.parametrize("message, expected", [
         ({}, {}),
         ({'shipname': 'f/v boaty Mc Boatface'}, {'n_shipname': 'BOATYMCBOATFACE'}),
+        ({'shipname': 'Bouy 42%'}, {'n_shipname': 'BOUY'}),
         ({'callsign': '@@123'}, {'n_callsign': '123'}),
         ({'imo': 8814275}, {'n_imo': 8814275}),
     ])
