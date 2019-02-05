@@ -20,7 +20,8 @@ class GCPSource(beam.PTransform):
         if self.service == 'table':
             helper = QueryHelper(table=self.path,
                                   first_date_ts=self.first_date_ts,
-                                  last_date_ts=self.last_date_ts)
+                                  last_date_ts=self.last_date_ts,
+                                  use_legacy_sql=False)
             self.query = helper.build_query()
             if self.schema is None:
                 self.schema = helper.table_schema
