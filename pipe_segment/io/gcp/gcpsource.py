@@ -39,7 +39,7 @@ class GCPSource(beam.PTransform):
         else:
             ts_fields = {'timestamp'}
 
-        source = beam.io.gcp.bigquery.BigQuerySource(query=self.query)
+        source = beam.io.gcp.bigquery.BigQuerySource(query=self.query, use_standard_sql=True)
         return (
             pcoll
             | "ReadFromBigQuery" >> ReadAsJSONDict(source)
