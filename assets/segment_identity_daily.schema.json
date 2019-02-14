@@ -25,6 +25,18 @@
   },
   {
     "mode": "NULLABLE",
+    "name": "first_pos_timestamp",
+    "type": "TIMESTAMP",
+    "description": "Timestamp of the first position message in the segment for this day"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "last_pos_timestamp",
+    "type": "TIMESTAMP",
+    "description": "Timestamp of the last position message in the segment for this day"
+  },
+  {
+    "mode": "NULLABLE",
     "name": "msg_count",
     "type": "INTEGER",
     "description": "Total number of messages (positional and identity messages) in the segment for this day"

@@ -46,6 +46,8 @@ WITH
     seg_id,
     min(timestamp) as first_timestamp,
     max(timestamp) as last_timestamp,
+    min( IF(lat IS NOT NULL, timestamp, null)) AS first_pos_timestamp,
+    max( IF(lat IS NOT NULL, timestamp, null)) AS last_pos_timestamp,
     COUNT(*) AS msg_count,
     COUNTIF(lat IS NOT NULL) AS pos_count,
     COUNTIF(COALESCE(shipname, callsign, imo) IS NOT NULL) as ident_count
