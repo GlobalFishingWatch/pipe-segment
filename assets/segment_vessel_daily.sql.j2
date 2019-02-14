@@ -105,9 +105,9 @@ WITH
     good_segs
   ),
   #
-  #  Find SSVIDs that do not have any (non-noise) segments that overlap in time
+  #  Find SSVIDs that have any (non-noise) segments that overlap in time
   #
-  no_overlap_ssvid AS (
+  overlap_ssvid AS (
     SELECT
       ssvid,
       COUNTIF(end_timestamp > next_start_timestamp) AS overlap_count
@@ -116,7 +116,7 @@ WITH
     GROUP BY
       ssvid
     HAVING
-      overlap_count = 0
+      overlap_count > 0
   ),
   #
   # Find the ssvids that have a single dominant identity, and compute the ssvid-level vessel_id
@@ -142,7 +142,9 @@ WITH
   SELECT
     *
   FROM
-    single_ident_ssvid JOIN no_overlap_ssvid USING (ssvid)
+    single_ident_ssvid LEFT JOIN overlap_ssvid USING (ssvid)
+  WHERE
+    overlap_ssvid.ssvid is NULL
   ),
   #
   # Set the segment vessel_id. If the ssvid has no overlaps and only one identity, then use the ssvid's vessel_id
