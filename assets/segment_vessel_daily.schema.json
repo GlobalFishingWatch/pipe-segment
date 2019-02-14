@@ -33,13 +33,25 @@
     "mode": "NULLABLE",
     "name": "first_timestamp",
     "type": "TIMESTAMP",
-    "description": "Timestamp of the first message in the segment for this day"
+    "description": "Timestamp of the first message in the segment over the time window"
   },
   {
     "mode": "NULLABLE",
     "name": "last_timestamp",
     "type": "TIMESTAMP",
-    "description": "Timestamp of the last message in the segment for this day"
+    "description": "Timestamp of the last message in the segment over the time window"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "first_pos_timestamp",
+    "type": "TIMESTAMP",
+    "description": "Timestamp of the first position message in the segment over the time window"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "last_pos_timestamp",
+    "type": "TIMESTAMP",
+    "description": "Timestamp of the last position message in the segment over the time window"
   },
   {
     "mode": "NULLABLE",
