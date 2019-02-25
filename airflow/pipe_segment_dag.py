@@ -45,7 +45,7 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
         source_sensor_date = '{last_day_of_month_nodash}'.format(**config)
         date_range = '{first_day_of_month},{last_day_of_month}'.format(**config)
     elif schedule_interval == '@yearly':
-        source_sensor_date = '{last_day_of_year}'.format(**config)
+        source_sensor_date = '{last_day_of_year_nodash}'.format(**config)
         date_range = '{first_day_of_year},{last_day_of_year}'.format(**config)
     else:
         raise ValueError('Unsupported schedule interval {}'.format(schedule_interval))
