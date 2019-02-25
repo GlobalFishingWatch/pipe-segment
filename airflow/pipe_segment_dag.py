@@ -44,6 +44,9 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
     elif schedule_interval == '@monthly':
         source_sensor_date = '{last_day_of_month_nodash}'.format(**config)
         date_range = '{first_day_of_month},{last_day_of_month}'.format(**config)
+    elif schedule_interval == '@yearly':
+        source_sensor_date = '{last_day_of_year}'.format(**config)
+        date_range = '{first_day_of_year},{last_day_of_year}'.format(**config)
     else:
         raise ValueError('Unsupported schedule interval {}'.format(schedule_interval))
 
@@ -168,3 +171,4 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
 
 segment_daily_dag = build_dag('pipe_segment_daily', '@daily')
 segment_monthly_dag = build_dag('pipe_segment_monthly', '@monthly')
+segment_yearly_dag = build_dag('pipe_segment_yearly', '@yearly')
