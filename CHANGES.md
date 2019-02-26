@@ -15,6 +15,9 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
   Add vessel_id field to segment_info table
 * [#87](https://github.com/GlobalFishingWatch/pipe-segment/issues/87)
   Increase the noise threshold for determination of spoofing, and parameterize
+* [GlobalFishingWatch/GFW-Tasks#979](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/979)
+  Include the Yearly run mode.
+* **DEPRECATED** segment_identity and identity_messages_monthly.
   
 0.3.1 - 2018-12-10
 ------------------

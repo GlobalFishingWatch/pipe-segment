@@ -85,25 +85,6 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
             )
         )
 
-        identity_messages_monthly = BashOperator(
-            task_id='identity_messages_monthly',
-            pool='bigquery',
-            bash_command='{docker_run} {docker_image} identity_messages_monthly '
-                         '{project_id}:{pipeline_dataset}.{messages_table} '
-                         '{project_id}:{pipeline_dataset}.{identity_messages_monthly_table}{first_day_of_month_nodash} '
-                         '{first_day_of_month} {last_day_of_month}'.format(**config)
-        )
-
-        segment_identity = BashOperator(
-            task_id='segment_identity',
-            pool='bigquery',
-            bash_command='{docker_run} {docker_image} segment_identity '
-                         '{project_id}:{pipeline_dataset}.{identity_messages_monthly_table} '
-                         '{project_id}:{pipeline_dataset}.{segments_table} '
-                         '{first_day_of_month} {last_day_of_month} '
-                         '{project_id}:{pipeline_dataset}.{segment_identity_table}{first_day_of_month_nodash} '.format(**config)
-        )
-
         segment_identity_daily = BashOperator(
             task_id='segment_identity_daily',
             pool='bigquery',
@@ -157,10 +138,8 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
 
         for sensor in source_sensors:
             dag >> sensor >> segment
-
-        # TODO: Deprecate identity_messages_monthly and segment_identity
-
-        segment >> identity_messages_monthly >> segment_identity >> segment_identity_daily
+            
+        segment >> segment_identity_daily
         segment_identity_daily >> segment_info
         segment_identity_daily >> segment_vessel_daily
         segment_vessel_daily >> vessel_info
