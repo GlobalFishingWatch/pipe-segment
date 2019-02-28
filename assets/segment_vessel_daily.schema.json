@@ -89,7 +89,7 @@
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
       }
     ],
     "mode": "NULLABLE",
@@ -115,7 +115,7 @@
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
       }
     ],
     "mode": "NULLABLE",
@@ -141,7 +141,7 @@
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
       }
     ],
     "mode": "NULLABLE",
@@ -167,7 +167,7 @@
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
       }
     ],
     "mode": "NULLABLE",
@@ -193,7 +193,7 @@
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
       }
     ],
     "mode": "NULLABLE",
@@ -219,7 +219,7 @@
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
       }
     ],
     "mode": "NULLABLE",
@@ -245,13 +245,65 @@
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicaates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
       }
     ],
     "mode": "NULLABLE",
     "name": "shiptype",
     "type": "RECORD",
     "description": "Most commonly occuring shiptype for this segment over WINDOW_DAYS.  Note that shiptype is already normalized in the source messages."
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment for this day"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "width",
+    "type": "RECORD",
+    "description": "Most commonly occuring width for this segment over WINDOW_DAYS."
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the this field value occured for this segment for this day"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "freq",
+        "type": "FLOAT",
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+      }
+    ],
+    "mode": "NULLABLE",
+    "name": "length",
+    "type": "RECORD",
+    "description": "Most commonly occuring length for this segment over WINDOW_DAYS."
   }
 ]
 
