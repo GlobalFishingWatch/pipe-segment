@@ -11,7 +11,7 @@ python $AIRFLOW_HOME/utils/set_default_variables.py \
     identity_messages_monthly_table="identity_messages_monthly_" \
     messages_table="messages_segmented_" \
     max_num_workers="100" \
-    normalized_tables="normalized_orbcomm_,normalized_spire_" \
+    source_tables="normalized_orbcomm_,normalized_spire_" \
     pipeline_bucket="{{ var.value.PIPELINE_BUCKET }}" \
     pipeline_dataset="{{ var.value.PIPELINE_DATASET }}" \
     project_id="{{ var.value.PROJECT_ID }}" \

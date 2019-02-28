@@ -8,7 +8,8 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [Unreleased]
 
-### Added
+### Changed
+* Moved to pipe-tools version 2.0.0 that split airflow dependencies from dataflow dependencies. Check the [repo](https://github.com/GlobalFishingWatch/airflow-gfw/tree/develop)
 
 ## 0.3.3
 
