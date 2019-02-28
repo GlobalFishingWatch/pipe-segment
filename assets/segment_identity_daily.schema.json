@@ -198,6 +198,46 @@
     "name": "shiptype",
     "type": "RECORD",
     "description": "Array of all unique shiptypes for this segment for this day. Note that this field is already normalized in the messages"
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "Unique field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the unique field value occured for this segment for this day"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "length",
+    "type": "RECORD",
+    "description": "Array of all unique length for this segment for this day."
+  },
+  {
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "value",
+        "type": "STRING",
+        "description": "Unique field value"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER",
+        "description": "Number of times the unique field value occured for this segment for this day"
+      }
+    ],
+    "mode": "REPEATED",
+    "name": "width",
+    "type": "RECORD",
+    "description": "Array of all unique width for this segment for this day."
   }
 ]
 

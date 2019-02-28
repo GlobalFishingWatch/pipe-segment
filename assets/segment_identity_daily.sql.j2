@@ -21,7 +21,9 @@ WITH
     n_shipname,
     n_callsign,
     n_imo,
-    shiptype
+    shiptype,
+    width,
+    length
   FROM
     `{{ messages }}`
   ),
@@ -120,6 +122,25 @@ WITH
       ) GROUP BY seg_id
     ),
   #
+  # length: count of occurences per segment for each non-null value
+  #
+  segment_length AS (
+    SELECT seg_id, ARRAY_AGG(STRUCT(value, count)) as length FROM (
+      SELECT seg_id, CAST(length AS STRING) as value, COUNT(*) AS count FROM messages
+      WHERE length IS NOT NULL AND length > 0.0 GROUP BY seg_id, value
+      ) GROUP BY seg_id
+    ),
+  #
+  # width: count of occurences per segment for each non-null value
+  #
+  segment_width AS (
+    SELECT seg_id, ARRAY_AGG(STRUCT(value, count)) as width FROM (
+      SELECT seg_id, CAST(width AS STRING) as value, COUNT(*) AS count FROM messages
+      WHERE width IS NOT NULL AND width > 0.0 GROUP BY seg_id, value
+      ) GROUP BY seg_id
+    ),
+
+  #
   # Stitch all the pieces together for one row per segment
   #
   segment_daily as (
@@ -135,6 +156,8 @@ WITH
       LEFT JOIN segment_n_callsign USING (seg_id)
       LEFT JOIN segment_n_imo USING (seg_id)
       LEFT JOIN segment_shiptype USING (seg_id)
+      LEFT JOIN segment_length USING (seg_id)
+      LEFT JOIN segment_width USING (seg_id)
   )
 
 
