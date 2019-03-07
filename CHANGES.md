@@ -10,6 +10,10 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ### Added
 
+##  0.3.2 - 2019-03-07
+
+### Added
+
 * [#80](https://github.com/GlobalFishingWatch/pipe-segment/issues/80) and  [#77](https://github.com/GlobalFishingWatch/pipe-segment/issues/77) Take into account if the message is of type A or B to generate the segment. Uses the change done in [GPSDIO version 0.12](https://github.com/SkyTruth/gpsdio-segment/pull/60)
 * [#83](https://github.com/GlobalFishingWatch/pipe-segment/pull/83)
   Add vessel_id field to segment_info table
