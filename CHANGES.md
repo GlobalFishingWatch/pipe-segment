@@ -18,9 +18,13 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 * [GlobalFishingWatch/GFW-Tasks#982](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/982)
   Include width and length of vessels in the segment_info, vessel_info,
   vessel_identity_daily and segment_identity_daily tables
+* [GlobalFishingWatch/GFW-Tasks#979](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/979)
+  Include the Yearly run mode.
+* **DEPRECATED** segment_identity and identity_messages_monthly.
   
-0.3.1 - 2018-12-10
-------------------
+
+##  0.3.1 - 2018-12-10
+
 * [#66](https://github.com/GlobalFishingWatch/pipe-segment/pull/66)
   Refactor Segment Identity
 * [#71](https://github.com/GlobalFishingWatch/pipe-segment/pull/71)
@@ -30,29 +34,26 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 * [#76](https://github.com/GlobalFishingWatch/pipe-segment/pull/76)
   Ranked vessel_id per segment in segment_vessel table
 
-0.2.3 - 2018-09-03
-------------------
+## 0.2.3 - 2018-09-03
+
 * [#61](https://github.com/GlobalFishingWatch/pipe-segment/pull/61)
   Include additional noise and message count fields in segment_info table 
 * [#68](https://github.com/GlobalFishingWatch/pipe-segment/pull/68)
   Bump version of pipe-tools to 0.1.7
 
-0.2.2 - 2018-07-06
-------------------
+## 0.2.2 - 2018-07-06
  
 * [#53](https://github.com/GlobalFishingWatch/pipe-segment/pull/53)
   Improved Vessel ID creation scheme
   vessel_info table
   
   
-0.2.1 - 2018-06-17
-------------------
+## 0.2.1 - 2018-06-17
  
 * [#50](https://github.com/GlobalFishingWatch/pipe-segment/pull/50)
   Force SSVID to string before segmenting
   
-0.2.0 - 2018-05-14
-------------------
+## 0.2.0 - 2018-05-14
 
 * [#44](https://github.com/GlobalFishingWatch/pipe-segment/pull/44)
   pin pip version to 9.0.3
@@ -62,8 +63,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
   Update to pipe-tools v0.1.6 
 
 
-0.1.2 - 2018-03-25
-------------------
+## 0.1.2 - 2018-03-25
 
 * [#40](https://github.com/GlobalFishingWatch/pipe-segment/pull/40)
   Update to pipe-tools v0.1.5
@@ -71,14 +71,12 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
   Change ssvid data type to STRING in segment schema
   
 
-0.1.1 - 2018-03-12
-------------------
+## 0.1.1 - 2018-03-12
 
 * [#35](https://github.com/GlobalFishingWatch/pipe-segment/pull/35)
   Importable Dags.  Update to pipe-tools v0.1.4
 
 
-0.0.1 - YYYY-MM-DD
-------------------
+## 0.0.1
 
 * Initial release.
