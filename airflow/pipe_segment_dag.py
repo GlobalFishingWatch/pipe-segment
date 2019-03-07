@@ -44,6 +44,9 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
     elif schedule_interval == '@monthly':
         source_sensor_date = '{last_day_of_month_nodash}'.format(**config)
         date_range = '{first_day_of_month},{last_day_of_month}'.format(**config)
+    elif schedule_interval == '@yearly':
+        source_sensor_date = '{last_day_of_year_nodash}'.format(**config)
+        date_range = '{first_day_of_year},{last_day_of_year}'.format(**config)
     else:
         raise ValueError('Unsupported schedule interval {}'.format(schedule_interval))
 
@@ -82,25 +85,6 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
             )
         )
 
-        identity_messages_monthly = BashOperator(
-            task_id='identity_messages_monthly',
-            pool='bigquery',
-            bash_command='{docker_run} {docker_image} identity_messages_monthly '
-                         '{project_id}:{pipeline_dataset}.{messages_table} '
-                         '{project_id}:{pipeline_dataset}.{identity_messages_monthly_table}{first_day_of_month_nodash} '
-                         '{first_day_of_month} {last_day_of_month}'.format(**config)
-        )
-
-        segment_identity = BashOperator(
-            task_id='segment_identity',
-            pool='bigquery',
-            bash_command='{docker_run} {docker_image} segment_identity '
-                         '{project_id}:{pipeline_dataset}.{identity_messages_monthly_table} '
-                         '{project_id}:{pipeline_dataset}.{segments_table} '
-                         '{first_day_of_month} {last_day_of_month} '
-                         '{project_id}:{pipeline_dataset}.{segment_identity_table}{first_day_of_month_nodash} '.format(**config)
-        )
-
         segment_identity_daily = BashOperator(
             task_id='segment_identity_daily',
             pool='bigquery',
@@ -119,6 +103,7 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
                          '{window_days} '
                          '{single_ident_min_freq} '
                          '{most_common_min_freq} '
+                         '{spoofing_threshold} '
                          '{project_id}:{pipeline_dataset}.{segment_identity_daily_table} '
                          '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table} '.format(**config)
         )
@@ -128,6 +113,7 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
             pool='bigquery',
             bash_command='{docker_run} {docker_image} segment_info '
                          '{project_id}:{pipeline_dataset}.{segment_identity_daily_table} '
+                         '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table} '
                          '{most_common_min_freq} '
                          '{project_id}:{pipeline_dataset}.{segment_info_table} '.format(**config)
         )
@@ -152,10 +138,8 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
 
         for sensor in source_sensors:
             dag >> sensor >> segment
-
-        # TODO: Deprecate identity_messages_monthly and segment_identity
-
-        segment >> identity_messages_monthly >> segment_identity >> segment_identity_daily
+            
+        segment >> segment_identity_daily
         segment_identity_daily >> segment_info
         segment_identity_daily >> segment_vessel_daily
         segment_vessel_daily >> vessel_info
@@ -166,3 +150,4 @@ def build_dag(dag_id, schedule_interval='@daily', extra_default_args=None, extra
 
 segment_daily_dag = build_dag('pipe_segment_daily', '@daily')
 segment_monthly_dag = build_dag('pipe_segment_monthly', '@monthly')
+segment_yearly_dag = build_dag('pipe_segment_yearly', '@yearly')

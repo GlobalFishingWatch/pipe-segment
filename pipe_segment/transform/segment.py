@@ -1,6 +1,7 @@
 import datetime as dt
 import itertools as it
 import logging
+import six
 
 import apache_beam as beam
 from apache_beam import PTransform
@@ -42,9 +43,25 @@ class Segment(PTransform):
 
     @staticmethod
     def _convert_messages_in(msg):
+        def convert_type (t):
+            if t is not None and t.startswith('AIS.'):
+                try:
+                    t = int(t[4:])
+                except ValueError:
+                    pass
+            return t
+
         msg = dict(msg)
-        msg['timestamp'] = datetimeFromTimestamp(msg['timestamp'])
-        msg['mmsi'] = msg['ssvid']
+        update_fields = dict(
+            mmsi = msg['ssvid'],
+            timestamp = datetimeFromTimestamp(msg['timestamp']),
+            type = convert_type(msg.get('type')),
+            shipname = msg.get('n_shipname'),
+            callsign = msg.get('n_callsign')
+        )
+        msg['__temp'] = {k:msg.get(k) for k in update_fields.keys()}
+        msg.update(update_fields)
+
         return msg
 
     @staticmethod
@@ -54,10 +71,17 @@ class Segment(PTransform):
     @staticmethod
     def _convert_messages_out(msg, seg_id):
         msg = JSONDict(msg)
-        timestamp = timestampFromDatetime(msg['timestamp'])
-        msg['timestamp'] = timestamp
         msg['seg_id'] = seg_id
-        del msg['mmsi']
+
+        update_fields = msg['__temp']
+        del msg['__temp']
+
+        for k,v in six.iteritems(update_fields):
+            if v is None:
+                del msg[k]
+            else:
+                msg[k] = v
+
         return msg
 
     @staticmethod
