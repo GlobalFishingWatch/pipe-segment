@@ -10,6 +10,10 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ### Added
 
+## 0.3.3
+
+* [GlobalFishingWatch/GFW-Tasks#992](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/992) Fixed issue with a dependency in gpsdio-segment
+
 ##  0.3.2 - 2019-03-07
 
 ### Added
