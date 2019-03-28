@@ -8,13 +8,20 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [Unreleased]
 
+### Changed
+
+## v1.0.0 - 2019-03-28
+
 ### Added
 
-## 0.3.3
+* [GlobalFishingWatch/GFW-Tasks#991](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/991)
+  Moved to pipe-tools version 2.0.0 that split airflow dependencies from dataflow dependencies. Check the [repo](https://github.com/GlobalFishingWatch/airflow-gfw/tree/develop)
+
+## 0.3.3 - 2019-03-11
 
 * [GlobalFishingWatch/GFW-Tasks#992](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/992) Fixed issue with a dependency in gpsdio-segment
 
-##  0.3.2 - 2019-03-07
+## 0.3.2 - 2019-03-07
 
 ### Added
 
@@ -29,9 +36,9 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 * [GlobalFishingWatch/GFW-Tasks#979](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/979)
   Include the Yearly run mode.
 * **DEPRECATED** segment_identity and identity_messages_monthly.
-  
 
-##  0.3.1 - 2018-12-10
+
+## 0.3.1 - 2018-12-10
 
 * [#66](https://github.com/GlobalFishingWatch/pipe-segment/pull/66)
   Refactor Segment Identity
@@ -50,17 +57,16 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
   Bump version of pipe-tools to 0.1.7
 
 ## 0.2.2 - 2018-07-06
- 
+
 * [#53](https://github.com/GlobalFishingWatch/pipe-segment/pull/53)
   Improved Vessel ID creation scheme
   vessel_info table
-  
-  
+
 ## 0.2.1 - 2018-06-17
- 
+
 * [#50](https://github.com/GlobalFishingWatch/pipe-segment/pull/50)
   Force SSVID to string before segmenting
-  
+
 ## 0.2.0 - 2018-05-14
 
 * [#44](https://github.com/GlobalFishingWatch/pipe-segment/pull/44)
@@ -70,20 +76,17 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 * [#47](https://github.com/GlobalFishingWatch/pipe-segment/pull/47)
   Update to pipe-tools v0.1.6 
 
-
 ## 0.1.2 - 2018-03-25
 
 * [#40](https://github.com/GlobalFishingWatch/pipe-segment/pull/40)
   Update to pipe-tools v0.1.5
 * [#42](https://github.com/GlobalFishingWatch/pipe-segment/pull/42)
   Change ssvid data type to STRING in segment schema
-  
 
 ## 0.1.1 - 2018-03-12
 
 * [#35](https://github.com/GlobalFishingWatch/pipe-segment/pull/35)
   Importable Dags.  Update to pipe-tools v0.1.4
-
 
 ## 0.0.1
 
