@@ -9,6 +9,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 ## [Unreleased]
 
 ### Changed
+* [GlobalFishingWatch/GFW-Tasks#1000](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/1000) Forces ordering when serializing and deserializing segmenter state each day so that the segmenter state timestamp is correctly calculated.
 
 ## v1.0.0 - 2019-03-28
 
