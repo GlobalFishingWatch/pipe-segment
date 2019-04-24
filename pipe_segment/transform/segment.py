@@ -98,10 +98,15 @@ class Segment(PTransform):
 
         stats_numeric_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.NUMERIC_STATS)]
         stats_frequency_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.FREQUENCY_STATS)]
-
         ms = MessageStats(messages, stats_numeric_fields, stats_frequency_fields)
-        first_msg = seg_state.msgs[0]
-        last_msg = seg_state.msgs[-1]
+
+        # Make sure the segmenter state messages are sorted by timestamp here,
+        # as in some situations the last message in the state might not be the
+        # latest and we want to use the actual last message here for timestamp
+        # calculations
+        sorted_msgs = sorted(seg_state.msgs, key=lambda x: x['timestamp'])
+        first_msg = sorted_msgs[0]
+        last_msg = sorted_msgs[-1]
 
         record = JSONDict (
             seg_id=seg_state.id,
@@ -112,7 +117,7 @@ class Segment(PTransform):
             timestamp=timestampFromDatetime(last_msg['timestamp']),
         )
 
-        pos_messages = [msg for msg in seg_state.msgs if msg.get('lat') is not None] or [None]
+        pos_messages = [msg for msg in sorted_msgs if msg.get('lat') is not None] or [None]
         last_pos_msg = pos_messages[-1]
         if last_pos_msg:
             record.update(dict(
@@ -145,7 +150,7 @@ class Segment(PTransform):
         if seg_record['timestamp'] not in [msg['timestamp'] for msg in messages]:
             messages.append({
                 'ssvid': seg_record['ssvid'],
-                'timestamp': seg_record['origin_ts'],
+                'timestamp': seg_record['timestamp'],
             })
 
         state = SegmentState()
