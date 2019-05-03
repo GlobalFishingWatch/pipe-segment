@@ -8,8 +8,9 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [Unreleased]
 
-### Changed
+## v1.2.0 - 2019-05-03
 
+### Changed
 * [GlobalFishingWatch/GFW-Tasks#1015](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/1015) Updated version of gpsdio-segment in order to include the fix of A vs B messages.
 
 ## v1.1.0 - 2019-04-24
