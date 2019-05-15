@@ -8,6 +8,10 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [Unreleased]
 
+## v1.2.1 - 2019-05-15
+* [GlobalFishingWatch/GFW-Tasks#1030](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/1030) Changed the way we pass the machine type to dataflow so it re-allow us to send the custom machine type.
+
+
 ## v1.2.0 - 2019-05-03
 
 ### Changed
