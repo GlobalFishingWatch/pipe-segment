@@ -61,7 +61,7 @@ class PipeSegmentDagFactory(DagFactory):
                     project=config['project_id'],
                     max_num_workers='{dataflow_max_num_workers}'.format(**config),
                     disk_size_gb='{dataflow_disk_size_gb}'.format(**config),
-                    machine_type='{dataflow_machine_type}'.format(**config),
+                    worker_machine_type='{dataflow_machine_type}'.format(**config),
                     temp_location='gs://{temp_bucket}/dataflow_temp'.format(**config),
                     staging_location='gs://{temp_bucket}/dataflow_staging'.format(**config),
                     requirements_file='./requirements.txt',
