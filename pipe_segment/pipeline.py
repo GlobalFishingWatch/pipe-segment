@@ -143,7 +143,8 @@ class SegmentPipeline:
     def segment_sink(self, schema):
         sink = GCPSink(gcp_path=self.options.segments,
                        schema=schema,
-                       temp_gcs_location=self.temp_gcs_location)
+                       temp_gcs_location=self.temp_gcs_location,
+                       temp_shards_per_day=self.options.temp_shards_per_day)
         return sink
 
 
@@ -162,6 +163,7 @@ class SegmentPipeline:
         segments = (
             pipeline
             | "ReadSegments" >> self.segment_source
+            | "FilterNoiseSegmets" >> beam.Filter(lambda x: not x['noise'])
             | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
             | "SegmentsGroupByKey" >> beam.GroupByKey()
         )
