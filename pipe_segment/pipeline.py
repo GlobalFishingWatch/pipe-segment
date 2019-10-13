@@ -157,7 +157,7 @@ class SegmentPipeline:
             | "MessagesSsvid2Str" >> beam.Map(self.ssvid_to_str)
             | "Normalize" >> beam.ParDo(NormalizeDoFn())
             | "MessagesAddKey" >> beam.Map(self.groupby_fn)
-            | "MessagesGroupByKey" >> beam.GroupByKey()
+            # | "MessagesGroupByKey" >> beam.GroupByKey()
         )
 
         segments = (
@@ -165,11 +165,16 @@ class SegmentPipeline:
             | "ReadSegments" >> self.segment_source
             | "FilterNoiseSegmets" >> beam.Filter(lambda x: not x['noise'])
             | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
-            | "SegmentsGroupByKey" >> beam.GroupByKey()
+            # | "SegmentsGroupByKey" >> beam.GroupByKey()
         )
 
-        segmenter = Segment(segments, segmenter_params=self.segmenter_params)
-        segmented = messages | "Segment" >> segmenter
+        args = (
+            {'messages' : messages, 'segments' : segments}
+            | 'GroupByKey' >> beam.CoGroupByKey()
+        )
+
+        segmenter = Segment(segmenter_params=self.segmenter_params)
+        segmented = args | "Segment" >> segmenter
 
         messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
         segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
