@@ -69,10 +69,15 @@ class TestPipeline():
                 p
                 | beam.io.ReadFromText(file_pattern=source, coder=JSONDictCoder())
                 | "MessagesAddKey" >> beam.Map(SegmentPipeline.groupby_fn)
-                | "MessagesGroupByKey" >> beam.GroupByKey()
             )
             segments = p | beam.Create([])
-            segmented = messages | Segment(segments)
+
+            args = (
+                {'messages' : messages, 'segments' : segments}
+            |    'GroupByKey' >> beam.CoGroupByKey()
+            )
+
+            segmented = args | Segment()
 
             messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
             (messages
