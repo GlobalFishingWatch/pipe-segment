@@ -162,7 +162,7 @@ class SegmentPipeline:
         segments = (
             pipeline
             | "ReadSegments" >> self.segment_source
-            | "FilterNoiseSegmets" >> beam.Filter(lambda x: not x['noise'])
+            | "FilterNoiseSegments" >> beam.Filter(lambda x: not x['noise'])
             | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
         )
 
