@@ -111,6 +111,7 @@ class Segment(PTransform):
             seg_id=seg_state.id,
             ssvid=str(seg_state.mmsi),
             noise=seg_state.noise,
+            closed=seg_state.closed,
             message_count=seg_state.msg_count,
             origin_ts=timestampFromDatetime(first_msg['timestamp']),
             timestamp=timestampFromDatetime(last_msg['timestamp']),
@@ -162,7 +163,6 @@ class Segment(PTransform):
         return state
 
     def _gpsdio_segment(self, messages, seg_records):
-
         messages = it.imap(self._convert_messages_in, messages)
         seg_states = it.imap(self._segment_state, seg_records)
         for key, messages in it.groupby(messages, self._key_by_day):
@@ -170,14 +170,12 @@ class Segment(PTransform):
             seg_states = []
             for seg in segments:
                 seg_messages = list(it.imap(self._convert_messages_out, seg, it.repeat(seg.id)))
+                for msg in seg_messages:
+                    yield msg
+                if not seg.closed:
+                    seg_states.append(seg.state)
                 if seg_messages:
-                    # ignore segments that come out with no messages, these are just the prior segment states that we
-                    # passed it that were kicked out because they are too old
-                    for msg in seg_messages:
-                        yield msg
-                    seg_state = seg.state
-                    seg_states.append(seg_state)
-                    seg_record = self._segment_record(seg_messages, seg_state)
+                    seg_record = self._segment_record(seg_messages, seg.state)
                     logging.debug('Segmenting key %s yielding segment %s containing %s messages ' % (seg.mmsi, seg.id, len(seg_messages)))
                     yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, seg_record)
 
@@ -235,6 +233,12 @@ class Segment(PTransform):
 
         field = bigquery.TableFieldSchema()
         field.name = "noise"
+        field.type = "BOOLEAN"
+        field.mode = "REQUIRED"
+        schema.fields.append(field)
+
+        field = bigquery.TableFieldSchema()
+        field.name = "closed"
         field.type = "BOOLEAN"
         field.mode = "REQUIRED"
         schema.fields.append(field)
