@@ -28,6 +28,8 @@ from pipe_segment.transform import NormalizeDoFn
 
 from gpsdio.schema import datetime2str
 
+# >>> Note that cogroupByKey treats unicode and char values as distinct,
+# so tests can sometimes fail unless all ssvid are unicode.
 
 # for use with apache_beam.testing.util.assert_that
 # for pcollections that contain dicts
@@ -140,26 +142,20 @@ class TestTransforms():
 
     def test_segment_out_in(self, temp_dir):
         prev_ts = self.ts - 1
-        messages_in = [{'ssvid': "1", 'timestamp': self.ts-1, 
+        messages_in = [{'ssvid': u"1", 'timestamp': self.ts-1, 
                         'lat' : 5.0, 'lon' : 0.1, 'speed' : 0.0, 'course' : 0.0},
-                       {'ssvid': "2", 'timestamp': self.ts-1, 
+                       {'ssvid': u"2", 'timestamp': self.ts-1, 
                         'lat' : 5.0, 'lon' : 0.1, 'speed' : 0.0, 'course' : 0.0}]
         segments_in = []
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
-        messages_in = [{'ssvid': "1", 'timestamp': self.ts, 
+        messages_in = [{'ssvid': u"1", 'timestamp': self.ts, 
                         'lat' : 5.0, 'lon' : 0.1, 'speed' : 0.0, 'course' : 0.0},
-                       {'ssvid': "2", 'timestamp': self.ts, 
+                       {'ssvid': u"2", 'timestamp': self.ts, 
                         'lat' : 5.0, 'lon' : 0.1, 'speed' : 0.0, 'course' : 0.0}]
         segments_in = segments_out
-        print(segments_in)
-        print(messages_out)
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
 
-        print
-        print(messages_out)
-        print(segments_out)
         assert len(segments_out) == 2
-        print([seg['message_count'] for seg in segments_out])
         assert all(seg['message_count'] == 2 for seg in segments_out)
         assert all(seg['seg_id'] == self._seg_id(seg['ssvid'], prev_ts) for seg in segments_out)
 
@@ -182,19 +178,19 @@ class TestTransforms():
     def test_noise_segment(self, temp_dir):
         messages_in = [
             {"timestamp": as_timestamp("2017-07-20T05:59:35.000000Z"),
-             "ssvid": "338013000",
+             "ssvid": u"338013000",
              "lon": -161.3321333333,
              "lat": -9.52616,
              "speed": 11.1,
              'course' : 0.0},
             {"timestamp": as_timestamp("2017-07-20T06:00:38.000000Z"),
-             "ssvid": "338013000",
+             "ssvid": u"338013000",
              "lon": -161.6153106689,
              "lat": -9.6753702164,
              'course' : 0.0,
              "speed": 11.3999996185},
             {"timestamp": as_timestamp("2017-07-20T06:01:00.000000Z"),
-             "ssvid": "338013000"}
+             "ssvid": u"338013000"}
         ]
 
         segments_in = []
@@ -206,15 +202,14 @@ class TestTransforms():
                              (u'338013000-2017-07-20T06:00:38.000000Z', 2, False)}
 
         messages_in = [{"timestamp": as_timestamp("2017-07-20T06:02:00.000000Z"),
-             "ssvid": "338013000"}
+             "ssvid": u"338013000"}
         ]
         segments_in = segments_out
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
 
         seg_stats = {(seg['seg_id'], seg['message_count'], seg['closed']) for seg in segments_out}
 
-        # TODO: Understand, why is this creating new segment rather than attaching to existing.
-        assert seg_stats == {(u'338013000-2017-07-20T06:02:00.000000Z', 1, True)}
+        assert seg_stats == {('338013000-2017-07-20T06:00:38.000000Z', 3, False)}
 
 
     def test_expected_segments(self, temp_dir):
