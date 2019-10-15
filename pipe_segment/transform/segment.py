@@ -123,7 +123,9 @@ class Segment(PTransform):
             record.update(dict(
                 last_pos_ts=timestampFromDatetime(last_pos_msg['timestamp']),
                 last_pos_lat=last_pos_msg['lat'],
-                last_pos_lon=last_pos_msg['lon']
+                last_pos_lon=last_pos_msg['lon'],
+                last_pos_course=last_pos_msg['course'],
+                last_pos_speed=last_pos_msg['speed'],
             ))
 
         for field, stats in self.stats_fields:
@@ -140,7 +142,9 @@ class Segment(PTransform):
                 'ssvid': seg_record['ssvid'],
                 'timestamp': seg_record['last_pos_ts'],
                 'lat': seg_record['last_pos_lat'],
-                'lon': seg_record['last_pos_lon']
+                'lon': seg_record['last_pos_lon'],
+                'course' : seg_record['last_pos_course'],
+                'speed' : seg_record['last_pos_speed']
             })
         if seg_record['origin_ts'] not in [msg['timestamp'] for msg in messages]:
             messages.insert(0, {
@@ -156,6 +160,7 @@ class Segment(PTransform):
         state = SegmentState()
         state.id=seg_record['seg_id']
         state.noise=seg_record['noise']
+        state.closed=seg_record['closed']
         state.mmsi=seg_record['ssvid']
         state.msg_count=seg_record['message_count']
         state.msgs = it.imap(self._convert_messages_in, messages)
@@ -267,6 +272,16 @@ class Segment(PTransform):
 
         field = bigquery.TableFieldSchema()
         field.name = "last_pos_lon"
+        field.type = "FLOAT"
+        schema.fields.append(field)
+
+        field = bigquery.TableFieldSchema()
+        field.name = "last_pos_course"
+        field.type = "FLOAT"
+        schema.fields.append(field)
+
+        field = bigquery.TableFieldSchema()
+        field.name = "last_pos_speed"
         field.type = "FLOAT"
         schema.fields.append(field)
 

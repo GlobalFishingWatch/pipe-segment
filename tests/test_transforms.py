@@ -135,6 +135,8 @@ class TestTransforms():
                      'closed' : False,
                      'last_pos_lat': 0,
                      'last_pos_lon': 0,
+                     'last_pos_course' : 0,
+                     'last_pos_speed' : 0,
                      'last_pos_ts' : prev_ts,
                      'message_count': 1}]
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)

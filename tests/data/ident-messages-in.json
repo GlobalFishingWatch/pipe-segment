@@ -1,12 +1,12 @@
-{"ssvid": "1", "timestamp": 0,   "type": "AIS.1", "lat": 0, "lon": 0}
+{"ssvid": "1", "timestamp": 0,   "type": "AIS.1", "lat": 0, "lon": 0, "speed": 0, "course": 0}
 {"ssvid": "1", "timestamp": 100, "type": "AIS.5", "shipname": "BOATY"}
-{"ssvid": "2", "timestamp": 0,   "type": "AIS.18", "lat": 0, "lon": 0}
+{"ssvid": "2", "timestamp": 0,   "type": "AIS.18", "lat": 0, "lon": 0, "speed": 0, "course": 0}
 {"ssvid": "2", "timestamp": 100, "type": "AIS.24", "shipname": "BOATY"}
 {"ssvid": "2", "timestamp": 200, "type": "AIS.24", "shipname": "BOA TY"}
-{"ssvid": "3", "timestamp": 0,   "type": "AIS.1", "lat": 0, "lon": 0}
-{"ssvid": "3", "timestamp": 3600, "type": "AIS.1", "lat": 2, "lon": 2}
+{"ssvid": "3", "timestamp": 0,   "type": "AIS.1", "lat": 0, "lon": 0, "speed": 0, "course": 0}
+{"ssvid": "3", "timestamp": 3600, "type": "AIS.1", "lat": 2, "lon": 2, "speed": 0, "course": 0}
 {"ssvid": "3", "timestamp": 7200, "type": "AIS.5", "shipname": "DAKUWAQA"}
-{"ssvid": "4", "timestamp": 0,   "type": "AIS.19", "lat": 0, "lon": 0, "shipname": "DAKUWAQA", "callsign": "A123"}
-{"ssvid": "4", "timestamp": 3600, "type": "AIS.18", "lat": 2, "lon": 2}
+{"ssvid": "4", "timestamp": 0,   "type": "AIS.19", "lat": 0, "lon": 0, "speed": 0, "course": 0, "shipname": "DAKUWAQA", "callsign": "A123"}
+{"ssvid": "4", "timestamp": 3600, "type": "AIS.18", "lat": 2, "lon": 2, "speed": 0, "course": 0}
 {"ssvid": "4", "timestamp": 7200, "type": "AIS.24", "shipname": "DAKU WAQA"}
 {"ssvid": "4", "timestamp": 10800, "type": "AIS.24", "callsign": "A123@@@"}
