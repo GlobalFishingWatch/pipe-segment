@@ -135,7 +135,7 @@ class Segment(PTransform):
 
         return record
 
-    def _segment_state (self, seg_record):
+    def _segment_state(self, seg_record):
         messages = []
         if seg_record.get('last_pos_ts') is not None:
             messages.append({
