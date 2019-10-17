@@ -149,6 +149,10 @@ class SegmentPipeline:
 
 
     def pipeline(self):
+        # Note that Beam appears to treat str(x) and unicode(x) as distinct
+        # for purposes of CoGroupByKey, so both messages and segments should be
+        # stringified or neither. (based on current schemas, probably neither
+        # is necessary, but I don't want to experiment with that now).
         pipeline = beam.Pipeline(options=self.options)
         messages = self.message_sources(pipeline)
         messages = (
@@ -163,6 +167,7 @@ class SegmentPipeline:
             pipeline
             | "ReadSegments" >> self.segment_source
             | "RemoveClosedSegments" >> beam.Filter(lambda x: not x['closed'])
+            | "SegmentsSsvid2Str" >> beam.Map(self.ssvid_to_str)
             | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
         )
 

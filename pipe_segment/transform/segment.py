@@ -19,6 +19,8 @@ from pipe_tools.timestamp import timestampFromDatetime
 
 from pipe_segment.stats import MessageStats
 
+logger = logging.getLogger(__file__)
+logger.setLevel(logging.INFO)
 
 class Segment(PTransform):
 
@@ -95,10 +97,6 @@ class Segment(PTransform):
 
     def _segment_record(self, messages, seg_state):
 
-        stats_numeric_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.NUMERIC_STATS)]
-        stats_frequency_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.FREQUENCY_STATS)]
-        ms = MessageStats(messages, stats_numeric_fields, stats_frequency_fields)
-
         # Make sure the segmenter state messages are sorted by timestamp here,
         # as in some situations the last message in the state might not be the
         # latest and we want to use the actual last message here for timestamp
@@ -128,10 +126,21 @@ class Segment(PTransform):
                 last_pos_speed=last_pos_msg['speed'],
             ))
 
-        for field, stats in self.stats_fields:
-            stat_values = ms.field_stats(field)
-            for stat in stats:
-                record[self.stat_output_field_name(field, stat)] = stat_values.get(stat, None)
+        if messages:
+            # Add stats information
+            stats_numeric_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.NUMERIC_STATS)]
+            stats_frequency_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.FREQUENCY_STATS)]
+            ms = MessageStats(messages, stats_numeric_fields, stats_frequency_fields)
+
+            for field, stats in self.stats_fields:
+                stat_values = ms.field_stats(field)
+                for stat in stats:
+                    record[self.stat_output_field_name(field, stat)] = stat_values.get(stat, None)
+        else:
+            # Fill in null values for stats
+            for field, stats in self.stats_fields:
+                for stat in stats:
+                    record[self.stat_output_field_name(field, stat)] = None
 
         return record
 
@@ -163,7 +172,10 @@ class Segment(PTransform):
         state.closed=seg_record['closed']
         state.mmsi=seg_record['ssvid']
         state.msg_count=seg_record['message_count']
-        state.msgs = it.imap(self._convert_messages_in, messages)
+
+        state.msgs = [self._convert_messages_in(x) for x in messages]
+        # Ensure that the messages are sorted by time
+        state.msgs.sort(key=lambda x: x['timestamp'])
 
         return state
 
@@ -171,26 +183,26 @@ class Segment(PTransform):
         messages = it.imap(self._convert_messages_in, messages)
         seg_states = it.imap(self._segment_state, seg_records)
         for key, messages in it.groupby(messages, self._key_by_day):
-            segments = list(Segmentizer.from_seg_states(seg_states, messages, **self.segmenter_params))
+            segments = Segmentizer.from_seg_states(seg_states, messages, **self.segmenter_params)
             seg_states = []
             for seg in segments:
-                seg_messages = list(it.imap(self._convert_messages_out, seg, it.repeat(seg.id)))
+                seg_messages = [self._convert_messages_out(x, seg.id) for x in seg]
                 for msg in seg_messages:
                     yield msg
                 if not seg.closed:
                     seg_states.append(seg.state)
-                if seg_messages:
-                    seg_record = self._segment_record(seg_messages, seg.state)
-                    logging.debug('Segmenting key %s yielding segment %s containing %s messages ' % (seg.mmsi, seg.id, len(seg_messages)))
-                    yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, seg_record)
+                seg_record = self._segment_record(seg_messages, seg.state)
+                logger.debug('Segmenting key %r yielding segment %s containing %s messages ' % (seg.mmsi, seg.id, len(seg_messages)))
+                yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, seg_record)
 
 
     def segment(self, kv):
         key, seg_mes_map = kv
 
-        segments = seg_mes_map['segments']
+        segments = list(seg_mes_map['segments'])
         messages = sorted(seg_mes_map['messages'], key=lambda msg: msg['timestamp'])
-        logging.debug('Segmenting key %s sorted %s messages' % (key, len(messages)))
+        logger.debug('Segmenting key %r sorted %s messages and %s segments',
+                        key, len(messages), len(segments))
         for item in self._gpsdio_segment(messages, segments):
             yield item
 

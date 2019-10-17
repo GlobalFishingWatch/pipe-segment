@@ -211,7 +211,9 @@ class TestTransforms():
 
         seg_stats = {(seg['seg_id'], seg['message_count'], seg['closed']) for seg in segments_out}
 
-        assert seg_stats == {('338013000-2017-07-20T06:00:38.000000Z', 3, False)}
+        assert seg_stats == {
+                        ('338013000-2017-07-20T05:59:35.000000Z', 1, False),
+                        ('338013000-2017-07-20T06:00:38.000000Z', 3, False)}
 
 
     def test_expected_segments(self, temp_dir):
@@ -234,10 +236,10 @@ class TestTransforms():
 
         segments_in = []
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
-        seg_stats = [(seg['seg_id'], seg['message_count'], seg['noise']) for seg in segments_out]
+        seg_stats = set([(seg['seg_id'], seg['message_count'], seg['noise']) for seg in segments_out])
 
-        expected = [('257666800-2017-11-15T11:14:32.000000Z', 1, False),
-                    ('257666800-2017-11-26T11:20:16.000000Z', 1, False)]
+        expected = {('257666800-2017-11-15T11:14:32.000000Z', 1, False),
+                    ('257666800-2017-11-26T11:20:16.000000Z', 1, False)}
         assert seg_stats == expected
 
 
