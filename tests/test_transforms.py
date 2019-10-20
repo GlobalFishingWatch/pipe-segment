@@ -127,20 +127,17 @@ class TestTransforms():
     def test_segment_segments_in(self, temp_dir):
         prev_ts = self.ts - 1
         messages_in = [{'ssvid': "1", 'timestamp': self.ts}]
-        segments_in = [{'ssvid': "1", 'timestamp': prev_ts,
+        segments_in = [{'ssvid': "1", 
                      'seg_id': self._seg_id("1", prev_ts),
-                     'origin_ts': prev_ts,
-                     'timestamp_last': self.ts,
-                     'noise': False,
                      'closed' : False,
-                     'last_pos_lat': 0,
-                     'last_pos_lon': 0,
-                     'last_pos_course' : 0,
-                     'last_pos_speed' : 0,
-                     'last_pos_ts' : prev_ts,
+                     'last_lat': 0,
+                     'last_lon': 0,
+                     'last_course' : 0,
+                     'last_speed' : 0,
+                     'last_timestamp' : prev_ts,
                      'message_count': 1}]
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
-        assert messages_out[0]['seg_id'] == segments_in[0]['seg_id']
+        assert messages_out[0]['seg_id'] == None # No longer assign seg ids to noise segments
 
     def test_segment_out_in(self, temp_dir):
         prev_ts = self.ts - 1
@@ -198,10 +195,10 @@ class TestTransforms():
         segments_in = []
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
 
-        seg_stats = {(seg['seg_id'], seg['message_count'], seg['noise']) for seg in segments_out}
+        seg_stats = {(seg['seg_id'], seg['message_count']) for seg in segments_out}
 
-        assert seg_stats == {(u'338013000-2017-07-20T05:59:35.000000Z', 1, False),
-                             (u'338013000-2017-07-20T06:00:38.000000Z', 2, False)}
+        assert seg_stats == {(u'338013000-2017-07-20T05:59:35.000000Z', 1),
+                             (u'338013000-2017-07-20T06:00:38.000000Z', 1)}
 
         messages_in = [{"timestamp": as_timestamp("2017-07-20T06:02:00.000000Z"),
              "ssvid": u"338013000"}
@@ -213,7 +210,7 @@ class TestTransforms():
 
         assert seg_stats == {
                         ('338013000-2017-07-20T05:59:35.000000Z', 1, False),
-                        ('338013000-2017-07-20T06:00:38.000000Z', 3, False)}
+                        ('338013000-2017-07-20T06:00:38.000000Z', 1, False)}
 
 
     def test_expected_segments(self, temp_dir):
@@ -236,10 +233,10 @@ class TestTransforms():
 
         segments_in = []
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
-        seg_stats = set([(seg['seg_id'], seg['message_count'], seg['noise']) for seg in segments_out])
+        seg_stats = set([(seg['seg_id'], seg['message_count']) for seg in segments_out])
 
-        expected = {('257666800-2017-11-15T11:14:32.000000Z', 1, False),
-                    ('257666800-2017-11-26T11:20:16.000000Z', 1, False)}
+        expected = {('257666800-2017-11-15T11:14:32.000000Z', 1),
+                    ('257666800-2017-11-26T11:20:16.000000Z', 1)}
         assert seg_stats == expected
 
 
@@ -281,10 +278,10 @@ class TestTransforms():
 
         segments_in = []
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
-        seg_stats = [(seg['seg_id'], seg['message_count'], seg['shipname_most_common']) for seg in segments_out]
+        seg_stats = {(seg['seg_id'], seg['message_count'],) for seg in segments_out}
 
-        expected = [('123456789-2018-01-01T00:00:00.000000Z', 2, None),
-                    ('123456789-2018-01-01T01:00:00.000000Z', 3, 'Boaty'),
-                    ]
+        expected = {('123456789-2018-01-01T00:00:00.000000Z', 2),
+                    ('123456789-2018-01-01T01:00:00.000000Z', 2),
+                    }
         assert seg_stats == expected
 

@@ -74,24 +74,6 @@ class SegmentPipeline:
         field.mode="NULLABLE"
         schema.fields.append(field)
 
-        field = TableFieldSchema()
-        field.name = "n_shipname"
-        field.type = "STRING"
-        field.mode="NULLABLE"
-        schema.fields.append(field)
-
-        field = TableFieldSchema()
-        field.name = "n_callsign"
-        field.type = "STRING"
-        field.mode="NULLABLE"
-        schema.fields.append(field)
-
-        field = TableFieldSchema()
-        field.name = "n_imo"
-        field.type = "INTEGER"
-        field.mode="NULLABLE"
-        schema.fields.append(field)
-
         return schema
 
 
@@ -158,7 +140,6 @@ class SegmentPipeline:
         messages = (
             messages
             | "MergeMessages" >> beam.Flatten()
-            | "MessagesSsvid2Str" >> beam.Map(self.ssvid_to_str)
             | "Normalize" >> beam.ParDo(NormalizeDoFn())
             | "MessagesAddKey" >> beam.Map(self.groupby_fn)
         )
@@ -167,7 +148,6 @@ class SegmentPipeline:
             pipeline
             | "ReadSegments" >> self.segment_source
             | "RemoveClosedSegments" >> beam.Filter(lambda x: not x['closed'])
-            | "SegmentsSsvid2Str" >> beam.Map(self.ssvid_to_str)
             | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
         )
 
@@ -188,7 +168,7 @@ class SegmentPipeline:
         )
         (
             segments
-            | "TimestampSegments" >> beam.ParDo(TimestampedValueDoFn())
+            | "TimestampSegments" >> beam.ParDo(TimestampedValueDoFn('last_timestamp'))
             | "WriteSegments" >> self.segment_sink(segmenter.segment_schema)
         )
         return pipeline

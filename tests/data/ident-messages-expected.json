@@ -1,12 +1,12 @@
 {"timestamp": 0, "lon": 0, "course": 0, "ssvid": "2", "seg_id": "2-1970-01-01T00:00:00.000000Z", "lat": 0, "type": "AIS.18", "speed": 0}
-{"shipname": "BOATY", "n_shipname": "BOATY", "timestamp": 100, "ssvid": "2", "seg_id": "2-1970-01-01T00:00:00.000000Z", "type": "AIS.24"}
-{"shipname": "BOA TY", "n_shipname": "BOATY", "timestamp": 200, "ssvid": "2", "seg_id": "2-1970-01-01T00:00:00.000000Z", "type": "AIS.24"}
+{"shipname": "BOATY", "n_shipname": "BOATY", "timestamp": 100, "ssvid": "2", "seg_id": null, "type": "AIS.24"}
+{"shipname": "BOA TY", "n_shipname": "BOATY", "timestamp": 200, "ssvid": "2", "seg_id": null, "type": "AIS.24"}
 {"timestamp": 0, "lon": 0, "course": 0, "ssvid": "1", "seg_id": "1-1970-01-01T00:00:00.000000Z", "lat": 0, "type": "AIS.1", "speed": 0}
-{"shipname": "BOATY", "n_shipname": "BOATY", "timestamp": 100, "ssvid": "1", "seg_id": "1-1970-01-01T00:00:00.000000Z", "type": "AIS.5"}
+{"shipname": "BOATY", "n_shipname": "BOATY", "timestamp": 100, "ssvid": "1", "seg_id": null, "type": "AIS.5"}
 {"timestamp": 0, "lon": 0, "course": 0, "ssvid": "3", "seg_id": "3-1970-01-01T00:00:00.000000Z", "lat": 0, "type": "AIS.1", "speed": 0}
 {"timestamp": 3600, "lon": 2, "course": 0, "ssvid": "3", "seg_id": "3-1970-01-01T01:00:00.000000Z", "lat": 2, "type": "AIS.1", "speed": 0}
-{"shipname": "DAKUWAQA", "n_shipname": "DAKUWAQA", "timestamp": 7200, "ssvid": "3", "seg_id": "3-1970-01-01T01:00:00.000000Z", "type": "AIS.5"}
+{"shipname": "DAKUWAQA", "n_shipname": "DAKUWAQA", "timestamp": 7200, "ssvid": "3", "seg_id": null, "type": "AIS.5"}
 {"timestamp": 3600, "lon": 2, "course": 0, "ssvid": "4", "seg_id": "4-1970-01-01T01:00:00.000000Z", "lat": 2, "type": "AIS.18", "speed": 0}
-{"shipname": "DAKU WAQA", "n_shipname": "DAKUWAQA", "timestamp": 7200, "ssvid": "4", "seg_id": "4-1970-01-01T01:00:00.000000Z", "type": "AIS.24"}
-{"n_callsign": "A123", "timestamp": 10800, "ssvid": "4", "seg_id": "4-1970-01-01T01:00:00.000000Z", "callsign": "A123@@@", "type": "AIS.24"}
+{"shipname": "DAKU WAQA", "n_shipname": "DAKUWAQA", "timestamp": 7200, "ssvid": "4", "seg_id": null, "type": "AIS.24"}
+{"n_callsign": "A123", "timestamp": 10800, "ssvid": "4", "seg_id": null, "callsign": "A123@@@", "type": "AIS.24"}
 {"shipname": "DAKUWAQA", "n_callsign": "A123", "n_shipname": "DAKUWAQA", "timestamp": 0, "lon": 0, "course": 0, "ssvid": "4", "seg_id": "4-1970-01-01T00:00:00.000000Z", "callsign": "A123", "lat": 0, "type": "AIS.19", "speed": 0}

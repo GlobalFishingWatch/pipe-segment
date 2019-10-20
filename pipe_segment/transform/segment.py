@@ -11,13 +11,11 @@ from apache_beam.pvalue import TaggedOutput
 from apache_beam.io.gcp.internal.clients import bigquery
 
 from gpsdio_segment.core import Segmentizer
-from gpsdio_segment.core import SegmentState
+from gpsdio_segment.segment import SegmentState
 
 from pipe_tools.coders import JSONDict
 from pipe_tools.timestamp import datetimeFromTimestamp
 from pipe_tools.timestamp import timestampFromDatetime
-
-from pipe_segment.stats import MessageStats
 
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.INFO)
@@ -27,42 +25,17 @@ class Segment(PTransform):
     OUTPUT_TAG_MESSAGES = 'messages'
     OUTPUT_TAG_SEGMENTS = 'segments'
 
-    DEFAULT_STATS_FIELDS = [('lat', MessageStats.NUMERIC_STATS),
-                            ('lon', MessageStats.NUMERIC_STATS),
-                            ('timestamp', MessageStats.NUMERIC_STATS),
-                            ('shipname', MessageStats.FREQUENCY_STATS),
-                            ('imo', MessageStats.FREQUENCY_STATS),
-                            ('callsign', MessageStats.FREQUENCY_STATS)]
-
     def __init__(self,
                  segmenter_params = None,
-                 stats_fields=DEFAULT_STATS_FIELDS,
                  **kwargs):
         super(Segment, self).__init__(**kwargs)
         self.segmenter_params = segmenter_params or {}
-        self.stats_fields = stats_fields
 
     @staticmethod
     def _convert_messages_in(msg):
-        def convert_type (t):
-            if t is not None and t.startswith('AIS.'):
-                try:
-                    t = int(t[4:])
-                except ValueError:
-                    pass
-            return t
-
         msg = dict(msg)
-        update_fields = dict(
-            mmsi = msg['ssvid'],
-            timestamp = datetimeFromTimestamp(msg['timestamp']),
-            type = convert_type(msg.get('type')),
-            shipname = msg.get('n_shipname'),
-            callsign = msg.get('n_callsign')
-        )
-        msg['__temp'] = {k:msg.get(k) for k in update_fields.keys()}
-        msg.update(update_fields)
-
+        msg['raw_timestamp'] = msg['timestamp']
+        msg['timestamp'] = datetimeFromTimestamp(msg['raw_timestamp'])
         return msg
 
     @staticmethod
@@ -73,111 +46,40 @@ class Segment(PTransform):
     def _convert_messages_out(msg, seg_id):
         msg = JSONDict(msg)
         msg['seg_id'] = seg_id
-
-        update_fields = msg['__temp']
-        del msg['__temp']
-
-        for k,v in six.iteritems(update_fields):
-            if v is None:
-                del msg[k]
-            else:
-                msg[k] = v
-
+        msg['timestamp'] = msg.pop('raw_timestamp')
         return msg
 
-    @staticmethod
-    def stat_output_field_name (field_name, stat_name):
-        return '%s_%s' % (field_name, stat_name)
 
-    @classmethod
-    def stat_output_field_names (cls, stat_fields):
-        for field, stats in stat_fields:
-            for stat in stats:
-                yield cls.stat_output_field_name(field, stat)
-
-    def _segment_record(self, messages, seg_state):
-
-        # Make sure the segmenter state messages are sorted by timestamp here,
-        # as in some situations the last message in the state might not be the
-        # latest and we want to use the actual last message here for timestamp
-        # calculations
-        sorted_msgs = sorted(seg_state.msgs, key=lambda x: x['timestamp'])
-        first_msg = sorted_msgs[0]
-        last_msg = sorted_msgs[-1]
-
-        record = JSONDict (
+    def _segment_record(self, seg_state):
+        last_msg = seg_state.last_msg
+        return JSONDict (
             seg_id=seg_state.id,
-            ssvid=str(seg_state.mmsi),
-            noise=seg_state.noise,
+            # TODO: ssvid everywhere
+            ssvid=seg_state.ssvid,
             closed=seg_state.closed,
             message_count=seg_state.msg_count,
-            origin_ts=timestampFromDatetime(first_msg['timestamp']),
-            timestamp=timestampFromDatetime(last_msg['timestamp']),
+            last_timestamp=timestampFromDatetime(last_msg['timestamp']),
+            last_lat=last_msg['lat'],
+            last_lon=last_msg['lon'],
+            last_course=last_msg['course'],
+            last_speed=last_msg['speed'],
         )
 
-        pos_messages = [msg for msg in sorted_msgs if msg.get('lat') is not None] or [None]
-        last_pos_msg = pos_messages[-1]
-        if last_pos_msg:
-            record.update(dict(
-                last_pos_ts=timestampFromDatetime(last_pos_msg['timestamp']),
-                last_pos_lat=last_pos_msg['lat'],
-                last_pos_lon=last_pos_msg['lon'],
-                last_pos_course=last_pos_msg['course'],
-                last_pos_speed=last_pos_msg['speed'],
-            ))
-
-        if messages:
-            # Add stats information
-            stats_numeric_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.NUMERIC_STATS)]
-            stats_frequency_fields = [f for f, stats in self.stats_fields if set(stats) & set (MessageStats.FREQUENCY_STATS)]
-            ms = MessageStats(messages, stats_numeric_fields, stats_frequency_fields)
-
-            for field, stats in self.stats_fields:
-                stat_values = ms.field_stats(field)
-                for stat in stats:
-                    record[self.stat_output_field_name(field, stat)] = stat_values.get(stat, None)
-        else:
-            # Fill in null values for stats
-            for field, stats in self.stats_fields:
-                for stat in stats:
-                    record[self.stat_output_field_name(field, stat)] = None
-
-        return record
-
     def _segment_state(self, seg_record):
-        messages = []
-        if seg_record.get('last_pos_ts') is not None:
-            messages.append({
+        last_msg = {
                 'ssvid': seg_record['ssvid'],
-                'timestamp': seg_record['last_pos_ts'],
-                'lat': seg_record['last_pos_lat'],
-                'lon': seg_record['last_pos_lon'],
-                'course' : seg_record['last_pos_course'],
-                'speed' : seg_record['last_pos_speed']
-            })
-        if seg_record['origin_ts'] not in [msg['timestamp'] for msg in messages]:
-            messages.insert(0, {
-                'ssvid': seg_record['ssvid'],
-                'timestamp': seg_record['origin_ts'],
-            })
-        if seg_record['timestamp'] not in [msg['timestamp'] for msg in messages]:
-            messages.append({
-                'ssvid': seg_record['ssvid'],
-                'timestamp': seg_record['timestamp'],
-            })
-
-        state = SegmentState()
-        state.id=seg_record['seg_id']
-        state.noise=seg_record['noise']
-        state.closed=seg_record['closed']
-        state.mmsi=seg_record['ssvid']
-        state.msg_count=seg_record['message_count']
-
-        state.msgs = [self._convert_messages_in(x) for x in messages]
-        # Ensure that the messages are sorted by time
-        state.msgs.sort(key=lambda x: x['timestamp'])
-
-        return state
+                'timestamp': seg_record['last_timestamp'],
+                'lat': seg_record['last_lat'],
+                'lon': seg_record['last_lon'],
+                'course' : seg_record['last_course'],
+                'speed' : seg_record['last_speed']
+            }
+        return SegmentState(id = seg_record['seg_id'],
+                            noise = False,
+                            closed = seg_record['closed'],
+                            ssvid = seg_record['ssvid'],
+                            msg_count = seg_record['message_count'],
+                            last_msg = self._convert_messages_in(last_msg))
 
     def _gpsdio_segment(self, messages, seg_records):
         messages = it.imap(self._convert_messages_in, messages)
@@ -186,14 +88,14 @@ class Segment(PTransform):
             segments = Segmentizer.from_seg_states(seg_states, messages, **self.segmenter_params)
             seg_states = []
             for seg in segments:
-                seg_messages = [self._convert_messages_out(x, seg.id) for x in seg]
-                for msg in seg_messages:
-                    yield msg
                 if not seg.closed:
                     seg_states.append(seg.state)
-                seg_record = self._segment_record(seg_messages, seg.state)
-                logger.debug('Segmenting key %r yielding segment %s containing %s messages ' % (seg.mmsi, seg.id, len(seg_messages)))
-                yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, seg_record)
+                seg_id = None if seg.noise else seg.id
+                for msg in seg:
+                    yield self._convert_messages_out(msg, seg_id)
+                if not seg.noise:
+                    logger.debug('Segmenting key %r yielding segment %s containing %s messages ' % (seg.ssvid, seg.id, len(seg)))
+                    yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, self._segment_record(seg.state))
 
 
     def segment(self, kv):
@@ -213,32 +115,14 @@ class Segment(PTransform):
 
         )
 
+
     @property
     def segment_schema(self):
-        DEFAULT_FIELD_TYPE = 'STRING'
-        FIELD_TYPES = {
-            'timestamp': 'TIMESTAMP',
-            'lat': 'FLOAT',
-            'lon': 'FLOAT',
-            'imo': 'INTEGER',
-        }
-
-        STAT_TYPES = {
-            'most_common_count': 'INTEGER',
-            'count': 'INTEGER'
-        }
-
         schema = bigquery.TableSchema()
 
         field = bigquery.TableFieldSchema()
         field.name = "seg_id"
         field.type = "STRING"
-        field.mode = "REQUIRED"
-        schema.fields.append(field)
-
-        field = bigquery.TableFieldSchema()
-        field.name = "message_count"
-        field.type = "INTEGER"
         field.mode = "REQUIRED"
         schema.fields.append(field)
 
@@ -249,60 +133,41 @@ class Segment(PTransform):
         schema.fields.append(field)
 
         field = bigquery.TableFieldSchema()
-        field.name = "noise"
-        field.type = "BOOLEAN"
-        field.mode = "REQUIRED"
-        schema.fields.append(field)
-
-        field = bigquery.TableFieldSchema()
         field.name = "closed"
         field.type = "BOOLEAN"
         field.mode = "REQUIRED"
         schema.fields.append(field)
 
         field = bigquery.TableFieldSchema()
-        field.name = "timestamp"
+        field.name = "message_count"
+        field.type = "INTEGER"
+        field.mode = "REQUIRED"
+        schema.fields.append(field)
+
+        field = bigquery.TableFieldSchema()
+        field.name = "last_timestamp"
         field.type = "TIMESTAMP"
         field.mode = "REQUIRED"
         schema.fields.append(field)
 
         field = bigquery.TableFieldSchema()
-        field.name = "origin_ts"
-        field.type = "TIMESTAMP"
-        field.mode = "REQUIRED"
-        schema.fields.append(field)
-
-        field = bigquery.TableFieldSchema()
-        field.name = "last_pos_ts"
-        field.type = "TIMESTAMP"
-        schema.fields.append(field)
-
-        field = bigquery.TableFieldSchema()
-        field.name = "last_pos_lat"
+        field.name = "last_lat"
         field.type = "FLOAT"
         schema.fields.append(field)
 
         field = bigquery.TableFieldSchema()
-        field.name = "last_pos_lon"
+        field.name = "last_lon"
         field.type = "FLOAT"
         schema.fields.append(field)
 
         field = bigquery.TableFieldSchema()
-        field.name = "last_pos_course"
+        field.name = "last_course"
         field.type = "FLOAT"
         schema.fields.append(field)
 
         field = bigquery.TableFieldSchema()
-        field.name = "last_pos_speed"
+        field.name = "last_speed"
         field.type = "FLOAT"
         schema.fields.append(field)
-
-        for field_name, stats in self.stats_fields:
-            for stat_name in stats:
-                field = bigquery.TableFieldSchema()
-                field.name = Segment.stat_output_field_name(field_name, stat_name)
-                field.type = STAT_TYPES.get(stat_name) or FIELD_TYPES.get(field_name, DEFAULT_FIELD_TYPE)
-                field.mode = "NULLABLE"
-                schema.fields.append(field)
 
         return schema
