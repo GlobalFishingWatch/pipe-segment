@@ -74,6 +74,24 @@ class SegmentPipeline:
         field.mode="NULLABLE"
         schema.fields.append(field)
 
+        field = TableFieldSchema()
+        field.name = "n_shipname"
+        field.type = "STRING"
+        field.mode="NULLABLE"
+        schema.fields.append(field)
+
+        field = TableFieldSchema()
+        field.name = "n_callsign"
+        field.type = "STRING"
+        field.mode="NULLABLE"
+        schema.fields.append(field)
+
+        field = TableFieldSchema()
+        field.name = "n_imo"
+        field.type = "INTEGER"
+        field.mode="NULLABLE"
+        schema.fields.append(field)
+
         return schema
 
 
@@ -84,11 +102,6 @@ class SegmentPipeline:
     @property
     def temp_gcs_location(self):
         return self.options.view_as(GoogleCloudOptions).temp_location
-
-    @staticmethod
-    def ssvid_to_str(msg):
-        msg['ssvid'] = str(msg['ssvid'])
-        return msg
 
     @staticmethod
     def groupby_fn(msg):
@@ -133,8 +146,7 @@ class SegmentPipeline:
     def pipeline(self):
         # Note that Beam appears to treat str(x) and unicode(x) as distinct
         # for purposes of CoGroupByKey, so both messages and segments should be
-        # stringified or neither. (based on current schemas, probably neither
-        # is necessary, but I don't want to experiment with that now).
+        # stringified or neither. 
         pipeline = beam.Pipeline(options=self.options)
         messages = self.message_sources(pipeline)
         messages = (
@@ -168,7 +180,7 @@ class SegmentPipeline:
         )
         (
             segments
-            | "TimestampSegments" >> beam.ParDo(TimestampedValueDoFn('last_timestamp'))
+            | "TimestampSegments" >> beam.ParDo(TimestampedValueDoFn())
             | "WriteSegments" >> self.segment_sink(segmenter.segment_schema)
         )
         return pipeline

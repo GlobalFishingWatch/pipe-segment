@@ -2,6 +2,7 @@ import datetime as dt
 import itertools as it
 import logging
 import six
+import pytz
 
 import apache_beam as beam
 from apache_beam import PTransform
@@ -18,7 +19,7 @@ from pipe_tools.timestamp import datetimeFromTimestamp
 from pipe_tools.timestamp import timestampFromDatetime
 
 logger = logging.getLogger(__file__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 class Segment(PTransform):
 
@@ -40,7 +41,9 @@ class Segment(PTransform):
 
     @staticmethod
     def _key_by_day(msg):
-        return msg['timestamp'].toordinal()
+        """Return the timestamp corresponding to the beginning of day"""
+        return timestampFromDatetime(
+            dt.datetime.combine(msg['timestamp'].date(), dt.time()).replace(tzinfo=pytz.utc))
 
     @staticmethod
     def _convert_messages_out(msg, seg_id):
@@ -50,11 +53,10 @@ class Segment(PTransform):
         return msg
 
 
-    def _segment_record(self, seg_state):
+    def _segment_record(self, seg_state, timestamp):
         last_msg = seg_state.last_msg
         return JSONDict (
             seg_id=seg_state.id,
-            # TODO: ssvid everywhere
             ssvid=seg_state.ssvid,
             closed=seg_state.closed,
             message_count=seg_state.msg_count,
@@ -63,6 +65,7 @@ class Segment(PTransform):
             last_lon=last_msg['lon'],
             last_course=last_msg['course'],
             last_speed=last_msg['speed'],
+            timestamp=timestamp
         )
 
     def _segment_state(self, seg_record):
@@ -83,19 +86,21 @@ class Segment(PTransform):
 
     def _gpsdio_segment(self, messages, seg_records):
         messages = it.imap(self._convert_messages_in, messages)
-        seg_states = it.imap(self._segment_state, seg_records)
-        for key, messages in it.groupby(messages, self._key_by_day):
+        for timestamp, messages in it.groupby(messages, self._key_by_day):
+            seg_states = [self._segment_state(rcd) for rcd in seg_records]
             segments = Segmentizer.from_seg_states(seg_states, messages, **self.segmenter_params)
-            seg_states = []
+            seg_records = []
             for seg in segments:
-                if not seg.closed:
-                    seg_states.append(seg.state)
-                seg_id = None if seg.noise else seg.id
-                for msg in seg:
-                    yield self._convert_messages_out(msg, seg_id)
                 if not seg.noise:
                     logger.debug('Segmenting key %r yielding segment %s containing %s messages ' % (seg.ssvid, seg.id, len(seg)))
-                    yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, self._segment_record(seg.state))
+                    rcd = self._segment_record(seg.state, timestamp)
+                    yield TaggedOutput(Segment.OUTPUT_TAG_SEGMENTS, rcd)
+                    if not seg.closed:
+                        seg_records.append(rcd)
+                seg_id = None if seg.noise else seg.id
+                for msg in seg:
+                    msg = self._convert_messages_out(msg, seg_id)
+                    yield msg
 
 
     def segment(self, kv):
@@ -141,6 +146,12 @@ class Segment(PTransform):
         field = bigquery.TableFieldSchema()
         field.name = "message_count"
         field.type = "INTEGER"
+        field.mode = "REQUIRED"
+        schema.fields.append(field)
+
+        field = bigquery.TableFieldSchema()
+        field.name = "timestamp"
+        field.type = "TIMESTAMP"
         field.mode = "REQUIRED"
         schema.fields.append(field)
 
