@@ -50,6 +50,12 @@ class SegmentOptions(PipelineOptions):
             action='store_true',
             help='Wait until the job finishes before returning.')
         optional.add_argument(
+            '--lookahead',
+            type=int,
+            default=0,
+            help='How many days to look ahead when performing segmenting 1 or 2 are good choices.'
+            )
+        optional.add_argument(
             '--segmenter_params',
             help='Pass a json object with parameters to pass to the segmenter, or supply a file name to read with '
                  "@path/to/file.json.   For Example:"

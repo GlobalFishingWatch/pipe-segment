@@ -39,12 +39,18 @@ class SegmentPipeline:
         # reading from bigquery, so only do this once.
         if not self._message_source_list:
             first_date_ts, last_date_ts = self.date_range
+            if self.options.lookahead:
+                last_date = datetimeFromTimestamp(last_date_ts)
+                padded_last_date = last_date + timedelta(days=self.options.lookahead)
+                padded_last_date_ts = timestampFromDatetime(padded_last_date)
+            else:
+                padded_last_date_ts = last_date_ts
             gcp_paths = self.options.source.split(',')
             self._message_source_list = []
             for gcp_path in gcp_paths:
                 s = GCPSource(gcp_path=gcp_path,
                                first_date_ts=first_date_ts,
-                               last_date_ts=last_date_ts)
+                               last_date_ts=padded_last_date_ts)
                 self._message_source_list.append(s)
 
         return self._message_source_list
@@ -168,7 +174,8 @@ class SegmentPipeline:
             | 'GroupByKey' >> beam.CoGroupByKey()
         )
 
-        segmenter = Segment(segmenter_params=self.segmenter_params)
+        segmenter = Segment(segmenter_params=self.segmenter_params, 
+                            lookahead=self.options.lookahead)
         segmented = args | "Segment" >> segmenter
 
         messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
