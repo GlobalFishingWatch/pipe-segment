@@ -23,10 +23,8 @@ from pipe_tools.utils.timestamp import as_timestamp
 
 from pipe_tools.coders import JSONDictCoder
 
-from pipe_segment.transform import Segment
-from pipe_segment.transform import NormalizeDoFn
-
-from gpsdio.schema import datetime2str
+from pipe_segment.transform.segment import Segment
+from pipe_segment.transform.normalize import NormalizeDoFn
 
 # >>> Note that cogroupByKey treats unicode and char values as distinct,
 # so tests can sometimes fail unless all ssvid are unicode.
@@ -71,7 +69,7 @@ class TestTransforms():
     @staticmethod
     def _seg_id(ssvid, ts):
         ts = datetimeFromTimestamp(ts)
-        return '{}-{}'.format(ssvid, datetime2str(ts))
+        return '{}-{:%Y-%m-%dT%H:%M:%S.%fZ}'.format(ssvid, ts)
 
     @staticmethod
     def groupby_fn(msg):
@@ -129,6 +127,7 @@ class TestTransforms():
         messages_in = [{'ssvid': "1", 'timestamp': self.ts}]
         segments_in = [{'ssvid': "1", 
                      'seg_id': self._seg_id("1", prev_ts),
+                     'timestamp' : prev_ts,
                      'closed' : False,
                      'first_lat': 0,
                      'first_lon': 0,
@@ -182,18 +181,21 @@ class TestTransforms():
     def test_noise_segment(self, temp_dir):
         messages_in = [
             {"timestamp": as_timestamp("2017-07-20T05:59:35.000000Z"),
+             "msgid" : 0,
              "ssvid": u"338013000",
              "lon": -161.3321333333,
              "lat": -9.52616,
              "speed": 11.1,
              'course' : 0.0},
             {"timestamp": as_timestamp("2017-07-20T06:00:38.000000Z"),
+             "msgid" : 1,
              "ssvid": u"338013000",
              "lon": -161.6153106689,
              "lat": -9.6753702164,
              'course' : 0.0,
              "speed": 11.3999996185},
             {"timestamp": as_timestamp("2017-07-20T06:01:00.000000Z"),
+             "msgid" : 2,
              "ssvid": u"338013000"}
         ]
 
@@ -224,22 +226,20 @@ class TestTransforms():
              "ssvid": 257666800,
              "lon": 5.3108466667,
              "lat": 60.40065,
-             "speed": 6.5,
-             'course' : 0.0,
-             'speed' : 0.0},
+             "speed": 0.0,
+             'course' : 0.0},
             {"timestamp": as_timestamp("2017-11-26T11:20:16.000000Z"),
              "ssvid": 257666800,
              "lon": 5.32334,
              "lat": 60.396235,
-             "speed": 3.2000000477,
-             'course' : 0.0,
-             'speed' : 0.0},
+             "speed": 0.0,
+             'course' : 0.0},
         ]
 
         segments_in = []
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
         seg_stats = set([(seg['seg_id'], seg['message_count']) for seg in segments_out])
-
+        print(segments_out)
         expected = {('257666800-2017-11-15T11:14:32.000000Z', 1),
                     ('257666800-2017-11-26T11:20:16.000000Z', 1)}
         assert seg_stats == expected
@@ -248,34 +248,39 @@ class TestTransforms():
     def test_message_type(self, temp_dir):
         messages_in = [
             {"timestamp": as_timestamp("2018-01-01 00:00"),
+             "msgid" : 0,
              "ssvid": "123456789",
              "type": "AIS.1",
              "lon": 0.0,
              "lat": 0.0,
              'course' : 0.0,
-             'speed' : 0.0},
+             'speed' : 0.001},
             {"timestamp": as_timestamp("2018-01-01 01:00"),
+             "msgid" : 1,
              "ssvid": "123456789",
              "type": "AIS.18",
              "lon": 0.0,
              "lat": 2.0,
              'course' : 0.0,
-             'speed' : 0.0},
+             'speed' : 0.001},
             {"timestamp": as_timestamp("2018-01-01 02:00"),
+             "msgid" : 2,
              "ssvid": "123456789",
              "type": "AIS.1",
              "lon": 0.0,
-             "lat": 0.5,
+             "lat": 0.1,
              'course' : 0.0,
-             'speed' : 0.0},
+             'speed' : 0.001},
             {"timestamp": as_timestamp("2018-01-01 03:00"),
+             "msgid" : 3,
              "ssvid": "123456789",
              "type": "AIS.18",
              "lon": 0.0,
-             "lat": 1.5,
+             "lat": 1.9,
              'course' : 0.0,
-             'speed' : 0.0},
+             'speed' : 0.001},
             {"timestamp": as_timestamp("2018-01-01 04:00"),
+             "msgid" : 4,
              "ssvid": "123456789",
              "type": "AIS.5",
              "shipname": "Boaty"},

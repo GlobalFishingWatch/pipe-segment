@@ -50,7 +50,7 @@ class SegmentOptions(PipelineOptions):
             action='store_true',
             help='Wait until the job finishes before returning.')
         optional.add_argument(
-            '--lookahead',
+            '--look_ahead',
             type=int,
             default=0,
             help='How many days to look ahead when performing segmenting 1 or 2 are good choices.'

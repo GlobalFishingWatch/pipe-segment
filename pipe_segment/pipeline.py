@@ -16,16 +16,27 @@ from pipe_tools.utils.timestamp import as_timestamp
 from pipe_tools.io.bigquery import parse_table_schema
 
 from pipe_segment.options import SegmentOptions
-from pipe_segment.transform import Segment
-from pipe_segment.transform import NormalizeDoFn
+from pipe_segment.transform.segment import Segment
+from pipe_segment.transform.normalize import NormalizeDoFn
 from pipe_segment.io.gcp import GCPSource
 from pipe_segment.io.gcp import GCPSink
 
+PAD_PREV_DAYS = 1
+
+def safe_dateFromTimestamp(ts):
+    if ts is None:
+        return None
+    return datetimeFromTimestamp(ts).date()
 
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
     return map(as_timestamp, s.split(',')) if s is not None else (None, None)
 
+def offset_timestamp(ts, **timedelta_args):
+    if ts is None:
+        return ts
+    dt = datetimeFromTimestamp(ts) + timedelta(**timedelta_args)
+    return timestampFromDatetime(dt)
 
 class SegmentPipeline:
     def __init__(self, options):
@@ -39,18 +50,15 @@ class SegmentPipeline:
         # reading from bigquery, so only do this once.
         if not self._message_source_list:
             first_date_ts, last_date_ts = self.date_range
-            if self.options.lookahead:
-                last_date = datetimeFromTimestamp(last_date_ts)
-                padded_last_date = last_date + timedelta(days=self.options.lookahead)
-                padded_last_date_ts = timestampFromDatetime(padded_last_date)
-            else:
-                padded_last_date_ts = last_date_ts
+            first_date_ts = offset_timestamp(first_date_ts, days=-PAD_PREV_DAYS)
+            if self.options.look_ahead:
+                last_date_ts = offset_timestamp(last_date_ts, days=self.options.look_ahead)
             gcp_paths = self.options.source.split(',')
             self._message_source_list = []
             for gcp_path in gcp_paths:
                 s = GCPSource(gcp_path=gcp_path,
                                first_date_ts=first_date_ts,
-                               last_date_ts=padded_last_date_ts)
+                               last_date_ts=last_date_ts)
                 self._message_source_list.append(s)
 
         return self._message_source_list
@@ -158,6 +166,7 @@ class SegmentPipeline:
         messages = (
             messages
             | "MergeMessages" >> beam.Flatten()
+            | "REMOVE ME FILTER" >> beam.Filter(lambda x: x['ssvid'] == '538006217')
             | "Normalize" >> beam.ParDo(NormalizeDoFn())
             | "MessagesAddKey" >> beam.Map(self.groupby_fn)
         )
@@ -174,8 +183,10 @@ class SegmentPipeline:
             | 'GroupByKey' >> beam.CoGroupByKey()
         )
 
-        segmenter = Segment(segmenter_params=self.segmenter_params, 
-                            lookahead=self.options.lookahead)
+        segmenter = Segment(start_date=safe_dateFromTimestamp(self.date_range[0]),
+                            end_date=safe_dateFromTimestamp(self.date_range[1]),
+                            segmenter_params=self.segmenter_params, 
+                            look_ahead=self.options.look_ahead)
         segmented = args | "Segment" >> segmenter
 
         messages = segmented[Segment.OUTPUT_TAG_MESSAGES]

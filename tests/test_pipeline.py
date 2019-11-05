@@ -16,7 +16,7 @@ from apache_beam import FlatMap
 from pipe_tools.coders import JSONDictCoder
 
 from pipe_segment.__main__ import run as  pipe_segment_run
-from pipe_segment.transform import Segment
+from pipe_segment.transform.segment import Segment
 from pipe_segment.pipeline import SegmentPipeline
 
 
@@ -37,8 +37,14 @@ class TestPipeline():
         pipe_segment_run(args)
 
         with nlj.open(expected) as expected:
-            with open_shards('%s*' % messages_sink) as output:
-                assert sorted(expected) == sorted(nlj.load(output))
+            with open_shards('%s*' % messages_sink) as raw_output:
+                output = list(nlj.load(raw_output))
+                for x in output:
+                    x.pop('shipnames')
+                    x.pop('callsigns')
+                    x.pop('imos')
+                    x.pop('msgid')
+                assert sorted(expected) == sorted(output)
 
     def test_Pipeline_basic_args(self, test_data_dir, temp_dir):
         source = pp.join(test_data_dir, 'input.json')
@@ -100,7 +106,13 @@ class TestPipeline():
             p.run()
             with nlj.open(expected_messages) as expected:
                 with open_shards('%s*' % messages_sink) as output:
-                    assert sorted(expected) == sorted(nlj.load(output))
+                    actual = sorted(nlj.load(output))
+                    for x in actual:
+                        x.pop('shipnames')
+                        x.pop('callsigns')
+                        x.pop('imos')
+                        x.pop('msgid')
+                    assert sorted(expected) == actual
 
             with nlj.open(expected_segments) as expected_output:
                 with open_shards('%s*' % segments_sink) as actual_output:
