@@ -93,12 +93,14 @@ class TestTransforms():
                 | 'GroupByKey' >> beam.CoGroupByKey()
             )
 
+            segmentizer = Segment()
+
             segmented = (
                 args
-                | "Segment" >> Segment()
+                | "Segment" >> segmentizer
             )
             messages = segmented['messages']
-            segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
+            segments = segmented[segmentizer.OUTPUT_TAG_SEGMENTS]
             messages | "WriteMessages" >> beam.io.WriteToText(
                 messages_file, coder=JSONDictCoder())
             segments | "WriteSegments" >> beam.io.WriteToText(
@@ -124,37 +126,45 @@ class TestTransforms():
 
     def test_segment_segments_in(self, temp_dir):
         prev_ts = self.ts - 1
-        messages_in = [{'ssvid': "1", 'timestamp': self.ts}]
+        messages_in = [{'ssvid': "1", 'timestamp': self.ts, 'type' : 'AIS.1'}]
         segments_in = [{'ssvid': "1", 
                      'seg_id': self._seg_id("1", prev_ts),
                      'timestamp' : prev_ts,
                      'closed' : False,
-                     'first_lat': 0,
-                     'first_lon': 0,
-                     'first_course' : 0,
-                     'first_speed' : 0,
-                     'first_timestamp' : prev_ts,
-                     'last_lat': 0,
-                     'last_lon': 0,
-                     'last_course' : 0,
-                     'last_speed' : 0,
-                     'last_timestamp' : prev_ts,
-                     'message_count': 1}]
+                     'first_msg_lat': 0,
+                     'first_msg_lon': 0,
+                     'first_msg_course' : 0,
+                     'first_msg_speed' : 0,
+                     'first_msg_timestamp' : prev_ts,
+                     'last_msg_lat': 0,
+                     'last_msg_lon': 0,
+                     'last_msg_course' : 0,
+                     'last_msg_speed' : 0,
+                     'last_msg_timestamp' : prev_ts,
+                     'message_count': 1,
+                     'shipnames' : [],
+                     'callsigns' : [],
+                     'imos' : [],
+                     'transponders' : []}]
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
         assert messages_out[0]['seg_id'] == None # No longer assign seg ids to noise segments
 
     def test_segment_out_in(self, temp_dir):
         prev_ts = self.ts - 1
         messages_in = [{'ssvid': u"1", 'timestamp': self.ts-1, 
-                        'lat' : 5.0, 'lon' : 0.1, 'speed' : 0.0, 'course' : 0.0},
+                        'lat' : 5.0, 'lon' : 0.1, 'speed' : 0.0, 'course' : 0.0,
+                        'type' : 'AIS.1'},
                        {'ssvid': u"2", 'timestamp': self.ts-1, 
-                        'lat' : 5.0, 'lon' : 0.1, 'speed' : 0.0, 'course' : 0.0}]
+                        'lat' : 5.0, 'lon' : 0.1, 'speed' : 0.0, 'course' : 0.0,
+                        'type' : 'AIS.1'}]
         segments_in = []
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
         messages_in = [{'ssvid': u"1", 'timestamp': self.ts, 
-                        'lat' : 5.0, 'lon' : 0.1, 'speed' : 0.0, 'course' : 0.0},
+                        'lat' : 5.0, 'lon' : 0.1, 'speed' : 0.0, 'course' : 0.0,
+                        'type' : 'AIS.1'},
                        {'ssvid': u"2", 'timestamp': self.ts, 
-                        'lat' : 5.0, 'lon' : 0.1, 'speed' : 0.0, 'course' : 0.0}]
+                        'lat' : 5.0, 'lon' : 0.1, 'speed' : 0.0, 'course' : 0.0,
+                        'type' : 'AIS.1'}]
         segments_in = segments_out
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
 
@@ -186,17 +196,20 @@ class TestTransforms():
              "lon": -161.3321333333,
              "lat": -9.52616,
              "speed": 11.1,
-             'course' : 0.0},
+             'course' : 0.0,
+             'type' : 'AIS.1'},
             {"timestamp": as_timestamp("2017-07-20T06:00:38.000000Z"),
              "msgid" : 1,
              "ssvid": u"338013000",
              "lon": -161.6153106689,
              "lat": -9.6753702164,
              'course' : 0.0,
-             "speed": 11.3999996185},
+             "speed": 11.3999996185,
+             'type' : 'AIS.1'},
             {"timestamp": as_timestamp("2017-07-20T06:01:00.000000Z"),
              "msgid" : 2,
-             "ssvid": u"338013000"}
+             "ssvid": u"338013000",
+             'type' : 'AIS.1'}
         ]
 
         segments_in = []
@@ -227,13 +240,15 @@ class TestTransforms():
              "lon": 5.3108466667,
              "lat": 60.40065,
              "speed": 0.0,
-             'course' : 0.0},
+             'course' : 0.0,
+             'type' : 'AIS.1'},
             {"timestamp": as_timestamp("2017-11-26T11:20:16.000000Z"),
              "ssvid": 257666800,
              "lon": 5.32334,
              "lat": 60.396235,
              "speed": 0.0,
-             'course' : 0.0},
+             'course' : 0.0,
+             'type' : 'AIS.1'},
         ]
 
         segments_in = []

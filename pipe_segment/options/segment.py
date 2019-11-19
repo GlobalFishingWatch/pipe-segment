@@ -31,13 +31,17 @@ class SegmentOptions(PipelineOptions):
             '--date_range',
             help='Range of dates to read from source. format YYYY-MM-DD,YYYY-MM-DD')
         required.add_argument(
-            '--dest',
+            '--dest_table',
             required=True,
             help='Bigquery table or file (prefix) to write segmented messages')
         required.add_argument(
-            '--segments',
+            '--seg_table',
             required=True,
-            help='Bigquery table or file (prefix) to read and write segments')
+            help='Bigquery table or file (prefix) to read and write new (v2) segments')
+        required.add_argument(
+            '--segments',
+            required=False,
+            help='Bigquery table or file (prefix) to read and write old (v1) segments')
         optional.add_argument(
             '--temp_shards_per_day',
             type=int,
@@ -45,7 +49,7 @@ class SegmentOptions(PipelineOptions):
                  'A good value for this is the max number of workers.  Default %s'
                  % cls.DEFAULT_TEMP_SHARDS_PER_DAY)
         optional.add_argument(
-            '--wait',
+            '--wait_for_job',
             default=False,
             action='store_true',
             help='Wait until the job finishes before returning.')

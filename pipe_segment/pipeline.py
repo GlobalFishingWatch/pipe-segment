@@ -123,7 +123,7 @@ class SegmentPipeline:
 
     @property
     def message_sink(self):
-        sink = GCPSink(gcp_path=self.options.dest,
+        sink = GCPSink(gcp_path=self.options.dest_table,
                        schema=self.message_output_schema,
                        temp_gcs_location=self.temp_gcs_location,
                        temp_shards_per_day=self.options.temp_shards_per_day)
@@ -149,8 +149,8 @@ class SegmentPipeline:
                 raise
         return source
 
-    def segment_sink(self, schema):
-        sink = GCPSink(gcp_path=self.options.segments,
+    def segment_sink(self, schema, table):
+        sink = GCPSink(gcp_path=table,
                        schema=schema,
                        temp_gcs_location=self.temp_gcs_location,
                        temp_shards_per_day=self.options.temp_shards_per_day)
@@ -166,7 +166,6 @@ class SegmentPipeline:
         messages = (
             messages
             | "MergeMessages" >> beam.Flatten()
-            | "REMOVE ME FILTER" >> beam.Filter(lambda x: x['ssvid'] == '538006217')
             | "Normalize" >> beam.ParDo(NormalizeDoFn())
             | "MessagesAddKey" >> beam.Map(self.groupby_fn)
         )
@@ -189,8 +188,8 @@ class SegmentPipeline:
                             look_ahead=self.options.look_ahead)
         segmented = args | "Segment" >> segmenter
 
-        messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
-        segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
+        messages = segmented[segmenter.OUTPUT_TAG_MESSAGES]
+        segments = segmented[segmenter.OUTPUT_TAG_SEGMENTS]
         (
             messages
             | "TimestampMessages" >> beam.ParDo(TimestampedValueDoFn())
@@ -199,8 +198,17 @@ class SegmentPipeline:
         (
             segments
             | "TimestampSegments" >> beam.ParDo(TimestampedValueDoFn())
-            | "WriteSegments" >> self.segment_sink(segmenter.segment_schema)
+            | "WriteSegments" >> self.segment_sink(segmenter.segment_schema_v2, 
+                                                   self.options.seg_table)
         )
+        if self.options.segments:
+            old_segments = segmented[segmenter.OUTPUT_TAG_OLD_MESSAGES]
+            (
+                old_segments
+                | "TimestampSegments" >> beam.ParDo(TimestampedValueDoFn())
+                | "WriteSegments" >> self.segment_sink(segmenter.segment_schema_v1, 
+                                                       self.options.segments)
+            )
         return pipeline
 
     def run(self):
@@ -214,7 +222,7 @@ def run(options):
 
     success_states = set([PipelineState.DONE])
 
-    if pipeline.options.wait or options.view_as(StandardOptions).runner == 'DirectRunner':
+    if pipeline.options.wait_for_job or options.view_as(StandardOptions).runner == 'DirectRunner':
         result.wait_until_finish()
     else:
         success_states.add(PipelineState.RUNNING)

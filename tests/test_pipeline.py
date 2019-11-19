@@ -29,9 +29,10 @@ class TestPipeline():
         args += [
             '--source=%s' % source,
             '--source_schema={"fields": []}',
-            '--dest=%s' % messages_sink,
-            '--segments=%s' % segments_sink,
-            '--wait'
+            '--dest_table=%s' % messages_sink,
+            '--seg_table=%s' % segments_sink,
+            '--runner=DirectRunner',
+            '--wait_for_job'
         ]
 
         pipe_segment_run(args)
@@ -40,9 +41,6 @@ class TestPipeline():
             with open_shards('%s*' % messages_sink) as raw_output:
                 output = list(nlj.load(raw_output))
                 for x in output:
-                    x.pop('shipnames')
-                    x.pop('callsigns')
-                    x.pop('imos')
                     x.pop('msgid')
                 assert sorted(expected) == sorted(output)
 
@@ -83,9 +81,11 @@ class TestPipeline():
             |    'GroupByKey' >> beam.CoGroupByKey()
             )
 
-            segmented = args | Segment()
+            segmentizer = Segment()
 
-            messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
+            segmented = args | segmentizer
+
+            messages = segmented[segmentizer.OUTPUT_TAG_MESSAGES]
             (messages
                 | "WriteToMessagesSink" >> beam.io.WriteToText(
                     file_path_prefix=messages_sink,
@@ -94,7 +94,7 @@ class TestPipeline():
                 )
             )
 
-            segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
+            segments = segmented[segmentizer.OUTPUT_TAG_SEGMENTS]
             (segments
                 | "WriteToSegmentsSink" >> beam.io.WriteToText(
                     file_path_prefix=segments_sink,
@@ -108,9 +108,6 @@ class TestPipeline():
                 with open_shards('%s*' % messages_sink) as output:
                     actual = sorted(nlj.load(output))
                     for x in actual:
-                        x.pop('shipnames')
-                        x.pop('callsigns')
-                        x.pop('imos')
                         x.pop('msgid')
                     assert sorted(expected) == actual
 
