@@ -138,7 +138,7 @@ class SegmentPipeline:
         ts = timestampFromDatetime(dt - timedelta(days=1))
 
         try:
-            source = GCPSource(gcp_path=self.options.segments,
+            source = GCPSource(gcp_path=self.options.seg_table,
                              first_date_ts=ts,
                              last_date_ts=ts)
         except HttpError as exn:
@@ -202,11 +202,11 @@ class SegmentPipeline:
                                                    self.options.seg_table)
         )
         if self.options.segments:
-            old_segments = segmented[segmenter.OUTPUT_TAG_OLD_MESSAGES]
+            old_segments = segmented[segmenter.OUTPUT_TAG_OLD_SEGMENTS]
             (
                 old_segments
-                | "TimestampSegments" >> beam.ParDo(TimestampedValueDoFn())
-                | "WriteSegments" >> self.segment_sink(segmenter.segment_schema_v1, 
+                | "TimestampOldSegments" >> beam.ParDo(TimestampedValueDoFn())
+                | "WriteOldSegments" >> self.segment_sink(segmenter.segment_schema_v1, 
                                                        self.options.segments)
             )
         return pipeline

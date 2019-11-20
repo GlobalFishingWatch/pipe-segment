@@ -63,30 +63,24 @@ class Segment(PTransform):
         return msg
 
     @staticmethod
-    # TODO: do this for timestamp stats fields
     def _convert_segment_in(seg):
         seg = dict(seg.items())
         for k in ['timestamp', 'first_msg_timestamp', 'last_msg_timestamp']:
             seg[k] = datetimeFromTimestamp(seg[k])
-        # Stats
-        for k in ['timestamp_first', 'timest_last', 'timestamp_min', 'timestamp_max',
-                  'timestamp_count']:
-            if k in seg:
-                seg[k] = datetimeFromTimestamp(seg[k])
         return seg
 
     @staticmethod
     def _convert_segment_out(seg):
-        # TODO: do this for timestamp stats fields
         seg = dict(seg.items())
-        for k in ['timestamp', 'first_msg_timestamp', 'last_msg_timestamp']:
-            seg[k] = timestampFromDatetime(seg[k])
-        # Stats
-        for k in ['timestamp_first', 'timest_last', 'timestamp_min', 'timestamp_max',
-                  'timestamp_count']:
-            if k in seg:
+        for k in ['timestamp', 'first_msg_timestamp', 'last_msg_timestamp',
+                  'timestamp_first', 'timestamp_last', # Stats stuff TODO: clean out someday
+                  'timestamp_min', 'timestamp_max']:
+            if k in seg and not seg[k] is None:
                 seg[k] = timestampFromDatetime(seg[k])
+
         return seg
+
+
 
     def segment(self, kv):
         key, seg_mes_map = kv
@@ -96,11 +90,14 @@ class Segment(PTransform):
         logger.debug('Segmenting key %r sorted %s messages and %s segments',
                         key, len(messages), len(segments))
         for key, value in self._segmenter.segment(messages, segments):
-            if key == self._segmenter.OUTPUT_TAG_MESSAGES:
+            if key == self.OUTPUT_TAG_MESSAGES:
                 msg = self._convert_message_out(value)
                 yield msg
-            elif key == self._segmenter.OUTPUT_TAG_SEGMENTS:
+            elif key == self.OUTPUT_TAG_SEGMENTS:
                 yield TaggedOutput(self._segmenter.OUTPUT_TAG_SEGMENTS,
+                                self._convert_segment_out(value))
+            elif key == self.OUTPUT_TAG_OLD_SEGMENTS:
+                yield TaggedOutput(self._segmenter.OUTPUT_TAG_OLD_SEGMENTS,
                                 self._convert_segment_out(value))
             else:
                 logger.warning('Unknown key in segment.segment (%)', key)
@@ -108,7 +105,9 @@ class Segment(PTransform):
     def expand(self, xs):
         return (
             xs | FlatMap(self.segment)
-                .with_outputs(self._segmenter.OUTPUT_TAG_SEGMENTS, main=self._segmenter.OUTPUT_TAG_MESSAGES)
+                .with_outputs(self.OUTPUT_TAG_SEGMENTS, 
+                              self.OUTPUT_TAG_OLD_SEGMENTS,
+                              main=self.OUTPUT_TAG_MESSAGES)
         )
 
     @property
@@ -134,13 +133,38 @@ class Segment(PTransform):
             add_field(prefix + 'course', 'FLOAT')
             add_field(prefix + 'speed', 'FLOAT')
 
-        # TODO: add signature fields
+        def add_sig_field(name):
+            field = bigquery.TableFieldSchema()
+            field.name = name
+            field.type = "RECORD"
+            field.mode = "REPEATED"
+            f1 = bigquery.TableFieldSchema()
+            f1.name = 'value'
+            f1.type = 'STRING'
+            f2 =  bigquery.TableFieldSchema()
+            f2.name = 'count'
+            f2.type = 'INTEGER'
+            field.fields = [f1, f2]
+            schema.fields.append(field)
+
+        add_sig_field('shipnames')
+        add_sig_field('callsigns')
+        add_sig_field('imos')
+        add_sig_field('transponders')
 
         return schema
 
 
     @property
     def segment_schema_v1(self):
+        DEFAULT_FIELD_TYPE = 'STRING'
+        FIELD_TYPES = {
+            'timestamp': 'TIMESTAMP',
+            'lat': 'FLOAT',
+            'lon': 'FLOAT',
+            'imo': 'INTEGER',
+        }
+
         schema = bigquery.TableSchema()
 
         def add_field(name, field_type, mode='REQUIRED'):
@@ -155,83 +179,40 @@ class Segment(PTransform):
         add_field('noise', 'BOOLEAN')
         add_field('message_count', 'INTEGER')
         add_field('timestamp', 'TIMESTAMP')
-        add_field('origin_ts', )
-        add_field('last_timestamp', 'TIMESTAMP')
-        add_field('last_lat', 'FLOAT')
-        add_field('last_lon', 'FLOAT')
+        add_field('origin_ts', 'TIMESTAMP')
+        add_field('last_pos_ts', 'TIMESTAMP')
+        add_field('last_pos_lat', 'FLOAT')
+        add_field('last_pos_lon', 'FLOAT')
 
         STAT_TYPES = {
             'most_common_count': 'INTEGER',
             'count': 'INTEGER'
         }
 
-        for field_name, stats in self.stats_fields:
+        for field_name, stats in self._segmenter.stats_fields:
             for stat_name in stats:
-                add_field(Segment.stat_output_field_name(field_name, stat_name),
+                add_field(self._segmenter.stat_output_field_name(field_name, stat_name),
                           STAT_TYPES.get(stat_name) or FIELD_TYPES.get(field_name, DEFAULT_FIELD_TYPE),
                           mode='NULLABLE')
 
 
         return schema
 
+       #  u'seg_id', 
+       #  u'ssvid'
+       #  u'noise',
+       #  u'message_count', 
+       #  u'timestamp',
+       #  u'origin_ts', , 
+       # u'last_pos_ts', 
+       # u'last_pos_lat',
+       # u'last_pos_lon', 
 
+       #  u'callsign_most_common', u'callsign_most_common_count',
+       #  u'imo_most_common', u'imo_most_common_count', 
+       #  u'shipname_most_common', u'shipname_most_common_count',
 
-
-    # DEFAULT_STATS_FIELDS = [('lat', MessageStats.NUMERIC_STATS),
-    #                         ('lon', MessageStats.NUMERIC_STATS),
-    #                         ('timestamp', MessageStats.NUMERIC_STATS),
-    #                         ('shipname', MessageStats.FREQUENCY_STATS),
-    #                         ('imo', MessageStats.FREQUENCY_STATS),
-    #                         ('callsign', MessageStats.FREQUENCY_STATS)]
-
-
-
-
-
-
-# For messages, fill in shipname, callsign, imo from
-# their most common values, then compute n_shipname, n_callsign, n_imo
-# as before. Compute necessary stats for segments, add to segments, then
-# remove stats from messages
-
-#(do this in segment_implementation.)
-
-
-
-# For new segment, pop noise
-# for old segment:
-# origin_ts <- first_timestamp
-# pop first_lat, first_lon, first_speed, first_course, last_speed, last_course
-# pop closed
-# 
-
-    #     field.name = "seg_id"
-    #     field.name = "message_count"
-    #     field.name = "ssvid"
-    #     field.name = "noise"
-    #     field.name = "timestamp"
-    #     field.name = "origin_ts"
-    #     field.name = "last_pos_ts"
-    #     field.name = "last_pos_lat"
-    #     field.name = "last_pos_lon"
-
-    # DEFAULT_STATS_FIELDS = [('lat', MessageStats.NUMERIC_STATS),
-    #                         ('lon', MessageStats.NUMERIC_STATS),
-    #                         ('timestamp', MessageStats.NUMERIC_STATS),
-    #                         ('shipname', MessageStats.FREQUENCY_STATS),
-    #                         ('imo', MessageStats.FREQUENCY_STATS),
-    #                         ('callsign', MessageStats.FREQUENCY_STATS)]
-
-    #     for field_name, stats in self.stats_fields:
-    #         for stat_name in stats:
-    #             field = bigquery.TableFieldSchema()
-    #             field.name = Segment.stat_output_field_name(field_name, stat_name)
-    #             field.type = STAT_TYPES.get(stat_name) or FIELD_TYPES.get(field_name, DEFAULT_FIELD_TYPE)
-    #             field.mode = "NULLABLE"
-    #             schema.fields.append(field)
-
-    #     STAT_TYPES = {
-    #         'most_common_count': 'INTEGER',
-    #         'count': 'INTEGER'
-    #     }
+       #  u'timestamp_count', u'timestamp_first', u'timestamp_last', u'timestamp_max', u'timestamp_min'
+       #  u'lat_count', u'lat_first',  u'lat_last', u'lat_max', u'lat_min', 
+       #  u'lon_count',  u'lon_first', u'lon_last', u'lon_max', u'lon_min', 
 

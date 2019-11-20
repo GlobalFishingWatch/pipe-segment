@@ -96,7 +96,7 @@ class SegmentImplementation(object):
             else:
                 record['timestamp_min'] = record['timestamp_max'] = None
                 record['timestamp_first'] = record['timestamp_last'] = None
-            record['count_timestamp'] = len(messages)
+            record['timestamp_count'] = len(messages)
         return record
 
     def _segment_state(self, seg_record):
@@ -223,7 +223,7 @@ class SegmentImplementation(object):
         self._update_sig_part(sig, seg.msgs, 'imo', 'imos')
         return sig
 
-    def _as_new_record(self, record):
+    def _as_record_v2(self, record):
         """Return everything except noise and the stats fields"""
         record = record.copy()
         record.pop('noise')
@@ -232,7 +232,7 @@ class SegmentImplementation(object):
                 record.pop(self.stat_output_field_name(field, stat))
         return record
 
-    def _as_old_record(self, record):
+    def _as_record_v1(self, record):
         """Munge to be compatible with old schema"""
         record = record.copy()
         record.pop('closed')
@@ -244,6 +244,10 @@ class SegmentImplementation(object):
         record['last_pos_lon'] = record.pop('last_msg_lon')
         record.pop('last_msg_course')
         record.pop('last_msg_speed')
+        record.pop('shipnames')
+        record.pop('callsigns')
+        record.pop('imos')
+        record.pop('transponders')
         return record
 
     def segment(self, messages, seg_records):
@@ -270,8 +274,9 @@ class SegmentImplementation(object):
                         rcd['closed'] = is_closed
                         output_rcd = rcd.copy()
                         output_rcd['timestamp'] = timestamp
-                        yield (self.OUTPUT_TAG_SEGMENTS, self._as_new_record(output_rcd))
-                        yield (self.OUTPUT_TAG_OLD_SEGMENTS, self._as_old_record(output_rcd))
+                        # TODO: old -> v1, other to v2
+                        yield (self.OUTPUT_TAG_SEGMENTS, self._as_record_v2(output_rcd))
+                        yield (self.OUTPUT_TAG_OLD_SEGMENTS, self._as_record_v1(output_rcd))
                         if not is_closed:
                             seg_records.append(output_rcd)
                 else:
