@@ -31,15 +31,15 @@ class SegmentOptions(PipelineOptions):
             '--date_range',
             help='Range of dates to read from source. format YYYY-MM-DD,YYYY-MM-DD')
         required.add_argument(
-            '--dest_table',
+            '--msg_dest',
             required=True,
             help='Bigquery table or file (prefix) to write segmented messages')
         required.add_argument(
-            '--seg_table',
+            '--seg_dest',
             required=True,
             help='Bigquery table or file (prefix) to read and write new (v2) segments')
         required.add_argument(
-            '--segments',
+            '--old_seg_dest',
             required=False,
             help='Bigquery table or file (prefix) to read and write old (v1) segments')
         optional.add_argument(

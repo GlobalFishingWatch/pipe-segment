@@ -18,8 +18,8 @@ logger.setLevel(logging.INFO)
 class SegmentImplementation(object):
 
     OUTPUT_TAG_MESSAGES = 'messages'
+    OUTPUT_TAG_SEGMENTS_V1 = 'segments_v1'
     OUTPUT_TAG_SEGMENTS = 'segments'
-    OUTPUT_TAG_OLD_SEGMENTS = 'old_segments'
 
     DEFAULT_STATS_FIELDS = [('lat', MessageStats.NUMERIC_STATS),
                             ('lon', MessageStats.NUMERIC_STATS),
@@ -223,7 +223,7 @@ class SegmentImplementation(object):
         self._update_sig_part(sig, seg.msgs, 'imo', 'imos')
         return sig
 
-    def _as_record_v2(self, record):
+    def _as_record(self, record):
         """Return everything except noise and the stats fields"""
         record = record.copy()
         record.pop('noise')
@@ -274,9 +274,11 @@ class SegmentImplementation(object):
                         rcd['closed'] = is_closed
                         output_rcd = rcd.copy()
                         output_rcd['timestamp'] = timestamp
-                        # TODO: old -> v1, other to v2
-                        yield (self.OUTPUT_TAG_SEGMENTS, self._as_record_v2(output_rcd))
-                        yield (self.OUTPUT_TAG_OLD_SEGMENTS, self._as_record_v1(output_rcd))
+                        yield (self.OUTPUT_TAG_SEGMENTS_V1, self._as_record_v1(output_rcd))
+                        # Only store new style records, so that we get the ~same code path
+                        # running over multiple days as running over a single day.
+                        output_rcd = self._as_record(output_rcd)
+                        yield (self.OUTPUT_TAG_SEGMENTS, output_rcd)
                         if not is_closed:
                             seg_records.append(output_rcd)
                 else:

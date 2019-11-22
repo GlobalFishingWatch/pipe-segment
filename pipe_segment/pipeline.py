@@ -123,7 +123,7 @@ class SegmentPipeline:
 
     @property
     def message_sink(self):
-        sink = GCPSink(gcp_path=self.options.dest_table,
+        sink = GCPSink(gcp_path=self.options.msg_dest,
                        schema=self.message_output_schema,
                        temp_gcs_location=self.temp_gcs_location,
                        temp_shards_per_day=self.options.temp_shards_per_day)
@@ -138,11 +138,11 @@ class SegmentPipeline:
         ts = timestampFromDatetime(dt - timedelta(days=1))
 
         try:
-            source = GCPSource(gcp_path=self.options.seg_table,
+            source = GCPSource(gcp_path=self.options.seg_dest,
                              first_date_ts=ts,
                              last_date_ts=ts)
         except HttpError as exn:
-            logging.warn("Segment source not found: %s %s" % (self.options.segments, dt))
+            logging.warn("Segment source not found: %s %s" % (self.options.old_seg_dest, dt))
             if exn.status_code == 404:
                 return beam.Create([])
             else:
@@ -198,16 +198,16 @@ class SegmentPipeline:
         (
             segments
             | "TimestampSegments" >> beam.ParDo(TimestampedValueDoFn())
-            | "WriteSegments" >> self.segment_sink(segmenter.segment_schema_v2, 
-                                                   self.options.seg_table)
+            | "WriteSegments" >> self.segment_sink(segmenter.segment_schema, 
+                                                   self.options.seg_dest)
         )
-        if self.options.segments:
-            old_segments = segmented[segmenter.OUTPUT_TAG_OLD_SEGMENTS]
+        if self.options.old_seg_dest:
+            segments_v1 = segmented[segmenter.OUTPUT_TAG_SEGMENTS_V1]
             (
-                old_segments
+                segments_v1
                 | "TimestampOldSegments" >> beam.ParDo(TimestampedValueDoFn())
                 | "WriteOldSegments" >> self.segment_sink(segmenter.segment_schema_v1, 
-                                                       self.options.segments)
+                                                       self.options.old_seg_dest)
             )
         return pipeline
 

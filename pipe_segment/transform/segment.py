@@ -41,8 +41,8 @@ class Segment(PTransform):
         return self._segmenter.OUTPUT_TAG_SEGMENTS
 
     @property
-    def OUTPUT_TAG_OLD_SEGMENTS(self):
-        return self._segmenter.OUTPUT_TAG_OLD_SEGMENTS
+    def OUTPUT_TAG_SEGMENTS_V1(self):
+        return self._segmenter.OUTPUT_TAG_SEGMENTS_V1
 
     @property
     def OUTPUT_TAG_MESSAGES(self):
@@ -93,25 +93,21 @@ class Segment(PTransform):
             if key == self.OUTPUT_TAG_MESSAGES:
                 msg = self._convert_message_out(value)
                 yield msg
-            elif key == self.OUTPUT_TAG_SEGMENTS:
-                yield TaggedOutput(self._segmenter.OUTPUT_TAG_SEGMENTS,
-                                self._convert_segment_out(value))
-            elif key == self.OUTPUT_TAG_OLD_SEGMENTS:
-                yield TaggedOutput(self._segmenter.OUTPUT_TAG_OLD_SEGMENTS,
-                                self._convert_segment_out(value))
+            elif key in (self.OUTPUT_TAG_SEGMENTS_V1, self.OUTPUT_TAG_SEGMENTS): 
+                yield TaggedOutput(key, self._convert_segment_out(value))
             else:
                 logger.warning('Unknown key in segment.segment (%)', key)
 
     def expand(self, xs):
         return (
             xs | FlatMap(self.segment)
-                .with_outputs(self.OUTPUT_TAG_SEGMENTS, 
-                              self.OUTPUT_TAG_OLD_SEGMENTS,
+                .with_outputs(self.OUTPUT_TAG_SEGMENTS_V1, 
+                              self.OUTPUT_TAG_SEGMENTS,
                               main=self.OUTPUT_TAG_MESSAGES)
         )
 
     @property
-    def segment_schema_v2(self):
+    def segment_schema(self):
         schema = bigquery.TableSchema()
 
         def add_field(name, field_type, mode='REQUIRED'):

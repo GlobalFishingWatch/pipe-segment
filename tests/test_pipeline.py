@@ -29,8 +29,8 @@ class TestPipeline():
         args += [
             '--source=%s' % source,
             '--source_schema={"fields": []}',
-            '--dest_table=%s' % messages_sink,
-            '--seg_table=%s' % segments_sink,
+            '--msg_dest=%s' % messages_sink,
+            '--seg_dest=%s' % segments_sink,
             '--runner=DirectRunner',
             '--wait_for_job'
         ]
