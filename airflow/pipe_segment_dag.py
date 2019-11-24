@@ -54,9 +54,9 @@ class PipeSegmentDagFactory(DagFactory):
                     startup_log_file=pp.join(Variable.get('DATAFLOW_WRAPPER_LOG_PATH'), 'pipe_segment/segment.log'),
                     date_range='{date_range}'.format(**config),
                     source=','.join(source_paths),
-                    dest_table='bq://{project_id}:{pipeline_dataset}.{messages_table}'.format(**config),
-                    segments='bq://{project_id}:{pipeline_dataset}.{segments_table}'.format(**config),
-
+                    msg_dest='bq://{project_id}:{pipeline_dataset}.{messages_table}'.format(**config),
+                    old_seg_dest='bq://{project_id}:{pipeline_dataset}.{segments_table}'.format(**config),
+                    seg_dest='bq://{project_id}:{pipeline_dataset}.{new_segments_table}'.format(**config),
                     temp_shards_per_day="200",
                     runner='{dataflow_runner}'.format(**config),
                     project=config['project_id'],

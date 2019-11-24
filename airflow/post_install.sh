@@ -23,6 +23,7 @@ python $AIRFLOW_HOME/utils/set_default_variables.py \
     segment_vessel_daily_table="segment_vessel_daily_" \
     segment_vessel_table="segment_vessel" \
     segments_table="segments_" \
+    new_segments_table="segments_v2_" \
     spoofing_threshold="10" \
     single_ident_min_freq="0.99" \
     most_common_min_freq="0.05" \
