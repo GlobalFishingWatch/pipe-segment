@@ -32,10 +32,8 @@ VOLUME ["/root/.config"]
 # Setup local application dependencies
 COPY . /opt/project
 RUN pip install cython
-RUN pip install https://codeload.github.com/GlobalFishingWatch/pipe-tools/tar.gz/v3.0.0#egg=pipe-tools
-RUN pip install https://codeload.github.com/Skytruth/gpsdio-segment/tar.gz/v0.19-dev
-RUN pip install https://codeload.github.com/GlobalFishingWatch/ShipDataProcess/tar.gz/06b8495f55c6a44306ca9865b4c07d51d7ad5a7b#egg=shipdataprocess
-RUN pip install  --process-dependency-links -e .
+RUN pip install -r requirements.txt
+RUN pip install -e .
 
 # Setup the entrypoint for quickly executing the pipelines
 ENTRYPOINT ["scripts/run.sh"]
