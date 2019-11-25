@@ -194,21 +194,4 @@ class Segment(PTransform):
 
         return schema
 
-       #  u'seg_id', 
-       #  u'ssvid'
-       #  u'noise',
-       #  u'message_count', 
-       #  u'timestamp',
-       #  u'origin_ts', , 
-       # u'last_pos_ts', 
-       # u'last_pos_lat',
-       # u'last_pos_lon', 
-
-       #  u'callsign_most_common', u'callsign_most_common_count',
-       #  u'imo_most_common', u'imo_most_common_count', 
-       #  u'shipname_most_common', u'shipname_most_common_count',
-
-       #  u'timestamp_count', u'timestamp_first', u'timestamp_last', u'timestamp_max', u'timestamp_min'
-       #  u'lat_count', u'lat_first',  u'lat_last', u'lat_max', u'lat_min', 
-       #  u'lon_count',  u'lon_first', u'lon_last', u'lon_max', u'lon_min', 
 

@@ -142,7 +142,7 @@ class SegmentPipeline:
                              first_date_ts=ts,
                              last_date_ts=ts)
         except HttpError as exn:
-            logging.warn("Segment source not found: %s %s" % (self.options.old_seg_dest, dt))
+            logging.warn("Segment source not found: %s %s" % (self.options.legacy_seg_v1_dest, dt))
             if exn.status_code == 404:
                 return beam.Create([])
             else:
@@ -201,13 +201,13 @@ class SegmentPipeline:
             | "WriteSegments" >> self.segment_sink(segmenter.segment_schema, 
                                                    self.options.seg_dest)
         )
-        if self.options.old_seg_dest:
+        if self.options.legacy_seg_v1_dest:
             segments_v1 = segmented[segmenter.OUTPUT_TAG_SEGMENTS_V1]
             (
                 segments_v1
                 | "TimestampOldSegments" >> beam.ParDo(TimestampedValueDoFn())
                 | "WriteOldSegments" >> self.segment_sink(segmenter.segment_schema_v1, 
-                                                       self.options.old_seg_dest)
+                                                       self.options.legacy_seg_v1_dest)
             )
         return pipeline
 

@@ -55,7 +55,7 @@ class SegmentImplementation(object):
 
         first_msg = seg_state.first_msg
         last_msg = seg_state.last_msg
-        def sig2rcd(name):
+        def sigature2record(name):
             items = []
             assert name.endswith('s')
             for k, v in signature.get(name, {}).items():
@@ -78,10 +78,10 @@ class SegmentImplementation(object):
             last_msg_course=last_msg['course'],
             last_msg_speed=last_msg['speed'],
             timestamp=timestamp,
-            shipnames=sig2rcd('shipnames'),
-            callsigns=sig2rcd('callsigns'),
-            imos=sig2rcd('imos'),
-            transponders=sig2rcd('transponders')
+            shipnames=sigature2record('shipnames'),
+            callsigns=sigature2record('callsigns'),
+            imos=sigature2record('imos'),
+            transponders=sigature2record('transponders')
         )
         for field, stats in self.stats_fields:
             stat_values = ms.field_stats(field)
@@ -116,13 +116,13 @@ class SegmentImplementation(object):
                 'course' : seg_record['last_msg_course'],
                 'speed' : seg_record['last_msg_speed']
             }
-        def rcd2sig(name):
+        def record2signature(name):
             return {d['value'] : d['count'] for d in seg_record[name]}
         signature = {
-            'shipnames' : rcd2sig('shipnames'),
-            'callsigns' : rcd2sig('callsigns'),
-            'imos' : rcd2sig('imos'),
-            'transponders' : rcd2sig('transponders'),
+            'shipnames' : record2signature('shipnames'),
+            'callsigns' : record2signature('callsigns'),
+            'imos' : record2signaturerecord2signature('imos'),
+            'transponders' : record2signature('transponders'),
         }
         return SegmentState(id = seg_record['seg_id'],
                             noise = False,

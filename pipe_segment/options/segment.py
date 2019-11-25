@@ -39,7 +39,7 @@ class SegmentOptions(PipelineOptions):
             required=True,
             help='Bigquery table or file (prefix) to read and write new (v2) segments')
         required.add_argument(
-            '--old_seg_dest',
+            '--legacy_seg_v1_dest',
             required=False,
             help='Bigquery table or file (prefix) to read and write old (v1) segments')
         optional.add_argument(
