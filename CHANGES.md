@@ -7,6 +7,12 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+* [GlobalFishingWatch/pipe-segment/pull/101](https://github.com/GlobalFishingWatch/pipe-segment/pull/101)
+  - Support new version of gpsdio-segment, but continue to emit old style segments as well for backwards
+    compatibility. See PR for details
+  - Update to pipe-tools 3.0 and make some changes to support Python 3.
+  - Improve memory usage significantly by cogrouping messages rather than passing as side arguments.
+    Also, filter out noise segments before grouping and use more temporary shards on output.
 
 ## v1.2.1 - 2019-05-15
 * [GlobalFishingWatch/GFW-Tasks#1030](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/1030) Changed the way we pass the machine type to dataflow so it re-allow us to send the custom machine type.
