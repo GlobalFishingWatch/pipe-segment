@@ -121,7 +121,7 @@ class SegmentImplementation(object):
         signature = {
             'shipnames' : record2signature('shipnames'),
             'callsigns' : record2signature('callsigns'),
-            'imos' : record2signaturerecord2signature('imos'),
+            'imos' : record2signature('imos'),
             'transponders' : record2signature('transponders'),
         }
         return SegmentState(id = seg_record['seg_id'],
