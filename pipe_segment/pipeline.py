@@ -15,7 +15,7 @@ from pipe_tools.timestamp import timestampFromDatetime
 from pipe_tools.utils.timestamp import as_timestamp
 from pipe_tools.io.bigquery import parse_table_schema
 
-from pipe_segment.options import SegmentOptions
+from pipe_segment.options.segment import SegmentOptions
 from pipe_segment.transform.segment import Segment
 from pipe_segment.transform.normalize import NormalizeDoFn
 from pipe_segment.io.gcp import GCPSource
@@ -142,7 +142,7 @@ class SegmentPipeline:
                              first_date_ts=ts,
                              last_date_ts=ts)
         except HttpError as exn:
-            logging.warn("Segment source not found: %s %s" % (self.options.legacy_seg_v1_dest, dt))
+            logging.warn("Segment source not found: %s %s" % (self.options.seg_dest, dt))
             if exn.status_code == 404:
                 return beam.Create([])
             else:
