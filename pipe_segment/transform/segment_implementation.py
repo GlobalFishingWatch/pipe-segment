@@ -55,6 +55,8 @@ class SegmentImplementation(object):
 
         first_msg = seg_state.first_msg
         last_msg = seg_state.last_msg
+        first_msg_on_day = seg_state.first_msg_on_day or {}
+        last_msg_on_day = seg_state.last_msg_on_day or {}
         def sigature2record(name):
             items = []
             assert name.endswith('s')
@@ -77,6 +79,16 @@ class SegmentImplementation(object):
             last_msg_lon=last_msg['lon'],
             last_msg_course=last_msg['course'],
             last_msg_speed=last_msg['speed'],
+            first_msg_on_day_timestamp=first_msg_on_day.get('timestamp'),
+            first_msg_on_day_lat=first_msg_on_day.get('lat'),
+            first_msg_on_day_lon=first_msg_on_day.get('lon'),
+            first_msg_on_day_course=first_msg_on_day.get('course'),
+            first_msg_on_day_speed=first_msg_on_day.get('speed'),
+            last_msg_on_day_timestamp=last_msg_on_day.get('timestamp'),
+            last_msg_on_day_lat=last_msg_on_day.get('lat'),
+            last_msg_on_day_lon=last_msg_on_day.get('lon'),
+            last_msg_on_day_course=last_msg_on_day.get('course'),
+            last_msg_on_day_speed=last_msg_on_day.get('speed'),
             timestamp=timestamp,
             shipnames=sigature2record('shipnames'),
             callsigns=sigature2record('callsigns'),
@@ -116,6 +128,22 @@ class SegmentImplementation(object):
                 'course' : seg_record['last_msg_course'],
                 'speed' : seg_record['last_msg_speed']
             }
+        first_msg_of_day = {
+                'ssvid': seg_record['ssvid'],
+                'timestamp': seg_record['first_msg_of_day_timestamp'],
+                'lat': seg_record['first_msg_of_day_lat'],
+                'lon': seg_record['first_msg_of_day_of_day_lon'],
+                'course' : seg_record['first_msg_of_day_course'],
+                'speed' : seg_record['first_msg_of_day_speed']
+            }
+        last_msg_of_day = {
+                'ssvid': seg_record['ssvid'],
+                'timestamp': seg_record['last_msg_of_day_timestamp'],
+                'lat': seg_record['last_msg_of_day_lat'],
+                'lon': seg_record['last_msg_of_day_lon'],
+                'course' : seg_record['last_msg_of_day_course'],
+                'speed' : seg_record['last_msg_of_day_speed']
+            }
         def record2signature(name):
             return {d['value'] : d['count'] for d in seg_record[name]}
         signature = {
@@ -131,8 +159,8 @@ class SegmentImplementation(object):
                             msg_count = seg_record['message_count'],
                             first_msg = first_msg,
                             last_msg = last_msg,
-                            opaque = {}) # TODO: not currently used, consider removing.
-
+                            first_msg_of_day = first_msg_of_day,
+                            last_msg_of_day = last_msg_of_day) 
 
     @staticmethod
     def _as_datetime(x):
@@ -234,6 +262,9 @@ class SegmentImplementation(object):
         record['origin_ts'] = record.pop('first_msg_timestamp')
         for k in ['lat', 'lon', 'course', 'speed']:
             record.pop('first_msg_' + k)
+        for k in ['lat', 'lon', 'course', 'speed']:
+            record.pop('first_msg_on_day_' + k)
+            record.pop('last_msg_on_day_' + k)
         record['last_pos_ts'] = record.pop('last_msg_timestamp')
         record['last_pos_lat'] = record.pop('last_msg_lat')
         record['last_pos_lon'] = record.pop('last_msg_lon')

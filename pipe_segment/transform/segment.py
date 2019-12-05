@@ -122,7 +122,7 @@ class Segment(PTransform):
         add_field('closed', 'BOOLEAN')
         add_field('message_count', 'INTEGER')
         add_field('timestamp', 'TIMESTAMP')
-        for prefix in ['first_msg_', 'last_msg_']:
+        for prefix in ['first_msg_', 'last_msg_', 'first_msg_on_day_', 'last_msg_on_day_']:
             add_field(prefix + 'timestamp', 'TIMESTAMP')
             add_field(prefix + 'lat', 'FLOAT')
             add_field(prefix + 'lon', 'FLOAT')
