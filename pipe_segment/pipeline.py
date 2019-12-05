@@ -142,7 +142,7 @@ class SegmentPipeline:
                              first_date_ts=ts,
                              last_date_ts=ts)
         except HttpError as exn:
-            logging.warn("Segment source not found: %s %s" % (self.options.legacy_seg_v1_dest, dt))
+            logging.warn("Segment source not found: %s %s" % (self.options.seg_dest, dt))
             if exn.status_code == 404:
                 return beam.Create([])
             else:

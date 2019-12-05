@@ -131,7 +131,7 @@ class SegmentImplementation(object):
                             msg_count = seg_record['message_count'],
                             first_msg = first_msg,
                             last_msg = last_msg,
-                            opaque = {'signature' : signature}) 
+                            opaque = {}) # TODO: not currently used, consider removing.
 
 
     @staticmethod
@@ -205,15 +205,10 @@ class SegmentImplementation(object):
 
 
     def _get_signature(self, seg):
-        # 1. get current signatures from seg.opaque
-        sig = seg.opaque.get('signature', {}).copy()
+        sig = {}
         a_types = set(['AIS.1', 'AIS.2', 'AIS.3'])
         b_types = set(['AIS.18', 'AIS.19'])
-        counts = sig.get('transponders', {'is_A' : 0, 'is_B' : 0})
-        # TODO: could easily decay (exponential moving average) the signature
-        # Parts here but mulitplying earlier days by 0.9 or some such.
-        a_cnt = counts.get('is_A', 0)
-        b_cnt = counts.get('is_B', 0)
+        a_cnt = b_cnt = 0
         for msg in seg.msgs:
             a_cnt += msg['type'] in a_types
             b_cnt += msg['type'] in b_types
