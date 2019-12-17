@@ -15,7 +15,7 @@ from pipe_tools.timestamp import timestampFromDatetime
 from pipe_tools.utils.timestamp import as_timestamp
 from pipe_tools.io.bigquery import parse_table_schema
 
-from pipe_segment.options import SegmentOptions
+from pipe_segment.options.segment import SegmentOptions
 from pipe_segment.transform.segment import Segment
 from pipe_segment.transform.normalize import NormalizeDoFn
 from pipe_segment.io.gcp import GCPSource
@@ -30,7 +30,7 @@ def safe_dateFromTimestamp(ts):
 
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
-    return map(as_timestamp, s.split(',')) if s is not None else (None, None)
+    return list(map(as_timestamp, s.split(',')) if s is not None else (None, None))
 
 def offset_timestamp(ts, **timedelta_args):
     if ts is None:

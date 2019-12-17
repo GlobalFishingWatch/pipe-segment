@@ -24,18 +24,15 @@ DEPENDENCIES = [
     "python-stdnum",
     "gpsdio-segment", #==0.19-dev",
     "pipe-tools==3.0.0",
-    "shipdataprocess==0.5.8",
+    "shipdataprocess==0.6.9",
     "jinja2-cli",
-    "google-apitools>=0.5.26,<0.5.27"
+    "google-apitools"
 ]
 
 
 
 with codecs.open('README.md', encoding='utf-8') as f:
     readme = f.read().strip()
-
-with codecs.open('requirements.txt', encoding='utf-8') as f:
-    DEPENDENCY_LINKS=[line for line in f]
 
 setup(
     author=package.__author__,
@@ -50,5 +47,4 @@ setup(
     url=package.__source__,
     version=package.__version__,
     zip_safe=True,
-    dependency_links=DEPENDENCY_LINKS
 )

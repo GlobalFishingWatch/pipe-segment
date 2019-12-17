@@ -55,8 +55,8 @@ class SegmentImplementation(object):
 
         first_msg = seg_state.first_msg
         last_msg = seg_state.last_msg
-        first_msg_on_day = seg_state.first_msg_on_day or {}
-        last_msg_on_day = seg_state.last_msg_on_day or {}
+        first_msg_of_day = seg_state.first_msg_of_day or {}
+        last_msg_of_day = seg_state.last_msg_of_day or {}
         def sigature2record(name):
             items = []
             assert name.endswith('s')
@@ -79,16 +79,16 @@ class SegmentImplementation(object):
             last_msg_lon=last_msg['lon'],
             last_msg_course=last_msg['course'],
             last_msg_speed=last_msg['speed'],
-            first_msg_on_day_timestamp=first_msg_on_day.get('timestamp'),
-            first_msg_on_day_lat=first_msg_on_day.get('lat'),
-            first_msg_on_day_lon=first_msg_on_day.get('lon'),
-            first_msg_on_day_course=first_msg_on_day.get('course'),
-            first_msg_on_day_speed=first_msg_on_day.get('speed'),
-            last_msg_on_day_timestamp=last_msg_on_day.get('timestamp'),
-            last_msg_on_day_lat=last_msg_on_day.get('lat'),
-            last_msg_on_day_lon=last_msg_on_day.get('lon'),
-            last_msg_on_day_course=last_msg_on_day.get('course'),
-            last_msg_on_day_speed=last_msg_on_day.get('speed'),
+            first_msg_of_day_timestamp=first_msg_of_day.get('timestamp'),
+            first_msg_of_day_lat=first_msg_of_day.get('lat'),
+            first_msg_of_day_lon=first_msg_of_day.get('lon'),
+            first_msg_of_day_course=first_msg_of_day.get('course'),
+            first_msg_of_day_speed=first_msg_of_day.get('speed'),
+            last_msg_of_day_timestamp=last_msg_of_day.get('timestamp'),
+            last_msg_of_day_lat=last_msg_of_day.get('lat'),
+            last_msg_of_day_lon=last_msg_of_day.get('lon'),
+            last_msg_of_day_course=last_msg_of_day.get('course'),
+            last_msg_of_day_speed=last_msg_of_day.get('speed'),
             timestamp=timestamp,
             shipnames=sigature2record('shipnames'),
             callsigns=sigature2record('callsigns'),
@@ -132,7 +132,7 @@ class SegmentImplementation(object):
                 'ssvid': seg_record['ssvid'],
                 'timestamp': seg_record['first_msg_of_day_timestamp'],
                 'lat': seg_record['first_msg_of_day_lat'],
-                'lon': seg_record['first_msg_of_day_of_day_lon'],
+                'lon': seg_record['first_msg_of_day_lon'],
                 'course' : seg_record['first_msg_of_day_course'],
                 'speed' : seg_record['first_msg_of_day_speed']
             }
@@ -201,7 +201,7 @@ class SegmentImplementation(object):
                 if ts.date() >= start:
                     break
                 msgids[msg['msgid']] = ts
-                if msg['speed'] > 0:
+                if msg['speed'] is not None and msg['speed'] > 0:
                     loc = Segmentizer.normalize_location(
                             *Segmentizer.extract_location(msg))
                     locations[loc] = ts
@@ -262,9 +262,9 @@ class SegmentImplementation(object):
         record['origin_ts'] = record.pop('first_msg_timestamp')
         for k in ['lat', 'lon', 'course', 'speed']:
             record.pop('first_msg_' + k)
-        for k in ['lat', 'lon', 'course', 'speed']:
-            record.pop('first_msg_on_day_' + k)
-            record.pop('last_msg_on_day_' + k)
+        for k in ['lat', 'lon', 'course', 'speed', 'timestamp']:
+            record.pop('first_msg_of_day_' + k)
+            record.pop('last_msg_of_day_' + k)
         record['last_pos_ts'] = record.pop('last_msg_timestamp')
         record['last_pos_lat'] = record.pop('last_msg_lat')
         record['last_pos_lon'] = record.pop('last_msg_lon')
