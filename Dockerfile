@@ -1,4 +1,4 @@
-FROM python:2.7
+FROM python:3.7
 
 # Configure the working directory
 RUN mkdir -p /opt/project

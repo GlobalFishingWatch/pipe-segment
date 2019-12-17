@@ -262,7 +262,7 @@ class SegmentImplementation(object):
         record['origin_ts'] = record.pop('first_msg_timestamp')
         for k in ['lat', 'lon', 'course', 'speed']:
             record.pop('first_msg_' + k)
-        for k in ['lat', 'lon', 'course', 'speed']:
+        for k in ['lat', 'lon', 'course', 'speed', 'timestamp']:
             record.pop('first_msg_of_day_' + k)
             record.pop('last_msg_of_day_' + k)
         record['last_pos_ts'] = record.pop('last_msg_timestamp')

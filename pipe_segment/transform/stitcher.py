@@ -34,8 +34,10 @@ class Stitch(PTransform):
     @staticmethod
     def _convert_segment_in(seg):
         seg = dict(seg.items())
-        for k in ['timestamp', 'first_msg_timestamp', 'last_msg_timestamp']:
-            seg[k] = datetimeFromTimestamp(seg[k])
+        for k in ['timestamp', 'first_msg_timestamp', 'last_msg_timestamp',
+                    'first_msg_of_day_timestamp', 'last_msg_of_day_timestamp']:
+            if seg[k] is not None:
+                seg[k] = datetimeFromTimestamp(seg[k])
         return seg
 
     def stitch(self, kv):

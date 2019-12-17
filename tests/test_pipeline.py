@@ -37,12 +37,15 @@ class TestPipeline():
 
         pipe_segment_run(args)
 
+        def listify(seq):
+            return sorted([sorted(x.items()) for x in seq])
+
         with nlj.open(expected) as expected:
             with open_shards('%s*' % messages_sink) as raw_output:
                 output = list(nlj.load(raw_output))
                 for x in output:
                     x.pop('msgid')
-                assert sorted(expected) == sorted(output)
+                assert listify(expected) == listify(output)
 
     def test_Pipeline_basic_args(self, test_data_dir, temp_dir):
         source = pp.join(test_data_dir, 'input.json')

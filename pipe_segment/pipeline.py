@@ -30,7 +30,7 @@ def safe_dateFromTimestamp(ts):
 
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
-    return map(as_timestamp, s.split(',')) if s is not None else (None, None)
+    return list(map(as_timestamp, s.split(',')) if s is not None else (None, None))
 
 def offset_timestamp(ts, **timedelta_args):
     if ts is None:

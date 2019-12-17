@@ -18,7 +18,7 @@ from gpsdio_segment.segment import SegmentState
 from pipe_tools.timestamp import datetimeFromTimestamp
 from pipe_tools.timestamp import timestampFromDatetime
 
-from segment_implementation import SegmentImplementation
+from .segment_implementation import SegmentImplementation
 
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
@@ -65,14 +65,17 @@ class Segment(PTransform):
     @staticmethod
     def _convert_segment_in(seg):
         seg = dict(seg.items())
-        for k in ['timestamp', 'first_msg_timestamp', 'last_msg_timestamp']:
-            seg[k] = datetimeFromTimestamp(seg[k])
+        for k in ['timestamp', 'first_msg_timestamp', 'last_msg_timestamp',
+                  'first_msg_of_day_timestamp', 'last_msg_of_day_timestamp']:
+            if seg[k] is not None:
+                seg[k] = datetimeFromTimestamp(seg[k])
         return seg
 
     @staticmethod
     def _convert_segment_out(seg):
         seg = dict(seg.items())
         for k in ['timestamp', 'first_msg_timestamp', 'last_msg_timestamp',
+                  'first_msg_of_day_timestamp', 'last_msg_of_day_timestamp',
                   'timestamp_first', 'timestamp_last', # Stats stuff TODO: clean out someday
                   'timestamp_min', 'timestamp_max']:
             if k in seg and not seg[k] is None:
@@ -122,12 +125,13 @@ class Segment(PTransform):
         add_field('closed', 'BOOLEAN')
         add_field('message_count', 'INTEGER')
         add_field('timestamp', 'TIMESTAMP')
-        for prefix in ['first_msg_', 'last_msg_', 'first_msg_on_day_', 'last_msg_on_day_']:
-            add_field(prefix + 'timestamp', 'TIMESTAMP')
-            add_field(prefix + 'lat', 'FLOAT')
-            add_field(prefix + 'lon', 'FLOAT')
-            add_field(prefix + 'course', 'FLOAT')
-            add_field(prefix + 'speed', 'FLOAT')
+        for prefix in ['first_msg_', 'last_msg_', 'first_msg_of_day_', 'last_msg_of_day_']:
+            mode = 'NULLABLE' if prefix.endswith('of_day_') else 'REQUIRED'
+            add_field(prefix + 'timestamp', 'TIMESTAMP', mode)
+            add_field(prefix + 'lat', 'FLOAT', mode)
+            add_field(prefix + 'lon', 'FLOAT', mode)
+            add_field(prefix + 'course', 'FLOAT', mode)
+            add_field(prefix + 'speed', 'FLOAT', mode)
 
         def add_sig_field(name):
             field = bigquery.TableFieldSchema()
