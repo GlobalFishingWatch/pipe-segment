@@ -201,7 +201,7 @@ class SegmentImplementation(object):
                 if ts.date() >= start:
                     break
                 msgids[msg['msgid']] = ts
-                if msg['speed'] > 0:
+                if msg['speed'] is not None and msg['speed'] > 0:
                     loc = Segmentizer.normalize_location(
                             *Segmentizer.extract_location(msg))
                     locations[loc] = ts
