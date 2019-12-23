@@ -10,7 +10,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 * [GlobalFishingWatch/pipe-segment/pull/101](https://github.com/GlobalFishingWatch/pipe-segment/pull/101)
   - Support new version of gpsdio-segment, but continue to emit old style segments as well for backwards
     compatibility. See PR for details
-  - Update to pipe-tools 3.0 and make some changes to support Python 3.
+  - Update to pipe-tools 3.0 and support Python 3.
   - Improve memory usage significantly by cogrouping messages rather than passing as side arguments.
     Also, filter out noise segments before grouping and use more temporary shards on output.
 

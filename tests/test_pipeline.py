@@ -43,8 +43,6 @@ class TestPipeline():
         with nlj.open(expected) as expected:
             with open_shards('%s*' % messages_sink) as raw_output:
                 output = list(nlj.load(raw_output))
-                for x in output:
-                    x.pop('msgid')
                 assert listify(expected) == listify(output)
 
     def test_Pipeline_basic_args(self, test_data_dir, temp_dir):
@@ -84,7 +82,7 @@ class TestPipeline():
             |    'GroupByKey' >> beam.CoGroupByKey()
             )
 
-            segmentizer = Segment()
+            segmentizer = Segment(look_ahead=0)
 
             segmented = args | segmentizer
 
@@ -106,19 +104,24 @@ class TestPipeline():
                 )
             )
 
+            def listify(seq):
+                return sorted([sorted(x.items()) for x in seq])
+
             p.run()
-            with nlj.open(expected_messages) as expected:
+
+            with nlj.open(expected_messages) as raw_expected:
+                expected = listify(raw_expected)
                 with open_shards('%s*' % messages_sink) as output:
-                    actual = sorted(nlj.load(output))
-                    for x in actual:
-                        x.pop('msgid')
-                    assert sorted(expected) == actual
+                    raw_actual = list(nlj.load(output))
+                    actual = listify(raw_actual)
+                    assert expected == actual
 
             with nlj.open(expected_segments) as expected_output:
+                expected = listify(expected_output)
                 with open_shards('%s*' % segments_sink) as actual_output:
-                    for expected, actual in zip(sorted(expected_output, key=lambda x: x['seg_id']),
-                                                sorted(nlj.load(actual_output), key=lambda x: x['seg_id'])):
-                        assert set(expected.items()).issubset(set(actual.items()))
+                    raw_actual = list(nlj.load(actual_output))
+                    actual = listify(raw_actual)
+                    assert expected == actual
 
 
     def test_Pipeline_multiple_source(self, test_data_dir, temp_dir):
