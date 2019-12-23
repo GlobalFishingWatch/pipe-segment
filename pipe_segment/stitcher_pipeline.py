@@ -35,7 +35,7 @@ def offset_timestamp(ts, **timedelta_args):
 
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
-    return map(as_timestamp, s.split(',')) if s is not None else (None, None)
+    return list(map(as_timestamp, s.split(',')) if s is not None else (None, None))
 
 
 class StitcherPipeline:
@@ -57,11 +57,11 @@ class StitcherPipeline:
         return (msg['ssvid'], msg)
 
     def track_sink(self, schema, table):
-        return beam.io.WriteToBigQuery(
-            table,
-            schema=schema,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
+        sink = GCPSink(gcp_path=table,
+                       schema=schema,
+                       temp_gcs_location=self.temp_gcs_location,
+                       temp_shards_per_day=self.options.temp_shards_per_day)
+        return sink
 
     @property
     def segment_source(self):
@@ -72,6 +72,27 @@ class StitcherPipeline:
         except HttpError as exn:
             logging.warn("Segment source not found: %s" % (self.options.seg_source))
             raise
+        return source
+
+
+    @property
+    def track_source(self):
+        if self.date_range[0] is None:
+            return beam.Create([])
+
+        dt = datetimeFromTimestamp(self.date_range[0])
+        ts = timestampFromDatetime(dt - timedelta(days=1))
+
+        try:
+            source = GCPSource(gcp_path=self.options.track_dest,
+                             first_date_ts=ts,
+                             last_date_ts=ts)
+        except HttpError as exn:
+            logging.warn("Tracks source not found: %s %s" % (self.options.track_dest, dt))
+            if exn.status_code == 404:
+                return beam.Create([])
+            else:
+                raise
         return source
 
     @property
@@ -97,19 +118,36 @@ class StitcherPipeline:
         return (compose (idx, source) for idx, source in enumerate(self.segment_source_list))
 
     def pipeline(self):
-        stitcher = Stitch(stitcher_params=self.stitcher_params)
+        # Currently no way to set lookahead -- may want that for rerunning pipeline
+        stitcher = Stitch(start_date=safe_dateFromTimestamp(self.date_range[0]),
+                          end_date=safe_dateFromTimestamp(self.date_range[1]),
+                          stitcher_params=self.stitcher_params)
 
         pipeline = beam.Pipeline(options=self.options)
         track_sink = self.track_sink(stitcher.track_schema, 
                                      self.options.track_dest)
 
-        (
-            self.segment_sources(pipeline)
+        segments = (
+            self.segment_sources(pipeline) 
             | "MergeSegments" >> beam.Flatten()
             | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
-            | 'GroupByKey' >> beam.GroupByKey()
+        )
+        tracks = (
+            pipeline
+            | "ReadTracks" >> self.track_source
+            | "TracksAddKey" >> beam.Map(self.groupby_fn)
+        )
+
+        args = (
+            {'segments' : segments, 'tracks' : tracks}
+            | 'GroupByKey' >> beam.CoGroupByKey()
+        )
+
+        (
+            args
             | "Stitch" >> stitcher
-            | "WriteMessages" >> track_sink
+            | "TimestampTracks" >> beam.ParDo(TimestampedValueDoFn())
+            | "WriteTracks" >> track_sink
         )
 
         return pipeline
