@@ -1,6 +1,6 @@
 {
-  "max_hours": 168,
-  "max_speed": 24,
-  "lookback": 3,
-  "hours_exp": 2.0
+  "max_hours": 8,
+  "max_speed": 25,
+  "lookback": 5,
+  "hours_exp": 0.5
 }
