@@ -39,6 +39,9 @@ class StitcherOptions(PipelineOptions):
             '--date_range',
             help='Range of dates to read from source. format YYYY-MM-DD,YYYY-MM-DD')
         optional.add_argument(
+            '--look_ahead', default=7, type=int,
+            help="Maximum number of days to look_ahead when stitching")
+        optional.add_argument(
             '--stitcher_params',
             help='Pass a json object with parameters to pass to the stitcher, or supply a file name to read from '
                  "@path/to/file.json.   For Example:"

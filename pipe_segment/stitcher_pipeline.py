@@ -101,6 +101,8 @@ class StitcherPipeline:
         # reading from bigquery, so only do this once.
         if not self._segment_source_list:
             first_date_ts, last_date_ts = self.date_range
+            last_date_ts = offset_timestamp(last_date_ts, days=self.options.look_ahead)
+
             gcp_paths = self.options.seg_source.split(',')
             self._segment_source_list = []
             for gcp_path in gcp_paths:
@@ -118,10 +120,10 @@ class StitcherPipeline:
         return (compose (idx, source) for idx, source in enumerate(self.segment_source_list))
 
     def pipeline(self):
-        # Currently no way to set lookahead -- may want that for rerunning pipeline
         stitcher = Stitch(start_date=safe_dateFromTimestamp(self.date_range[0]),
                           end_date=safe_dateFromTimestamp(self.date_range[1]),
-                          stitcher_params=self.stitcher_params)
+                          stitcher_params=self.stitcher_params,
+                          look_ahead=self.options.look_ahead)
 
         pipeline = beam.Pipeline(options=self.options)
         track_sink = self.track_sink(stitcher.track_schema, 
