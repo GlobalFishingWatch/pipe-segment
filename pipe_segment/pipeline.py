@@ -38,6 +38,22 @@ def offset_timestamp(ts, **timedelta_args):
     dt = datetimeFromTimestamp(ts) + timedelta(**timedelta_args)
     return timestampFromDatetime(dt)
 
+
+def filter_by_ssvid_predicate(obj, ssvid_kkdict):
+    return obj['ssvid'] in ssvid_kkdict
+
+class FilterBySsvid(beam.PTransform):
+
+    def __init__(self, ssvid_iter):
+        self.ssvid_iter = ssvid_iter
+
+    def expand(self, xs):
+        ssvid = set(self.ssvid_iter)
+        return (
+            xs | beam.Filter(self.segment, lambda x: x['ssvid'] in ssvid)
+        )
+
+
 class SegmentPipeline:
     def __init__(self, options):
         self.options = options.view_as(SegmentOptions)
@@ -162,10 +178,24 @@ class SegmentPipeline:
         # for purposes of CoGroupByKey, so both messages and segments should be
         # stringified or neither. 
         pipeline = beam.Pipeline(options=self.options)
-        messages = self.message_sources(pipeline)
         messages = (
-            messages
+            self.message_sources(pipeline)
             | "MergeMessages" >> beam.Flatten()
+        )
+
+        if self.options.ssvid_filter_query:
+            target_ssvid = beam.pvalue.AsDict(
+                messages
+                | GCPSource(gcp_path=self.options.ssvid_filter_query)
+                | beam.Map(lambda x: (x['ssvid'], x['ssvid']))
+                )
+            messages = (
+                messages
+                | beam.Filter(filter_by_ssvid_predicate, target_ssvid)
+            )
+
+        messages = (   
+            messages
             | "Normalize" >> beam.ParDo(NormalizeDoFn())
             | "MessagesAddKey" >> beam.Map(self.groupby_fn)
         )
