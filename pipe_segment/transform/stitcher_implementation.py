@@ -84,14 +84,14 @@ class StitcherImplementation(object):
             else:
                 i += 1
             #
-            raw_tracks = stitcher.create_tracks(start_date, pruned_tracks, track_sigs, segments[:i])
-
-            raw_tracks = list(raw_tracks)
+            track_iter = stitcher.create_tracks(start_date, pruned_tracks, track_sigs, segments[:i])
             # Condense tracks
-            for raw_track in raw_tracks:
+            raw_tracks = []
+            for raw_track, ndx in track_iter:
                 track = [x['aug_seg_id'] for x in raw_track]
                 track_id = track[0]
-                yield {'ssvid' : ssvid, 'track_id' : track_id, 
+                yield {'ssvid' : ssvid, 'track_id' : track_id, 'index': ndx,
                        'timestamp' : self._as_datetime(start_date), 'seg_ids' : track}
+                raw_tracks.append(raw_track)
             start_date += DT.timedelta(days=1)
 

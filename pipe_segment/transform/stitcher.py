@@ -108,6 +108,7 @@ class Stitch(PTransform):
 
         add_field('ssvid', 'STRING')
         add_field('track_id', 'STRING')
+        add_field('index', 'INT64')
         add_field('timestamp', "TIMESTAMP")
         add_field('seg_ids', 'STRING', mode='REPEATED')
 
