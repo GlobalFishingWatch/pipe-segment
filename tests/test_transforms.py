@@ -120,7 +120,7 @@ class TestTransforms():
         self._run_segment([], [], temp_dir=temp_dir)
 
     def test_segment_single(self, temp_dir):
-        messages_in = [{'ssvid': 1, 'timestamp': self.ts}]
+        messages_in = [{'ssvid': 1, 'timestamp': self.ts, 'type': 'AIS.1'}]
         segments_in = []
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
 
@@ -231,7 +231,7 @@ class TestTransforms():
                              (u'338013000-2017-07-20T06:00:38.000000Z', 1)}
 
         messages_in = [{"timestamp": as_timestamp("2017-07-20T06:02:00.000000Z"),
-             "ssvid": u"338013000"}
+             "ssvid": u"338013000", 'type' : 'AIS.1'}
         ]
         segments_in = segments_out
         messages_out, segments_out = self._run_segment(messages_in, segments_in, temp_dir=temp_dir)
