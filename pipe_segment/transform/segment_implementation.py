@@ -234,12 +234,13 @@ class SegmentImplementation(object):
 
     def _get_signature(self, seg):
         sig = {}
-        a_types = set(['AIS.1', 'AIS.2', 'AIS.3'])
-        b_types = set(['AIS.18', 'AIS.19'])
+        a_types = {'AIS.1', 'AIS.2', 'AIS.3'}
+        b_types = {'AIS.18', 'AIS.19'}
         a_cnt = b_cnt = 0
         for msg in seg.msgs:
-            a_cnt += msg['type'] in a_types
-            b_cnt += msg['type'] in b_types
+            msg_type = msg.get('type')
+            a_cnt += msg_type in a_types
+            b_cnt += msg_type in b_types
         sig['transponders'] = {'is_A' : a_cnt, 'is_B' : b_cnt}
         self._update_sig_part(sig, seg.msgs, 'shipname', 'shipnames')
         self._update_sig_part(sig, seg.msgs, 'callsign', 'callsigns')
