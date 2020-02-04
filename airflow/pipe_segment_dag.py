@@ -77,7 +77,7 @@ class PipeSegmentDagFactory(DagFactory):
                 bash_command='{docker_run} {docker_image} segment_identity_daily '
                              '{date_range} '
                              '{project_id}:{pipeline_dataset}.{messages_table} '
-                             '{project_id}:{pipeline_dataset}.{segments_table} '
+                             '{project_id}:{pipeline_dataset}.{legacy_segment_v1_table} '
                              '{project_id}:{pipeline_dataset}.{segment_identity_daily_table} '.format(**config)
             )
     

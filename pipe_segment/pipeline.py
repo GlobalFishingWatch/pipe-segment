@@ -257,6 +257,7 @@ def run(options):
     else:
         success_states.add(PipelineState.RUNNING)
         success_states.add(PipelineState.UNKNOWN)
+        success_states.add(PipelineState.PENDING)
 
     logging.info('returning with result.state=%s' % result.state)
     return 0 if result.state in success_states else 1
