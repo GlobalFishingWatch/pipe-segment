@@ -38,6 +38,8 @@ def offset_timestamp(ts, **timedelta_args):
     dt = datetimeFromTimestamp(ts) + timedelta(**timedelta_args)
     return timestampFromDatetime(dt)
 
+def is_first_batch(pipeline_start_ts, first_date_ts):
+    return pipeline_start_ts == first_date_ts
 
 def filter_by_ssvid_predicate(obj, ssvid_kkdict):
     return obj['ssvid'] in ssvid_kkdict
@@ -66,7 +68,9 @@ class SegmentPipeline:
         # reading from bigquery, so only do this once.
         if not self._message_source_list:
             first_date_ts, last_date_ts = self.date_range
-            first_date_ts = offset_timestamp(first_date_ts, days=-PAD_PREV_DAYS)
+            #If the first_date_ts is the first day of data, then, don't look back
+            if not is_first_batch(as_timestamp(self.options.pipeline_start_date),first_date_ts):
+                first_date_ts = offset_timestamp(first_date_ts, days=-PAD_PREV_DAYS)
             if self.options.look_ahead:
                 last_date_ts = offset_timestamp(last_date_ts, days=self.options.look_ahead)
             gcp_paths = self.options.source.split(',')
