@@ -60,24 +60,40 @@ class StitcherImplementation(object):
 
         # Add track counts 
 
+        def assert_sorted_by_date(segments):
+            if not segments:
+                return
+            last = segments[0]['timestamp'].date()
+            for x in segments[1:]:
+                current = x['timestamp'].date()
+                assert current > last
+                last = current
+
+        MAX_LOOKBACK = 90
+        # Rather than do this day, by day, make a max lookahead and pass everything to stitcher
+
         while start_date <= self.end_date:
             end_date = start_date + DT.timedelta(days=self.look_ahead)
             # 
             pruned_tracks = []
             for track in raw_tracks:
-                # TODO: use bisect to prune in log time
                 new_track = [x for x in track if x['timestamp'].date() < start_date]
                 if new_track:
                     pruned_tracks.append(new_track)
-            # Look back 365 days eventually.
             # # Prune segments
-            # # TODO: use bisect to prune in log time
             track_sigs = stitcher.find_track_signatures(start_date, pruned_tracks, segments)
             # for i, seg in enumerate(segments):
             #     if seg['timestamp'].date() >= start_date:
             #         break
             # segments = segments[i:]
             # Only keep segments up to lookahead forward
+            first_seg_date = start_date - DT.timedelta(MAX_LOOKBACK)
+            for i, seg in enumerate(segments):
+                if seg['timestamp'].date() >= first_seg_date:
+                    break
+            else:
+                i += 1
+            segments = segments[i:]
             for i, seg in enumerate(segments):
                 if seg['timestamp'].date() > end_date:
                     break
@@ -87,11 +103,13 @@ class StitcherImplementation(object):
             track_iter = stitcher.create_tracks(start_date, pruned_tracks, track_sigs, segments[:i])
             # Condense tracks
             raw_tracks = []
-            for raw_track, ndx in track_iter:
+            for raw_track, ndx, status in track_iter:
                 track = [x['aug_seg_id'] for x in raw_track]
                 track_id = track[0]
                 yield {'ssvid' : ssvid, 'track_id' : track_id, 'index': ndx,
                        'timestamp' : self._as_datetime(start_date), 'seg_ids' : track}
-                raw_tracks.append(raw_track)
+                # TODO: status should be added to stored tracks and dealt with on input
+                if status == 'active':
+                    raw_tracks.append(raw_track)
             start_date += DT.timedelta(days=1)
 

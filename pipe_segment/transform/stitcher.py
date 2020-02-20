@@ -112,6 +112,25 @@ class Stitch(PTransform):
         add_field('timestamp', "TIMESTAMP")
         add_field('seg_ids', 'STRING', mode='REPEATED')
 
+        def add_sig_field(name):
+            field = bigquery.TableFieldSchema()
+            field.name = name
+            field.type = "RECORD"
+            field.mode = "REPEATED"
+            f1 = bigquery.TableFieldSchema()
+            f1.name = 'value'
+            f1.type = 'STRING'
+            f2 =  bigquery.TableFieldSchema()
+            f2.name = 'count'
+            f2.type = 'INTEGER'
+            field.fields = [f1, f2]
+            schema.fields.append(field)
+
+        add_sig_field('shipnames')
+        add_sig_field('callsigns')
+        add_sig_field('imos')
+        add_sig_field('transponders')
+
         return schema
 
 

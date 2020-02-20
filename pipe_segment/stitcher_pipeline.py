@@ -101,6 +101,8 @@ class StitcherPipeline:
         # reading from bigquery, so only do this once.
         if not self._segment_source_list:
             first_date_ts, last_date_ts = self.date_range
+            # TODO: first date should look back N-days and that should be passed to 
+            # stitcher implementation as MAX_LOOKBACK
             last_date_ts = offset_timestamp(last_date_ts, days=self.options.look_ahead)
 
             gcp_paths = self.options.seg_source.split(',')
@@ -128,6 +130,7 @@ class StitcherPipeline:
         pipeline = beam.Pipeline(options=self.options)
         track_sink = self.track_sink(stitcher.track_schema, 
                                      self.options.track_dest)
+        black_list = set([x.strip() for x in self.options.black_list.split(',')])
 
         segments = (
             self.segment_sources(pipeline) 
@@ -143,6 +146,7 @@ class StitcherPipeline:
         args = (
             {'segments' : segments, 'tracks' : tracks}
             | 'GroupByKey' >> beam.CoGroupByKey()
+            | 'FilterBlacklist' >> beam.Filter(lambda x: x[0] not in black_list)
         )
 
         (
