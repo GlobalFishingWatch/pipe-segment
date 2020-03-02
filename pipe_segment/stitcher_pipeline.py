@@ -20,6 +20,7 @@ from pipe_segment.transform.stitcher import Stitch
 from pipe_segment.transform.normalize import NormalizeDoFn
 from pipe_segment.io.gcp import GCPSource
 from pipe_segment.io.gcp import GCPSink
+from pipe_segment.transform.segment import Segment
 
 
 def safe_dateFromTimestamp(ts):
@@ -36,6 +37,10 @@ def offset_timestamp(ts, **timedelta_args):
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
     return list(map(as_timestamp, s.split(',')) if s is not None else (None, None))
+
+def is_closed_in_date_range(seg, date_range):
+    start, end = date_range
+    return (seg['closed'] and start <= seg['timestamp'] <= end)
 
 
 class StitcherPipeline:
@@ -74,6 +79,10 @@ class StitcherPipeline:
             raise
         return source
 
+    @property
+    def segment_schema(self):
+        return Segment().segment_schema
+    
 
     @property
     def track_source(self):
@@ -95,6 +104,8 @@ class StitcherPipeline:
                 raise
         return source
 
+
+
     @property
     def segment_source_list(self):
         # creating a GCPSource requires calls to the bigquery API if we are
@@ -104,6 +115,9 @@ class StitcherPipeline:
             # TODO: first date should look back N-days and that should be passed to 
             # stitcher implementation as MAX_LOOKBACK
             last_date_ts = offset_timestamp(last_date_ts, days=self.options.look_ahead)
+            # TODO: can we use offset_timestamp with negative days here?
+            # dt = datetimeFromTimestamp(first_date_ts)
+            # first_date_ts = timestampFromDatetime(dt - timedelta(days=1))
 
             gcp_paths = self.options.seg_source.split(',')
             self._segment_source_list = []
@@ -121,6 +135,18 @@ class StitcherPipeline:
 
         return (compose (idx, source) for idx, source in enumerate(self.segment_source_list))
 
+    @property
+    def closed_segment_source(self):
+        return GCPSource(gcp_path=self.options.closed_seg_table)
+
+    @property
+    def closed_segment_sink(self):
+        assert self.options.closed_seg_table.startswith('bq://')
+        table = self.options.closed_seg_table[5:]
+        return beam.io.WriteToBigQuery(table=table, 
+                                          schema=self.segment_schema,
+                                          write_disposition='WRITE_APPEND')
+
     def pipeline(self):
         stitcher = Stitch(start_date=safe_dateFromTimestamp(self.date_range[0]),
                           end_date=safe_dateFromTimestamp(self.date_range[1]),
@@ -132,11 +158,14 @@ class StitcherPipeline:
                                      self.options.track_dest)
         black_list = set([x.strip() for x in self.options.black_list.split(',')])
 
+
+
         segments = (
             self.segment_sources(pipeline) 
             | "MergeSegments" >> beam.Flatten()
             | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
-        )
+            )
+
         tracks = (
             pipeline
             | "ReadTracks" >> self.track_source

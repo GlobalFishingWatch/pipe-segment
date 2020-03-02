@@ -48,7 +48,7 @@ class Stitch(PTransform):
     @staticmethod
     def _convert_track_in(track):
         track = dict(track.items())
-        for k in ['timestamp']:
+        for k in ['timestamp', 'last_msg_timestamp']:
             if track[k] is not None:
                 track[k] = datetimeFromTimestamp(track[k])
         return track
@@ -56,7 +56,7 @@ class Stitch(PTransform):
     @staticmethod
     def _convert_track_out(track):
         track = dict(track.items())
-        for k in ['timestamp']:
+        for k in ['timestamp', 'last_msg_timestamp']:
             if track[k] is not None:
                 track[k] = timestampFromDatetime(track[k])
         return track
@@ -80,10 +80,11 @@ class Stitch(PTransform):
 
         """
         ssvid, track_segment_map = kv
-        tracks = track_segment_map['tracks']
+        raw_tracks = track_segment_map['tracks']
         raw_segments = track_segment_map['segments']
 
         segments = [self._convert_segment_in(x) for x in raw_segments]
+        tracks = [self._convert_track_in(x) for x in raw_tracks]
 
         logger.debug('Stitching key %r with %s segments', ssvid, len(segments))
 
@@ -111,6 +112,14 @@ class Stitch(PTransform):
         add_field('index', 'INT64')
         add_field('timestamp', "TIMESTAMP")
         add_field('seg_ids', 'STRING', mode='REPEATED')
+        add_field('count', "INT64")
+        add_field('decayed_count', "FLOAT")
+        add_field('is_active', "BOOLEAN")
+        add_field('last_msg_timestamp', 'TIMESTAMP', 'REQUIRED')
+        add_field('last_msg_lat', 'FLOAT', 'REQUIRED')
+        add_field('last_msg_lon', 'FLOAT', 'REQUIRED')
+        add_field('last_msg_course', 'FLOAT', 'REQUIRED')
+        add_field('last_msg_speed', 'FLOAT', 'REQUIRED')
 
         def add_sig_field(name):
             field = bigquery.TableFieldSchema()
@@ -122,7 +131,7 @@ class Stitch(PTransform):
             f1.type = 'STRING'
             f2 =  bigquery.TableFieldSchema()
             f2.name = 'count'
-            f2.type = 'INTEGER'
+            f2.type = 'FLOAT'
             field.fields = [f1, f2]
             schema.fields.append(field)
 
