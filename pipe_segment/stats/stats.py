@@ -3,12 +3,13 @@ import numpy as np
 import itertools as it
 from collections import defaultdict
 from collections import Counter
+from six.moves import map as imap
 
 
 def dict_subset(d, fields):
     # return a subset of the provided dict containing only the
     # fields specified in fields
-    return {k: v for k, v in d.iteritems() if k in fields and v is not None}
+    return {k: d[k] for k in d if k in fields and d[k] is not None}
 
 
 class MessageFieldCounter:
@@ -68,7 +69,7 @@ class MessageStats():
 
         self.counter = MessageFieldCounter(messages, frequency_fields)
         messages = self.counter.process()
-        messages = it.imap(dict_subset, messages, it.repeat(numeric_fields))
+        messages = imap(dict_subset, messages, it.repeat(numeric_fields))
         # DataFrame won't take an iterator, but it will take a generator
         messages = (m for m in messages)
         self.df = pd.DataFrame(messages)

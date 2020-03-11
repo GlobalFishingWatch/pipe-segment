@@ -3,7 +3,6 @@ import apache_beam as beam
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 
 from pipe_tools.coders import JSONDictCoder
-from pipe_tools.coders import ReadAsJSONDict
 from pipe_tools.timestamp import ParseBeamBQStrTimestampDoFn
 from pipe_tools.io.bigquery import QueryHelper
 from pipe_tools.io import WriteToBigQueryDatePartitioned

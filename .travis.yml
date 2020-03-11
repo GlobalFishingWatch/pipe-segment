@@ -11,6 +11,7 @@ cache:
 
 python:
 - 2.7
+- 3.7
 
 install:
 - docker volume create --name=gcp

@@ -15,16 +15,45 @@ from pipe_tools.timestamp import timestampFromDatetime
 from pipe_tools.utils.timestamp import as_timestamp
 from pipe_tools.io.bigquery import parse_table_schema
 
-from pipe_segment.options import SegmentOptions
-from pipe_segment.transform import Segment
-from pipe_segment.transform import NormalizeDoFn
+from pipe_segment.options.segment import SegmentOptions
+from pipe_segment.transform.segment import Segment
+from pipe_segment.transform.normalize import NormalizeDoFn
 from pipe_segment.io.gcp import GCPSource
 from pipe_segment.io.gcp import GCPSink
 
+PAD_PREV_DAYS = 1
+
+def safe_dateFromTimestamp(ts):
+    if ts is None:
+        return None
+    return datetimeFromTimestamp(ts).date()
 
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
-    return map(as_timestamp, s.split(',')) if s is not None else (None, None)
+    return list(map(as_timestamp, s.split(',')) if s is not None else (None, None))
+
+def offset_timestamp(ts, **timedelta_args):
+    if ts is None:
+        return ts
+    dt = datetimeFromTimestamp(ts) + timedelta(**timedelta_args)
+    return timestampFromDatetime(dt)
+
+def is_first_batch(pipeline_start_ts, first_date_ts):
+    return pipeline_start_ts == first_date_ts
+
+def filter_by_ssvid_predicate(obj, ssvid_kkdict):
+    return obj['ssvid'] in ssvid_kkdict
+
+class FilterBySsvid(beam.PTransform):
+
+    def __init__(self, ssvid_iter):
+        self.ssvid_iter = ssvid_iter
+
+    def expand(self, xs):
+        ssvid = set(self.ssvid_iter)
+        return (
+            xs | beam.Filter(self.segment, lambda x: x['ssvid'] in ssvid)
+        )
 
 
 class SegmentPipeline:
@@ -39,6 +68,11 @@ class SegmentPipeline:
         # reading from bigquery, so only do this once.
         if not self._message_source_list:
             first_date_ts, last_date_ts = self.date_range
+            #If the first_date_ts is the first day of data, then, don't look back
+            if not is_first_batch(as_timestamp(self.options.pipeline_start_date),first_date_ts):
+                first_date_ts = offset_timestamp(first_date_ts, days=-PAD_PREV_DAYS)
+            if self.options.look_ahead:
+                last_date_ts = offset_timestamp(last_date_ts, days=self.options.look_ahead)
             gcp_paths = self.options.source.split(',')
             self._message_source_list = []
             for gcp_path in gcp_paths:
@@ -104,17 +138,12 @@ class SegmentPipeline:
         return self.options.view_as(GoogleCloudOptions).temp_location
 
     @staticmethod
-    def ssvid_to_str(msg):
-        msg['ssvid'] = str(msg['ssvid'])
-        return msg
-
-    @staticmethod
     def groupby_fn(msg):
         return (msg['ssvid'], msg)
 
     @property
     def message_sink(self):
-        sink = GCPSink(gcp_path=self.options.dest,
+        sink = GCPSink(gcp_path=self.options.msg_dest,
                        schema=self.message_output_schema,
                        temp_gcs_location=self.temp_gcs_location,
                        temp_shards_per_day=self.options.temp_shards_per_day)
@@ -129,48 +158,72 @@ class SegmentPipeline:
         ts = timestampFromDatetime(dt - timedelta(days=1))
 
         try:
-            source = GCPSource(gcp_path=self.options.segments,
+            source = GCPSource(gcp_path=self.options.seg_dest,
                              first_date_ts=ts,
                              last_date_ts=ts)
         except HttpError as exn:
-            logging.warn("Segment source not found: %s %s" % (self.options.segments, dt))
+            logging.warn("Segment source not found: %s %s" % (self.options.seg_dest, dt))
             if exn.status_code == 404:
                 return beam.Create([])
             else:
                 raise
         return source
 
-    def segment_sink(self, schema):
-        sink = GCPSink(gcp_path=self.options.segments,
+    def segment_sink(self, schema, table):
+        sink = GCPSink(gcp_path=table,
                        schema=schema,
-                       temp_gcs_location=self.temp_gcs_location)
+                       temp_gcs_location=self.temp_gcs_location,
+                       temp_shards_per_day=self.options.temp_shards_per_day)
         return sink
 
 
     def pipeline(self):
+        # Note that Beam appears to treat str(x) and unicode(x) as distinct
+        # for purposes of CoGroupByKey, so both messages and segments should be
+        # stringified or neither. 
         pipeline = beam.Pipeline(options=self.options)
-        messages = self.message_sources(pipeline)
         messages = (
-            messages
+            self.message_sources(pipeline)
             | "MergeMessages" >> beam.Flatten()
-            | "MessagesSsvid2Str" >> beam.Map(self.ssvid_to_str)
+        )
+
+        if self.options.ssvid_filter_query:
+            target_ssvid = beam.pvalue.AsDict(
+                messages
+                | GCPSource(gcp_path=self.options.ssvid_filter_query)
+                | beam.Map(lambda x: (x['ssvid'], x['ssvid']))
+                )
+            messages = (
+                messages
+                | beam.Filter(filter_by_ssvid_predicate, target_ssvid)
+            )
+
+        messages = (   
+            messages
             | "Normalize" >> beam.ParDo(NormalizeDoFn())
             | "MessagesAddKey" >> beam.Map(self.groupby_fn)
-            | "MessagesGroupByKey" >> beam.GroupByKey()
         )
 
         segments = (
             pipeline
             | "ReadSegments" >> self.segment_source
+            | "RemoveClosedSegments" >> beam.Filter(lambda x: not x['closed'])
             | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
-            | "SegmentsGroupByKey" >> beam.GroupByKey()
         )
 
-        segmenter = Segment(segments, segmenter_params=self.segmenter_params)
-        segmented = messages | "Segment" >> segmenter
+        args = (
+            {'messages' : messages, 'segments' : segments}
+            | 'GroupByKey' >> beam.CoGroupByKey()
+        )
 
-        messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
-        segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
+        segmenter = Segment(start_date=safe_dateFromTimestamp(self.date_range[0]),
+                            end_date=safe_dateFromTimestamp(self.date_range[1]),
+                            segmenter_params=self.segmenter_params, 
+                            look_ahead=self.options.look_ahead)
+        segmented = args | "Segment" >> segmenter
+
+        messages = segmented[segmenter.OUTPUT_TAG_MESSAGES]
+        segments = segmented[segmenter.OUTPUT_TAG_SEGMENTS]
         (
             messages
             | "TimestampMessages" >> beam.ParDo(TimestampedValueDoFn())
@@ -179,8 +232,17 @@ class SegmentPipeline:
         (
             segments
             | "TimestampSegments" >> beam.ParDo(TimestampedValueDoFn())
-            | "WriteSegments" >> self.segment_sink(segmenter.segment_schema)
+            | "WriteSegments" >> self.segment_sink(segmenter.segment_schema, 
+                                                   self.options.seg_dest)
         )
+        if self.options.legacy_seg_v1_dest:
+            segments_v1 = segmented[segmenter.OUTPUT_TAG_SEGMENTS_V1]
+            (
+                segments_v1
+                | "TimestampOldSegments" >> beam.ParDo(TimestampedValueDoFn())
+                | "WriteOldSegments" >> self.segment_sink(segmenter.segment_schema_v1, 
+                                                       self.options.legacy_seg_v1_dest)
+            )
         return pipeline
 
     def run(self):
@@ -194,11 +256,12 @@ def run(options):
 
     success_states = set([PipelineState.DONE])
 
-    if pipeline.options.wait or options.view_as(StandardOptions).runner == 'DirectRunner':
+    if pipeline.options.wait_for_job or options.view_as(StandardOptions).runner == 'DirectRunner':
         result.wait_until_finish()
     else:
         success_states.add(PipelineState.RUNNING)
         success_states.add(PipelineState.UNKNOWN)
+        success_states.add(PipelineState.PENDING)
 
     logging.info('returning with result.state=%s' % result.state)
     return 0 if result.state in success_states else 1

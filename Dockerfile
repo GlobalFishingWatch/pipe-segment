@@ -1,4 +1,4 @@
-FROM python:2.7
+FROM python:3.7
 
 # Configure the working directory
 RUN mkdir -p /opt/project
@@ -31,7 +31,9 @@ VOLUME ["/root/.config"]
 
 # Setup local application dependencies
 COPY . /opt/project
-RUN pip install  --process-dependency-links -e .
+RUN pip install cython
+RUN pip install -r requirements.txt
+RUN pip install -e .
 
 # Setup the entrypoint for quickly executing the pipelines
 ENTRYPOINT ["scripts/run.sh"]

@@ -53,9 +53,11 @@ class PipeSegmentDagFactory(DagFactory):
                     command='{docker_run} {docker_image} segment'.format(**config),
                     startup_log_file=pp.join(Variable.get('DATAFLOW_WRAPPER_LOG_PATH'), 'pipe_segment/segment.log'),
                     date_range='{date_range}'.format(**config),
+                    pipeline_start_date=Variable.get('PIPELINE_START_DATE'),
                     source=','.join(source_paths),
-                    dest='bq://{project_id}:{pipeline_dataset}.{messages_table}'.format(**config),
-                    segments='bq://{project_id}:{pipeline_dataset}.{segments_table}'.format(**config),
+                    msg_dest='bq://{project_id}:{pipeline_dataset}.{messages_table}'.format(**config),
+                    legacy_seg_v1_dest='bq://{project_id}:{pipeline_dataset}.{legacy_segment_v1_table}'.format(**config),
+                    seg_dest='bq://{project_id}:{pipeline_dataset}.{segments_table}'.format(**config),
                     temp_shards_per_day="200",
                     runner='{dataflow_runner}'.format(**config),
                     project=config['project_id'],
@@ -76,7 +78,7 @@ class PipeSegmentDagFactory(DagFactory):
                 bash_command='{docker_run} {docker_image} segment_identity_daily '
                              '{date_range} '
                              '{project_id}:{pipeline_dataset}.{messages_table} '
-                             '{project_id}:{pipeline_dataset}.{segments_table} '
+                             '{project_id}:{pipeline_dataset}.{legacy_segment_v1_table} '
                              '{project_id}:{pipeline_dataset}.{segment_identity_daily_table} '.format(**config)
             )
     

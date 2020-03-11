@@ -31,13 +31,17 @@ class SegmentOptions(PipelineOptions):
             '--date_range',
             help='Range of dates to read from source. format YYYY-MM-DD,YYYY-MM-DD')
         required.add_argument(
-            '--dest',
+            '--msg_dest',
             required=True,
             help='Bigquery table or file (prefix) to write segmented messages')
         required.add_argument(
-            '--segments',
+            '--seg_dest',
             required=True,
-            help='Bigquery table or file (prefix) to read and write segments')
+            help='Bigquery table or file (prefix) to read and write new (v2) segments')
+        required.add_argument(
+            '--legacy_seg_v1_dest',
+            required=False,
+            help='Bigquery table or file (prefix) to read and write old (v1) segments')
         optional.add_argument(
             '--temp_shards_per_day',
             type=int,
@@ -45,10 +49,19 @@ class SegmentOptions(PipelineOptions):
                  'A good value for this is the max number of workers.  Default %s'
                  % cls.DEFAULT_TEMP_SHARDS_PER_DAY)
         optional.add_argument(
-            '--wait',
+            '--wait_for_job',
             default=False,
             action='store_true',
             help='Wait until the job finishes before returning.')
+        optional.add_argument(
+            '--look_ahead',
+            type=int,
+            default=0,
+            help='How many days to look ahead when performing segmenting 1 or 2 are good choices.'
+            )
+        optional.add_argument(
+            '--pipeline_start_date',
+            help='Firs day of the pipeline data, used to know if we want to exclude the check of pading one day before YYYY-MM-DD')
         optional.add_argument(
             '--segmenter_params',
             help='Pass a json object with parameters to pass to the segmenter, or supply a file name to read with '
@@ -65,3 +78,10 @@ class SegmentOptions(PipelineOptions):
             default="{}",
             action=ReadFileAction,
         )
+        optional.add_argument(
+            '--ssvid_filter_query',
+            help='query that returns a list of ssvid to trim the sourced data down to. Note that '
+                 'the resturned list is used in memory so should not be too large. This meant for '
+                 'testing purposes and if tempted to use for production, more work should be done '
+                 'so that the data is pruned on the way in.'
+            )

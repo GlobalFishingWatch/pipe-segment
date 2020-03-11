@@ -3,7 +3,7 @@ import apache_beam as beam
 from stdnum import imo as imo_validator
 
 from shipdataprocess.normalize import normalize_callsign
-from shipdataprocess.normalize import normalize_shipname_parts
+from shipdataprocess.normalize import normalize_shipname
 
 class NormalizeDoFn(beam.DoFn):
     @staticmethod
@@ -13,7 +13,7 @@ class NormalizeDoFn(beam.DoFn):
             msg['n_'+field] = normalized
 
     def process(self, msg):
-        n_shipname = normalize_shipname_parts(msg.get('shipname'))['basename']
+        n_shipname = normalize_shipname(msg.get('shipname'))
         if n_shipname:
             msg['n_shipname'] = n_shipname
 
