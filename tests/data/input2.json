@@ -1,2 +1,2 @@
-{"ssvid": "4", "timestamp": 5000}
-{"ssvid": "5", "timestamp": 0}
+{"ssvid": "4", "msgid":22, "timestamp": 5000, "type": "AIS.99"}
+{"ssvid": "5", "msgid":23, "timestamp": 0, "type": "AIS.99"}

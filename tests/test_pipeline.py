@@ -16,7 +16,7 @@ from apache_beam import FlatMap
 from pipe_tools.coders import JSONDictCoder
 
 from pipe_segment.__main__ import run as  pipe_segment_run
-from pipe_segment.transform import Segment
+from pipe_segment.transform.segment import Segment
 from pipe_segment.pipeline import SegmentPipeline
 
 
@@ -29,16 +29,21 @@ class TestPipeline():
         args += [
             '--source=%s' % source,
             '--source_schema={"fields": []}',
-            '--dest=%s' % messages_sink,
-            '--segments=%s' % segments_sink,
-            '--wait'
+            '--msg_dest=%s' % messages_sink,
+            '--seg_dest=%s' % segments_sink,
+            '--runner=DirectRunner',
+            '--wait_for_job'
         ]
 
         pipe_segment_run(args)
 
+        def listify(seq):
+            return sorted([sorted(x.items()) for x in seq])
+
         with nlj.open(expected) as expected:
-            with open_shards('%s*' % messages_sink) as output:
-                assert sorted(expected) == sorted(nlj.load(output))
+            with open_shards('%s*' % messages_sink) as raw_output:
+                output = list(nlj.load(raw_output))
+                assert listify(expected) == listify(output)
 
     def test_Pipeline_basic_args(self, test_data_dir, temp_dir):
         source = pp.join(test_data_dir, 'input.json')
@@ -69,12 +74,19 @@ class TestPipeline():
                 p
                 | beam.io.ReadFromText(file_pattern=source, coder=JSONDictCoder())
                 | "MessagesAddKey" >> beam.Map(SegmentPipeline.groupby_fn)
-                | "MessagesGroupByKey" >> beam.GroupByKey()
             )
             segments = p | beam.Create([])
-            segmented = messages | Segment(segments)
 
-            messages = segmented[Segment.OUTPUT_TAG_MESSAGES]
+            args = (
+                {'messages' : messages, 'segments' : segments}
+            |    'GroupByKey' >> beam.CoGroupByKey()
+            )
+
+            segmentizer = Segment(look_ahead=0)
+
+            segmented = args | segmentizer
+
+            messages = segmented[segmentizer.OUTPUT_TAG_MESSAGES]
             (messages
                 | "WriteToMessagesSink" >> beam.io.WriteToText(
                     file_path_prefix=messages_sink,
@@ -83,7 +95,7 @@ class TestPipeline():
                 )
             )
 
-            segments = segmented[Segment.OUTPUT_TAG_SEGMENTS]
+            segments = segmented[segmentizer.OUTPUT_TAG_SEGMENTS]
             (segments
                 | "WriteToSegmentsSink" >> beam.io.WriteToText(
                     file_path_prefix=segments_sink,
@@ -92,16 +104,24 @@ class TestPipeline():
                 )
             )
 
+            def listify(seq):
+                return sorted([sorted(x.items()) for x in seq])
+
             p.run()
-            with nlj.open(expected_messages) as expected:
+
+            with nlj.open(expected_messages) as raw_expected:
+                expected = listify(raw_expected)
                 with open_shards('%s*' % messages_sink) as output:
-                    assert sorted(expected) == sorted(nlj.load(output))
+                    raw_actual = list(nlj.load(output))
+                    actual = listify(raw_actual)
+                    assert expected == actual
 
             with nlj.open(expected_segments) as expected_output:
+                expected = listify(expected_output)
                 with open_shards('%s*' % segments_sink) as actual_output:
-                    for expected, actual in zip(sorted(expected_output, key=lambda x: x['seg_id']),
-                                                sorted(nlj.load(actual_output), key=lambda x: x['seg_id'])):
-                        assert set(expected.items()).issubset(set(actual.items()))
+                    raw_actual = list(nlj.load(actual_output))
+                    actual = listify(raw_actual)
+                    assert expected == actual
 
 
     def test_Pipeline_multiple_source(self, test_data_dir, temp_dir):

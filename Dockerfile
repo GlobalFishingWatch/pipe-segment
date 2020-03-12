@@ -1,16 +1,13 @@
-FROM python:2.7
+FROM python:3.7
 
 # Configure the working directory
 RUN mkdir -p /opt/project
 WORKDIR /opt/project
 
-# Install and update pip
-# Pin the version because pip>=10.0 does not support the --download flag  which is required for dataflow
-RUN pip install -U --ignore-installed pip==9.0.3
-ENV CLOUD_SDK_VERSION 232.0.0
 
 # Download and install google cloud. See the dockerfile at
 # https://hub.docker.com/r/google/cloud-sdk/~/dockerfile/
+ENV CLOUD_SDK_VERSION 268.0.0
 RUN  \
   export CLOUD_SDK_APT_DEPS="curl gcc python-dev python-setuptools apt-transport-https lsb-release openssh-client git" && \
   export CLOUD_SDK_PIP_DEPS="crcmod" && \
@@ -31,7 +28,9 @@ VOLUME ["/root/.config"]
 
 # Setup local application dependencies
 COPY . /opt/project
-RUN pip install  --process-dependency-links -e .
+RUN pip install cython
+RUN pip install -r requirements.txt
+RUN pip install -e .
 
 # Setup the entrypoint for quickly executing the pipelines
 ENTRYPOINT ["scripts/run.sh"]

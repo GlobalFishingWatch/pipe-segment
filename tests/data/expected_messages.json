@@ -1,11 +1,11 @@
-{"ssvid": "1", "timestamp": 0, "seg_id": "1-1970-01-01T00:00:00.000000Z"}
-{"ssvid": "1", "timestamp": 1, "seg_id": "1-1970-01-01T00:00:00.000000Z"}
-{"ssvid": "1", "timestamp": 2, "seg_id": "1-1970-01-01T00:00:00.000000Z"}
-{"ssvid": "2", "timestamp": 0, "seg_id": "2-1970-01-01T00:00:00.000000Z"}
-{"ssvid": "2", "timestamp": 1, "seg_id": "2-1970-01-01T00:00:00.000000Z"}
-{"ssvid": "3", "timestamp": 0, "seg_id": "3-1970-01-01T00:00:00.000000Z"}
-{"ssvid": "4", "timestamp": 0, "seg_id": "4-1970-01-01T00:00:00.000000Z"}
-{"ssvid": "4", "timestamp": 3600, "seg_id": "4-1970-01-01T00:00:00.000000Z"}
-{"ssvid": "4", "timestamp": 7200, "seg_id": "4-1970-01-01T00:00:00.000000Z"}
-{"ssvid": "4", "timestamp": 86400, "seg_id": "4-1970-01-01T00:00:00.000000Z"}
-{"ssvid": "4", "timestamp": 90000, "seg_id": "4-1970-01-01T00:00:00.000000Z"}
+{"ssvid": "1", "type": "AIS.1", "msgid": 1, "timestamp": 0, "lat": 0, "lon": 0, "speed": 0, "course": 0, "seg_id": "1-1970-01-01T00:00:00.000000Z"}
+{"ssvid": "1", "type": "AIS.1", "msgid": 2, "timestamp": 1, "lat": 0, "lon": 0, "speed": 0, "course": 0, "seg_id": "1-1970-01-01T00:00:00.000000Z"}
+{"ssvid": "1", "type": "AIS.1", "msgid": 3, "timestamp": 2, "lat": 0, "lon": 0, "speed": 0, "course": 0, "seg_id": "1-1970-01-01T00:00:00.000000Z"}
+{"ssvid": "2", "type": "AIS.1", "msgid": 4, "timestamp": 0, "lat": 0, "lon": 0, "speed": 0, "course": 0, "seg_id": "2-1970-01-01T00:00:00.000000Z"}
+{"ssvid": "2", "type": "AIS.1", "msgid": 5, "timestamp": 1, "lat": 0, "lon": 0, "speed": 0, "course": 0, "seg_id": "2-1970-01-01T00:00:00.000000Z"}
+{"ssvid": "3", "type": "AIS.1", "msgid": 6, "timestamp": 0, "lat": 0, "lon": 0, "speed": 0, "course": 0, "seg_id": "3-1970-01-01T00:00:00.000000Z"}
+{"ssvid": "4", "type": "AIS.1", "msgid": 7, "timestamp": 0, "lat": 0, "lon": 0, "speed": 0, "course": 0, "seg_id": "4-1970-01-01T00:00:00.000000Z"}
+{"ssvid": "4", "type": "AIS.1", "msgid": 8, "timestamp": 3600, "lat": 0, "lon": 0, "speed": 0, "course": 0, "seg_id": "4-1970-01-01T00:00:00.000000Z"}
+{"ssvid": "4", "type": "AIS.1", "msgid": 9, "timestamp": 7200, "lat": 0, "lon": 0, "speed": 0, "course": 0, "seg_id": "4-1970-01-01T00:00:00.000000Z"}
+{"ssvid": "4", "type": "AIS.1", "msgid": 10, "timestamp": 86400, "lat": 0, "lon": 0, "speed": 0, "course": 0, "seg_id": "4-1970-01-02T00:00:00.000000Z"}
+{"ssvid": "4", "type": "AIS.1", "msgid": 11, "timestamp": 90000, "lat": 0, "lon": 0, "speed": 0, "course": 0, "seg_id": "4-1970-01-02T00:00:00.000000Z"}
