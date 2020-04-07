@@ -58,7 +58,7 @@ class PipeSegmentDagFactory(DagFactory):
                 'pool':'k8operators_limit',
                 'docker_run':'{docker_run}'.format(**config),
                 'image':'{docker_image}'.format(**config),
-                'name':'segment-identity_daily',
+                'name':'segment-identity-daily',
                 'dag':dag,
                 'arguments':['segment_identity_daily',
                              '{date_range}'.format(**config),
