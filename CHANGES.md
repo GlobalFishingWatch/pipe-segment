@@ -12,6 +12,7 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 * [GlobalFishingWatch/gfw-eng-task#48](https://github.com/GlobalFishingWatch/gfw-eng-tasks/issues/48): Changes
     Bash Operator to flexible operator.
+    version to gpsdio-segment:0.20
 
 ## v3.0.1 - 2020-04-07
 
