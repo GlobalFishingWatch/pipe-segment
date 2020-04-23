@@ -6,6 +6,14 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v3.0.4 - 2020-06-18
+
+### Changed
+
+* [GlobalFishingWatch/gfw-eng-task#56](https://github.com/GlobalFishingWatch/gfw-eng-tasks/issues/56): Changes
+    the use of the Airflow Variables `PIPELINE_START_DATE` to the value
+    that is stored in `defaults_args` as `start_date`.
+
 ## v3.0.3 - 2020-06-11
 
 ### Changed
