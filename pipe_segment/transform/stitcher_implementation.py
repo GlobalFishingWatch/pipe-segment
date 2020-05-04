@@ -20,7 +20,7 @@ AugSegmentState = namedtuple('AugSegmentState',
     ['id', 'aug_id', 'ssvid', 'timestamp',
      'first_msg', 'last_msg', 'first_msg_of_day',  'last_msg_of_day', 
      'msg_count', 'noise', 'closed',
-     'transponders', 'shipnames', 'callsigns', 'imos'])
+     'transponders', 'shipnames', 'callsigns', 'imos', 'daily_msg_count'])
 
 PlaceHoldderSegmentState = namedtuple('PlaceHoldderSegmentState', 
         ['id', 'aug_id', 'timestamp', 'last_msg_of_day'])
@@ -48,10 +48,10 @@ class StitcherImplementation(object):
             speed = seg_record[prefix + 'speed']
         )
 
-    def _as_imutable_sig(self, sig, scale):
+    def _as_imutable_sig(self, sig):
         pairs = []
         for mapping in sig:
-            pairs.append((mapping['value'], mapping['count'] / scale))
+            pairs.append((mapping['value'], mapping['count']))
         return tuple(pairs)
 
     def _to_value_count(self, mapping):
@@ -81,18 +81,15 @@ class StitcherImplementation(object):
                             last_msg = last_msg,
                             first_msg_of_day = first_msg_of_day,
                             last_msg_of_day = last_msg_of_day,
-                            transponders = self._as_imutable_sig(seg_record['transponders'], count),
-                            shipnames = self._as_imutable_sig(seg_record['shipnames'], count),
-                            callsigns = self._as_imutable_sig(seg_record['callsigns'], count),
-                            imos = self._as_imutable_sig(seg_record['imos'], count)
+                            transponders = self._as_imutable_sig(seg_record['transponders']),
+                            shipnames = self._as_imutable_sig(seg_record['shipnames']),
+                            callsigns = self._as_imutable_sig(seg_record['callsigns']),
+                            imos = self._as_imutable_sig(seg_record['imos']),
+                            daily_msg_count = None,
                             ) 
 
 
     def reconstitute_tracks(self, tracks, segments):
-        # TODO: pull one extra day of segments and compute differential signatures
-        # TODO: actually EWMA would be better but would have to happen in segmenter
-        # TODO: so not right now. For now, just use average value
-        # TODO: So, value / count
         seg_map = {x.aug_id : x for x in segments}
         for raw_track in tracks:
             reconst = []
@@ -120,6 +117,20 @@ class StitcherImplementation(object):
     def _as_datetime(x):
         return DT.datetime.combine(x, DT.time()).replace(tzinfo=pytz.utc)
 
+    def prepare_segments(self, segments):
+        segments= sorted(segments, key=lambda x: (x.id, x.timestamp))
+        start_datetime = self._as_datetime(self.start_date)
+        current_id = None
+        for seg in segments:
+            if seg.id != current_id:
+                last_count = 0
+                current_id = seg.id
+            seg = seg._replace(daily_msg_count=seg.msg_count - last_count)
+            last_count = seg.msg_count
+            if seg.timestamp >= start_datetime:
+                yield seg
+
+
     def stitch(self, ssvid, tracks, seg_records):
         stitcher = Stitcher(**self.stitcher_params)
         start_datetime = self._as_datetime(self.start_date)
@@ -134,8 +145,9 @@ class StitcherImplementation(object):
                 aug_ids.add(seg.aug_id)
 
         initial_tracks = list(self.reconstitute_tracks(tracks, segments))
-        # Assure segments sorted to simplify pruning
-        segments= sorted(segments, key=lambda x: x.timestamp)
+        # Prepare segments and then e-sort just by timestamps
+        segments= sorted(self.prepare_segments(segments), key=lambda x: x.timestamp)
+
         initial_track_ids = {track.id for track in initial_tracks}
 
         track_iter = stitcher.create_tracks(start_datetime, initial_tracks, segments)
@@ -151,13 +163,19 @@ class StitcherImplementation(object):
             else:
                 emit_datetime = max(self._as_datetime(all_segments[0].timestamp.date()), start_datetime)
 
+            cur_sig = None
+
             while emit_datetime.date() <= self.end_date:
                 segments = [x for x in all_segments if 
                                 x.timestamp and x.timestamp.date() <= emit_datetime.date()]
                 seg_ids = [x.aug_id for x in segments]
                 last_msg = segments[-1].last_msg_of_day
                 assert last_msg is not None
+
                 if seg_ids:
+
+                    cur_sig = track.historical_signatures.get(emit_datetime.date(), cur_sig)
+
                     yield {'ssvid' : ssvid, 
                            'track_id' : track.id, 
                            'index': ndx,
@@ -171,10 +189,10 @@ class StitcherImplementation(object):
                            'last_msg_lon' : last_msg.lon,
                            'last_msg_course' : last_msg.course, 
                            'last_msg_speed' : last_msg.speed,
-                           'transponders' : self._to_value_count(track.signature.transponders),
-                           'shipnames' : self._to_value_count(track.signature.shipnames),
-                           'callsigns' : self._to_value_count(track.signature.callsigns),
-                           'imos' : self._to_value_count(track.signature.imos)
+                           'transponders' : self._to_value_count(cur_sig.transponders),
+                           'shipnames' : self._to_value_count(cur_sig.shipnames),
+                           'callsigns' : self._to_value_count(cur_sig.callsigns),
+                           'imos' : self._to_value_count(cur_sig.imos),
                            }
                 emit_datetime += DT.timedelta(days=1)
 

@@ -144,14 +144,14 @@ class SegmentImplementation(object):
                 'course' : seg_record['last_msg_of_day_course'],
                 'speed' : seg_record['last_msg_of_day_speed']
             }
-        def record2signature(name):
-            return {d['value'] : d['count'] for d in seg_record[name]}
-        signature = {
-            'shipnames' : record2signature('shipnames'),
-            'callsigns' : record2signature('callsigns'),
-            'imos' : record2signature('imos'),
-            'transponders' : record2signature('transponders'),
-        }
+        # def record2signature(name):
+        #     return {d['value'] : d['count'] for d in seg_record[name]}
+        # signature = {
+        #     'shipnames' : record2signature('shipnames'),
+        #     'callsigns' : record2signature('callsigns'),
+        #     'imos' : record2signature('imos'),
+        #     'transponders' : record2signature('transponders'),
+        # }
         return SegmentState(id = seg_record['seg_id'],
                             noise = False,
                             closed = seg_record['closed'],
@@ -232,12 +232,14 @@ class SegmentImplementation(object):
         sig[outer_key] = dict(counter)
 
 
-    def _get_signature(self, seg):
+    def _get_signature(self, seg, date):
         sig = {}
         a_types = {'AIS.1', 'AIS.2', 'AIS.3'}
         b_types = {'AIS.18', 'AIS.19'}
         a_cnt = b_cnt = 0
         for msg in seg.msgs:
+            if msg.timestamp.date() != date:
+                continue
             msg_type = msg.get('type')
             a_cnt += msg_type in a_types
             b_cnt += msg_type in b_types
@@ -296,11 +298,12 @@ class SegmentImplementation(object):
                     seg.msgs = [x for x in seg.msgs if x['timestamp'].date() <= date]
                     if seg.msgs or seg.prev_state:
                         logger.debug('Segmenting key %r yielding segment %s containing %s messages ' % (seg.ssvid, seg.id, len(seg)))
-                        signature = self._get_signature(seg)
+                        signature = self._get_signature(seg, date)
                         rcd = self._segment_record(seg.state, seg.msgs, timestamp, signature)
                         rcd['closed'] = is_closed
                         output_rcd = rcd.copy()
                         output_rcd['timestamp'] = timestamp
+                        # TODO: also output dated_seg_id == aug_seg_id
                         yield (self.OUTPUT_TAG_SEGMENTS_V1, self._as_record_v1(output_rcd))
                         # Only store new style records, so that we get the ~same code path
                         # running over multiple days as running over a single day.

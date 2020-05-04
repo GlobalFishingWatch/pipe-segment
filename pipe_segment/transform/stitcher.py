@@ -41,7 +41,11 @@ class Stitch(PTransform):
         for k in ['timestamp', 'first_msg_timestamp', 'last_msg_timestamp',
                     'first_msg_of_day_timestamp', 'last_msg_of_day_timestamp']:
             if seg[k] is not None:
-                seg[k] = datetimeFromTimestamp(seg[k])
+                try:
+                    seg[k] = datetimeFromTimestamp(seg[k])
+                except:
+                    raise ValueError('could not convert {} = {} to datetime'.format(
+                        k, seg[k]))
         return seg
 
 
@@ -50,7 +54,11 @@ class Stitch(PTransform):
         track = dict(track.items())
         for k in ['timestamp', 'last_msg_timestamp']:
             if track[k] is not None:
-                track[k] = datetimeFromTimestamp(track[k])
+                try:
+                    track[k] = datetimeFromTimestamp(track[k])
+                except:
+                    raise ValueError('could not convert {} = {} to datetime'.format(
+                        k, seg[k]))
         return track
 
     @staticmethod

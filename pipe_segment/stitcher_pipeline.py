@@ -38,10 +38,6 @@ def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
     return list(map(as_timestamp, s.split(',')) if s is not None else (None, None))
 
-def is_closed_in_date_range(seg, date_range):
-    start, end = date_range
-    return (seg['closed'] and start <= seg['timestamp'] <= end)
-
 
 class StitcherPipeline:
     def __init__(self, options):
@@ -112,12 +108,9 @@ class StitcherPipeline:
         # reading from bigquery, so only do this once.
         if not self._segment_source_list:
             first_date_ts, last_date_ts = self.date_range
-            # TODO: first date should look back N-days and that should be passed to 
-            # stitcher implementation as MAX_LOOKBACK
             last_date_ts = offset_timestamp(last_date_ts, days=self.options.look_ahead)
-            # TODO: can we use offset_timestamp with negative days here?
-            # dt = datetimeFromTimestamp(first_date_ts)
-            # first_date_ts = timestampFromDatetime(dt - timedelta(days=1))
+            # We look back 1 day so that we can extract the new counts on each day
+            first_date_ts = offset_timestamp(first_date_ts, days=-1)
 
             gcp_paths = self.options.seg_source.split(',')
             self._segment_source_list = []
@@ -135,17 +128,6 @@ class StitcherPipeline:
 
         return (compose (idx, source) for idx, source in enumerate(self.segment_source_list))
 
-    @property
-    def closed_segment_source(self):
-        return GCPSource(gcp_path=self.options.closed_seg_table)
-
-    @property
-    def closed_segment_sink(self):
-        assert self.options.closed_seg_table.startswith('bq://')
-        table = self.options.closed_seg_table[5:]
-        return beam.io.WriteToBigQuery(table=table, 
-                                          schema=self.segment_schema,
-                                          write_disposition='WRITE_APPEND')
 
     def pipeline(self):
         stitcher = Stitch(start_date=safe_dateFromTimestamp(self.date_range[0]),
