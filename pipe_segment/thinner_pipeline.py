@@ -153,7 +153,6 @@ class StitcherPipeline:
                        write_disposition="WRITE_TRUNCATE")
         return sink
 
-
     def thin_tracks(self, item):
         track_id, messages = item
         messages = sorted(messages, key=lambda x: x['timestamp'])

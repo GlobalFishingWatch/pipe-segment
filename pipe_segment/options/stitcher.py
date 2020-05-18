@@ -42,6 +42,11 @@ class StitcherOptions(PipelineOptions):
             '--look_ahead', default=7, type=int,
             help="Maximum number of days to look_ahead when stitching")
         optional.add_argument(
+            '--look_back', default=7, type=int,
+            help="Maximum number of days to look_back when stitching. This is needed because"
+                 "not all daily info is currently available in segments so we have to compute"
+                 "some of it by differencing")
+        optional.add_argument(
             '--black_list', default='',
             help="comma separated list of ssvid to exclude")
         optional.add_argument(

@@ -5,11 +5,8 @@ import logging
 import six
 import pytz
 
-import apache_beam as beam
 from apache_beam import PTransform
 from apache_beam import FlatMap
-from apache_beam.pvalue import AsDict
-from apache_beam.pvalue import TaggedOutput
 from apache_beam.io.gcp.internal.clients import bigquery
 
 from pipe_tools.timestamp import datetimeFromTimestamp
@@ -27,12 +24,10 @@ class Stitch(PTransform):
     def __init__(self, 
                  start_date,
                  end_date,
-                 look_ahead,
                  stitcher_params=None, 
                  **kwargs):
         super(Stitch, self).__init__(**kwargs)
-        self._stitcher = StitcherImplementation(start_date, end_date, look_ahead, 
-                                                stitcher_params)
+        self._stitcher = StitcherImplementation(start_date, end_date, stitcher_params)
 
 
     @staticmethod
@@ -128,6 +123,7 @@ class Stitch(PTransform):
         add_field('last_msg_lon', 'FLOAT', 'REQUIRED')
         add_field('last_msg_course', 'FLOAT', 'REQUIRED')
         add_field('last_msg_speed', 'FLOAT', 'REQUIRED')
+        add_field('is_noise', 'BOOLEAN', 'REQUIRED')
 
         def add_sig_field(name):
             field = bigquery.TableFieldSchema()

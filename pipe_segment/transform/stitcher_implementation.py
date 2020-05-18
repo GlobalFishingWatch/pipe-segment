@@ -22,7 +22,7 @@ AugSegmentState = namedtuple('AugSegmentState',
      'msg_count', 'noise', 'closed',
      'transponders', 'shipnames', 'callsigns', 'imos', 'daily_msg_count'])
 
-PlaceHoldderSegmentState = namedtuple('PlaceHoldderSegmentState', 
+PlaceHolderSegmentState = namedtuple('PlaceHolderSegmentState', 
         ['id', 'aug_id', 'timestamp', 'last_msg_of_day'])
 
 
@@ -31,11 +31,9 @@ class StitcherImplementation(object):
     def __init__(self,
                  start_date = None,
                  end_date = None,
-                 look_ahead = 7,
                  stitcher_params = None):
         self.start_date = start_date
         self.end_date = end_date
-        self.look_ahead = look_ahead
         self.stitcher_params = stitcher_params or {}
 
     def _build_message(self, seg_record, prefix):
@@ -89,33 +87,25 @@ class StitcherImplementation(object):
                             ) 
 
 
-    def reconstitute_tracks(self, tracks, segments):
-        seg_map = {x.aug_id : x for x in segments}
+    def reconstitute_tracks(self, tracks):
         for raw_track in tracks:
-            reconst = []
-            for aug_id in raw_track['seg_ids']:
-                if aug_id not in seg_map:
-                    id_, year, month, day = aug_id.rsplit('-', 3)
-                    year, month, day = (int(x) for x in [year, month, day])
-                    # Use the start of the day as the timestamp for missing tracks
-                    timestamp = DT.datetime(year, month, day)
-                    seg_map[aug_id] = PlaceHoldderSegmentState(id=id_, aug_id=aug_id, 
-                                                timestamp=timestamp, last_msg_of_day=None)
-                reconst.append(seg_map[aug_id])
-            if isinstance(reconst[-1], PlaceHoldderSegmentState):
-                last_msg = self._build_message(raw_track, 'last_msg_')
-                reconst[-1] = reconst[-1]._replace(last_msg_of_day=last_msg)
-            yield Track(id=raw_track['track_id'], prefix=reconst, segments=[], 
-                           count=raw_track['count'], decayed_count=raw_track['decayed_count'], 
-                           is_active=raw_track['is_active'],
-                           signature=Signature(self._from_value_count(raw_track['transponders']), 
-                                               self._from_value_count(raw_track['shipnames']),
-                                               self._from_value_count(raw_track['callsigns']), 
-                                               self._from_value_count(raw_track['imos'])))
+            yield Track(id=raw_track['track_id'], 
+                        seg_ids=raw_track['seg_ids'], 
+                        last_msg=self._build_message(raw_track, 'last_msg_'),
+                        count=raw_track['count'], 
+                        decayed_count=raw_track['decayed_count'], 
+                        is_active=raw_track['is_active'],
+                        signature=Signature(
+                            transponders=self._from_value_count(raw_track['transponders']), 
+                            shipnames=self._from_value_count(raw_track['shipnames']),
+                            callsigns=self._from_value_count(raw_track['callsigns']), 
+                            imos=self._from_value_count(raw_track['imos'])),
+                        parent_track=None
+                    )
 
     @staticmethod
     def _as_datetime(x):
-        return DT.datetime.combine(x, DT.time()).replace(tzinfo=pytz.utc)
+        return DT.datetime.combine(x, DT.time(tzinfo=pytz.utc))
 
     def prepare_segments(self, segments):
         segments= sorted(segments, key=lambda x: (x.id, x.timestamp))
@@ -144,56 +134,61 @@ class StitcherImplementation(object):
                 segments.append(seg)
                 aug_ids.add(seg.aug_id)
 
-        initial_tracks = list(self.reconstitute_tracks(tracks, segments))
-        # Prepare segments and then e-sort just by timestamps
-        segments= sorted(self.prepare_segments(segments), key=lambda x: x.timestamp)
-
+        initial_tracks = list(self.reconstitute_tracks(tracks))
+        segments = list(self.prepare_segments(segments))
         initial_track_ids = {track.id for track in initial_tracks}
 
-        track_iter = stitcher.create_tracks(start_datetime, initial_tracks, segments)
-
-        # Condense tracks
         raw_tracks = []
-        for track, ndx in track_iter:
+        for base_track in stitcher.create_tracks(start_datetime, initial_tracks, segments):
+            tracks_by_date = {}
+            track = base_track
+            while True:
+                date = track.last_msg.timestamp.date()
+                if date not in tracks_by_date or track.last_msg.timestamp > tracks_by_date[date].last_msg.timestamp:
+                    tracks_by_date[date] = track
 
-            all_segments = tuple(track.prefix) + tuple(track.segments)
+                if track.parent_track is None:
+                    break
+                track = track.parent_track
+            if (self.start_date not in tracks_by_date and 
+                    base_track.id in initial_track_ids):
+                # If we haven't set the track for start date, use oldest track
+                # Oldest this can be is the input track, since we don't have any
+                # tracks previous to that.
+                tracks_by_date[self.start_date] = track
 
-            if track.id in initial_track_ids:
+
+            if base_track.id in initial_track_ids:
                 emit_datetime = start_datetime
             else:
-                emit_datetime = max(self._as_datetime(all_segments[0].timestamp.date()), start_datetime)
+                emit_datetime = max(self._as_datetime(min(tracks_by_date)), start_datetime)
 
-            cur_sig = None
+            track = None
 
             while emit_datetime.date() <= self.end_date:
-                segments = [x for x in all_segments if 
-                                x.timestamp and x.timestamp.date() <= emit_datetime.date()]
-                seg_ids = [x.aug_id for x in segments]
-                last_msg = segments[-1].last_msg_of_day
-                assert last_msg is not None
+                track = tracks_by_date.get(emit_datetime.date(), track)
 
-                if seg_ids:
+                sig = track.signature
+                last_msg = track.last_msg
 
-                    cur_sig = track.historical_signatures.get(emit_datetime.date(), cur_sig)
-
-                    yield {'ssvid' : ssvid, 
-                           'track_id' : track.id, 
-                           'index': ndx,
-                           'timestamp' : self._as_datetime(emit_datetime), 
-                           'seg_ids' : seg_ids, 
-                           'count' : track.count, 
-                           'decayed_count' : track.decayed_count,
-                           'is_active' : track.is_active,
-                           'last_msg_timestamp' : last_msg.timestamp, 
-                           'last_msg_lat' : last_msg.lat, 
-                           'last_msg_lon' : last_msg.lon,
-                           'last_msg_course' : last_msg.course, 
-                           'last_msg_speed' : last_msg.speed,
-                           'transponders' : self._to_value_count(cur_sig.transponders),
-                           'shipnames' : self._to_value_count(cur_sig.shipnames),
-                           'callsigns' : self._to_value_count(cur_sig.callsigns),
-                           'imos' : self._to_value_count(cur_sig.imos),
-                           }
+                yield {'ssvid' : ssvid, 
+                       'track_id' : track.id, 
+                       'index': None, 
+                       'timestamp' : emit_datetime, 
+                       'seg_ids' : track.seg_ids, 
+                       'count' : track.count, 
+                       'decayed_count' : track.decayed_count,
+                       'is_active' : track.is_active,
+                       'last_msg_timestamp' : last_msg.timestamp, 
+                       'last_msg_lat' : last_msg.lat, 
+                       'last_msg_lon' : last_msg.lon,
+                       'last_msg_course' : last_msg.course, 
+                       'last_msg_speed' : last_msg.speed,
+                       'transponders' : self._to_value_count(sig.transponders),
+                       'shipnames' : self._to_value_count(sig.shipnames),
+                       'callsigns' : self._to_value_count(sig.callsigns),
+                       'imos' : self._to_value_count(sig.imos),
+                       }
                 emit_datetime += DT.timedelta(days=1)
 
 
