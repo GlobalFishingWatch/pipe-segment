@@ -148,6 +148,7 @@ class StitcherPipeline:
     def pipeline(self):
         stitcher = Stitch(start_date=safe_dateFromTimestamp(self.date_range[0]),
                           end_date=safe_dateFromTimestamp(self.date_range[1]),
+                          look_ahead=self.options.look_ahead,
                           stitcher_params=self.stitcher_params)
 
         pipeline = beam.Pipeline(options=self.options)

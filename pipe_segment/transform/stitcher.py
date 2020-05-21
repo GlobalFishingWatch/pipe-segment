@@ -24,10 +24,11 @@ class Stitch(PTransform):
     def __init__(self, 
                  start_date,
                  end_date,
+                 look_ahead,
                  stitcher_params=None, 
                  **kwargs):
         super(Stitch, self).__init__(**kwargs)
-        self._stitcher = StitcherImplementation(start_date, end_date, stitcher_params)
+        self._stitcher = StitcherImplementation(start_date, end_date, look_ahead, stitcher_params)
 
 
     @staticmethod
