@@ -16,6 +16,7 @@ from pipe_tools.utils.timestamp import as_timestamp
 from pipe_tools.io.bigquery import parse_table_schema
 
 from pipe_segment.options.segment import SegmentOptions
+from pipe_segment.transform.invalid_values import filter_invalid_values
 from pipe_segment.transform.segment import Segment
 from pipe_segment.transform.normalize import NormalizeDoFn
 from pipe_segment.io.gcp import GCPSource
@@ -191,12 +192,13 @@ class SegmentPipeline:
     def pipeline(self):
         # Note that Beam appears to treat str(x) and unicode(x) as distinct
         # for purposes of CoGroupByKey, so both messages and segments should be
-        # stringified or neither. 
+        # stringified or neither.
         pipeline = beam.Pipeline(options=self.options)
 
         messages = (
             self.message_sources(pipeline)
             | "MergeMessages" >> beam.Flatten()
+            | "FilterInvalidValues" >> beam.Map(filter_invalid_values)
         )
 
         if self.options.ssvid_filter_query:
@@ -210,7 +212,7 @@ class SegmentPipeline:
                 | beam.Filter(filter_by_ssvid_predicate, valid_ssivd_set)
             )
 
-        messages = (   
+        messages = (
             messages
             | "Normalize" >> beam.ParDo(NormalizeDoFn())
             | "MessagesAddKey" >> beam.Map(self.groupby_fn)
@@ -230,7 +232,7 @@ class SegmentPipeline:
 
         segmenter = Segment(start_date=safe_dateFromTimestamp(self.date_range[0]),
                             end_date=safe_dateFromTimestamp(self.date_range[1]),
-                            segmenter_params=self.segmenter_params, 
+                            segmenter_params=self.segmenter_params,
                             look_ahead=self.options.look_ahead)
 
         segmented = args | "Segment" >> segmenter
@@ -245,7 +247,7 @@ class SegmentPipeline:
         (
             segments
             | "TimestampSegments" >> beam.ParDo(TimestampedValueDoFn())
-            | "WriteSegments" >> self.segment_sink(segmenter.segment_schema, 
+            | "WriteSegments" >> self.segment_sink(segmenter.segment_schema,
                                                    self.options.seg_dest)
         )
         if self.options.legacy_seg_v1_dest:
@@ -253,7 +255,7 @@ class SegmentPipeline:
             (
                 segments_v1
                 | "TimestampOldSegments" >> beam.ParDo(TimestampedValueDoFn())
-                | "WriteOldSegments" >> self.segment_sink(segmenter.segment_schema_v1, 
+                | "WriteOldSegments" >> self.segment_sink(segmenter.segment_schema_v1,
                                                        self.options.legacy_seg_v1_dest)
             )
         return pipeline
