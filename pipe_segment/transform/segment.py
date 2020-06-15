@@ -124,6 +124,7 @@ class Segment(PTransform):
         add_field('ssvid',  'STRING')
         add_field('closed', 'BOOLEAN')
         add_field('message_count', 'INTEGER')
+        add_field('daily_message_count', 'INTEGER')
         add_field('timestamp', 'TIMESTAMP')
         for prefix in ['first_msg_', 'last_msg_', 'first_msg_of_day_', 'last_msg_of_day_']:
             mode = 'NULLABLE' if prefix.endswith('of_day_') else 'REQUIRED'
@@ -150,6 +151,7 @@ class Segment(PTransform):
         add_sig_field('shipnames')
         add_sig_field('callsigns')
         add_sig_field('imos')
+        add_sig_field('destinations')
         add_sig_field('transponders')
 
         return schema

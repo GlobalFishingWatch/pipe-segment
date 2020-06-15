@@ -25,10 +25,11 @@ class Stitch(PTransform):
                  start_date,
                  end_date,
                  look_ahead,
+                 look_back,
                  stitcher_params=None, 
                  **kwargs):
         super(Stitch, self).__init__(**kwargs)
-        self._stitcher = StitcherImplementation(start_date, end_date, look_ahead, stitcher_params)
+        self._stitcher = StitcherImplementation(start_date, end_date, look_ahead, look_back, stitcher_params)
 
 
     @staticmethod
@@ -143,6 +144,7 @@ class Stitch(PTransform):
         add_sig_field('shipnames')
         add_sig_field('callsigns')
         add_sig_field('imos')
+        add_sig_field('destinations')
         add_sig_field('transponders')
 
         return schema

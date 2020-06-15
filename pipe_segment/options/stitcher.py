@@ -47,8 +47,8 @@ class StitcherOptions(PipelineOptions):
                  "not all daily info is currently available in segments so we have to compute"
                  "some of it by differencing")
         optional.add_argument(
-            '--black_list', default='',
-            help="comma separated list of ssvid to exclude")
+            '--min_secondary_track_count', default=1000, type=int,
+            help='Minimum number of points for a secondary track to be considered not-noise')
         optional.add_argument(
             '--stitcher_params',
             help='Pass a json object with parameters to pass to the stitcher, or supply a file name to read from '

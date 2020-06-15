@@ -149,13 +149,12 @@ class StitcherPipeline:
         stitcher = Stitch(start_date=safe_dateFromTimestamp(self.date_range[0]),
                           end_date=safe_dateFromTimestamp(self.date_range[1]),
                           look_ahead=self.options.look_ahead,
+                          look_back=self.options.look_back,
                           stitcher_params=self.stitcher_params)
 
         pipeline = beam.Pipeline(options=self.options)
         track_sink = self.track_sink(stitcher.track_schema, 
                                      self.options.track_dest)
-        black_list = set([x.strip() for x in self.options.black_list.split(',')])
-
 
 
         segments = (
@@ -173,7 +172,6 @@ class StitcherPipeline:
         args = (
             {'segments' : segments, 'tracks' : tracks}
             | 'GroupByKey' >> beam.CoGroupByKey()
-            | 'FilterBlacklist' >> beam.Filter(lambda x: x[0] not in black_list)
         )
 
         (
@@ -182,7 +180,7 @@ class StitcherPipeline:
             | "AddIdAndDateTags" >> beam.Map(self.add_id_and_date_tags)
             | "GroupTracksByIdAndDate" >> beam.GroupByKey()
             | "ComputeIndex" >> beam.FlatMap(self.compute_index)
-            | 'AddNoiseFlag' >> AddNoiseFlag()
+            | 'AddNoiseFlag' >> AddNoiseFlag(self.options.min_secondary_track_count)
             | "TimestampTracks" >> beam.ParDo(TimestampedValueDoFn())
             | "WriteTracks" >> track_sink
         )

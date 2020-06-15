@@ -2,6 +2,7 @@ import bisect
 from collections import Counter, namedtuple
 import datetime as DT
 import itertools as it
+import re
 import logging
 import six
 import pytz
@@ -32,8 +33,10 @@ class StitcherImplementation(object):
                  start_date,
                  end_date,
                  look_ahead,
+                 look_back,
                  stitcher_params = None):
         self.look_ahead = look_ahead
+        self.look_back =  look_back
         self.start_date = start_date
         self.end_date = end_date
         self.stitcher_params = stitcher_params or {}
@@ -68,7 +71,6 @@ class StitcherImplementation(object):
         last_msg = self._build_message(seg_record, 'last_msg_')
         first_msg_of_day = self._build_message(seg_record, 'first_msg_of_day_')
         last_msg_of_day = self._build_message(seg_record, 'last_msg_of_day_')
-        count = seg_record['message_count']
         return AugSegmentState(
                             id = seg_record['seg_id'],
                             aug_id = Stitcher.aug_seg_id(seg_record),
@@ -77,6 +79,7 @@ class StitcherImplementation(object):
                             closed = seg_record['closed'],
                             ssvid = seg_record['ssvid'],
                             msg_count = seg_record['message_count'],
+                            daily_msg_count = seg_record['daily_message_count'],
                             first_msg = first_msg,
                             last_msg = last_msg,
                             first_msg_of_day = first_msg_of_day,
@@ -85,7 +88,6 @@ class StitcherImplementation(object):
                             shipnames = self._as_imutable_sig(seg_record['shipnames']),
                             callsigns = self._as_imutable_sig(seg_record['callsigns']),
                             imos = self._as_imutable_sig(seg_record['imos']),
-                            daily_msg_count = None,
                             ) 
 
 
@@ -116,12 +118,20 @@ class StitcherImplementation(object):
         seen = set()
         for seg in sorted(segments, key=lambda x: (x.aug_id, x.msg_count), reverse=True):
             key = seg.aug_id
-            # if seg.aug_id == '432898000-2018-10-21T20:46:06.000000Z-2018-10-21':
-            #     print(key in seen, seg.last_msg_of_day.timestamp, seg.msg_count, 
-            #                 (seg.aug_id, seg.msg_count))
             if key not in seen:
                 yield seg
             seen.add(key)
+
+    def _consolidate_signatures(self, segments):
+        sig = {name : {} for name in Signature._fields}
+        for seg in segments:
+            for name in Signature._fields:
+                for v, c in getattr(seg, name):
+                    # Remove battery suffixes from gear / buoys
+                    v = re.sub(r'(^|[ @_-])1?\d(\.?\d)?V$', '', v)
+                    sig[name][v] = sig[name].get(v, 0) + c
+        return {k : tuple(v.items()) for (k, v) in sig.items()}
+
 
     def prepare_segments(self, segments):
         deduped_segments = sorted(self.remove_extra_segments(segments), key=lambda x: (x.id, x.timestamp))
@@ -129,10 +139,14 @@ class StitcherImplementation(object):
         current_id = None
         for seg in deduped_segments:
             if seg.id != current_id:
-                last_count = 0
+                working_segs = []
                 current_id = seg.id
-            seg = seg._replace(daily_msg_count=seg.msg_count - last_count)
-            last_count = seg.msg_count
+            # We collect signature information from the past `lookback` days
+            # to stabilize the signature information a bit.
+            working_segs.append(seg)
+            while len(working_segs) > self.look_back:
+                working_segs.pop(0)
+            seg = seg._replace(**self._consolidate_signatures(working_segs))
             if seg.timestamp >= start_datetime:
                 yield seg
 
@@ -143,7 +157,6 @@ class StitcherImplementation(object):
 
         initial_tracks = list(self.reconstitute_tracks(tracks))
         segments = list(self.prepare_segments([self._segment_state(rcd) for rcd in seg_records]))
-        # print([x for x in segments if x.aug_id == '432898000-2018-10-21T20:46:06.000000Z-2018-10-21'])
         end_datetime = self._as_datetime(self.end_date)
 
         emit_datetime = start_datetime
