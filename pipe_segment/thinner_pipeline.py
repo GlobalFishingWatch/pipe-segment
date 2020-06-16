@@ -110,7 +110,6 @@ class StitcherPipeline:
               select seg_id as aug_seg_id, track_id
               from `{track_table}`
               cross join unnest (seg_ids) as seg_id
-              where (index = 0 or count > 1000) -- TODO: parameterize count
               group by aug_seg_id, track_id
             ),
 
