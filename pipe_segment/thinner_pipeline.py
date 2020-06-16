@@ -43,7 +43,6 @@ class StitcherPipeline:
         'shiptype', 'destination', 
         'length', 'width', # TODO: all at the segment level
         'n_shipname', 'n_callsign', 'n_imo', # TODO: also at the segment level
-        'receiver_type', # TODO: should be looked up from receiver
         'status', # TODO: does anyone use status? (is it trustworthy)
         'heading' # TODO: does anyone use heading (often missing)    
     ]
