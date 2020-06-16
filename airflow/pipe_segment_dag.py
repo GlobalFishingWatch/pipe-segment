@@ -1,32 +1,13 @@
-from datetime import datetime, timedelta
-import posixpath as pp
-import six
-import re
-
 from airflow import DAG
-from airflow.contrib.sensors.bigquery_sensor import BigQueryTableSensor
-from airflow.operators.bash_operator import BashOperator
 from airflow.models import Variable
 
-from airflow_ext.gfw.operators.dataflow_operator import DataFlowDirectRunnerOperator
-from airflow_ext.gfw.config import load_config
-from airflow_ext.gfw.config import default_args
 from airflow_ext.gfw.models import DagFactory
+from airflow_ext.gfw.operators.dataflow_operator import DataFlowDirectRunnerOperator
+
+import posixpath as pp
+
 
 PIPELINE = "pipe_segment"
-
-def table_sensor(dataset, table, date):
-    return BigQueryTableSensor(
-        task_id='source_exists_{}'.format(table),
-        table_id='{}{}'.format(table, date),
-        dataset_id=dataset,
-        poke_interval=10,   # check every 10 seconds for a minute
-        timeout=60,
-        retries=24*7,       # retry once per hour for a week
-        retry_delay=timedelta(minutes=60),
-        retry_exponential_backoff=False
-    )
-
 
 class PipeSegmentDagFactory(DagFactory):
     def __init__(self, pipeline=PIPELINE, **kwargs):
@@ -38,12 +19,12 @@ class PipeSegmentDagFactory(DagFactory):
 
         with DAG(dag_id, schedule_interval=self.schedule_interval, default_args=self.default_args) as dag:
             source_sensors = self.source_table_sensors(dag)
-    
+
             project = config['project_id']
             dataset = config['source_dataset']
             source_tables = config['source_tables'].split(',')
             source_paths = ['bq://{}:{}.{}'.format(project, dataset, table) for table in source_tables]
-    
+
             segment = DataFlowDirectRunnerOperator(
                 task_id='segment',
                 depends_on_past=True,
@@ -53,6 +34,7 @@ class PipeSegmentDagFactory(DagFactory):
                     command='{docker_run} {docker_image} segment'.format(**config),
                     startup_log_file=pp.join(Variable.get('DATAFLOW_WRAPPER_LOG_PATH'), 'pipe_segment/segment.log'),
                     date_range='{date_range}'.format(**config),
+                    pipeline_start_date=Variable.get('PIPELINE_START_DATE'),
                     source=','.join(source_paths),
                     msg_dest='bq://{project_id}:{pipeline_dataset}.{messages_table}'.format(**config),
                     legacy_seg_v1_dest='bq://{project_id}:{pipeline_dataset}.{legacy_segment_v1_table}'.format(**config),
@@ -70,70 +52,91 @@ class PipeSegmentDagFactory(DagFactory):
                     experiments='shuffle_mode=service'
                 )
             )
-    
-            segment_identity_daily = BashOperator(
-                task_id='segment_identity_daily',
-                pool='bigquery',
-                bash_command='{docker_run} {docker_image} segment_identity_daily '
-                             '{date_range} '
-                             '{project_id}:{pipeline_dataset}.{messages_table} '
-                             '{project_id}:{pipeline_dataset}.{segments_table} '
-                             '{project_id}:{pipeline_dataset}.{segment_identity_daily_table} '.format(**config)
-            )
-    
-            segment_vessel_daily = BashOperator(
-                task_id='segment_vessel_daily',
-                pool='bigquery',
-                bash_command='{docker_run} {docker_image} segment_vessel_daily '
-                             '{date_range} '
-                             '{window_days} '
-                             '{single_ident_min_freq} '
-                             '{most_common_min_freq} '
-                             '{spoofing_threshold} '
-                             '{project_id}:{pipeline_dataset}.{segment_identity_daily_table} '
-                             '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table} '.format(**config)
-            )
-    
-            segment_info = BashOperator(
-                task_id='segment_info',
-                pool='bigquery',
-                bash_command='{docker_run} {docker_image} segment_info '
-                             '{project_id}:{pipeline_dataset}.{segment_identity_daily_table} '
-                             '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table} '
-                             '{most_common_min_freq} '
-                             '{project_id}:{pipeline_dataset}.{segment_info_table} '.format(**config)
-            )
-    
-            vessel_info = BashOperator(
-                task_id='vessel_info',
-                pool='bigquery',
-                bash_command='{docker_run} {docker_image} vessel_info '
-                             '{project_id}:{pipeline_dataset}.{segment_identity_daily_table} '
-                             '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table} '
-                             '{most_common_min_freq} '
-                             '{project_id}:{pipeline_dataset}.{vessel_info_table} '.format(**config)
-            )
-    
-            segment_vessel = BashOperator(
-                task_id='segment_vessel',
-                pool='bigquery',
-                bash_command='{docker_run} {docker_image} segment_vessel '
-                             '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table} '
-                             '{project_id}:{pipeline_dataset}.{segment_vessel_table} '.format(**config)
-            )
+
+            segment_identity_daily = self.build_docker_task({
+                'task_id':'segment_identity_daily',
+                'pool':'k8operators_limit',
+                'docker_run':'{docker_run}'.format(**config),
+                'image':'{docker_image}'.format(**config),
+                'name':'segment-identity-daily',
+                'dag':dag,
+                'arguments':['segment_identity_daily',
+                             '{date_range}'.format(**config),
+                             '{project_id}:{pipeline_dataset}.{messages_table}'.format(**config),
+                             '{project_id}:{pipeline_dataset}.{legacy_segment_v1_table}'.format(**config),
+                             '{project_id}:{pipeline_dataset}.{segment_identity_daily_table}'.format(**config)]
+            })
+
+            segment_vessel_daily = self.build_docker_task({
+                'task_id':'segment_vessel_daily',
+                'pool':'k8operators_limit',
+                'docker_run':'{docker_run}'.format(**config),
+                'image':'{docker_image}'.format(**config),
+                'name':'segment-identity-daily',
+                'dag':dag,
+                'arguments':['segment_vessel_daily',
+                             '{date_range}'.format(**config),
+                             '{window_days}'.format(**config),
+                             '{single_ident_min_freq}'.format(**config),
+                             '{most_common_min_freq}'.format(**config),
+                             '{spoofing_threshold}'.format(**config),
+                             '{project_id}:{pipeline_dataset}.{segment_identity_daily_table}'.format(**config),
+                             '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table}'.format(**config)]
+            })
+
+            segment_info = self.build_docker_task({
+                'task_id':'segment_info',
+                'pool':'k8operators_limit',
+                'docker_run':'{docker_run}'.format(**config),
+                'image':'{docker_image}'.format(**config),
+                'name':'segment-info',
+                'dag':dag,
+                'arguments':['segment_info',
+                             '{project_id}:{pipeline_dataset}.{segment_identity_daily_table}'.format(**config),
+                             '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table}'.format(**config),
+                             '{most_common_min_freq}'.format(**config),
+                             '{project_id}:{pipeline_dataset}.{segment_info_table}'.format(**config)]
+            })
+
+            vessel_info = self.build_docker_task({
+                'task_id':'vessel_info',
+                'pool':'k8operators_limit',
+                'docker_run':'{docker_run}'.format(**config),
+                'image':'{docker_image}'.format(**config),
+                'name':'vessel-info',
+                'dag':dag,
+                'arguments':['vessel_info',
+                             '{project_id}:{pipeline_dataset}.{segment_identity_daily_table}'.format(**config),
+                             '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table}'.format(**config),
+                             '{most_common_min_freq}'.format(**config),
+                             '{project_id}:{pipeline_dataset}.{vessel_info_table}'.format(**config)]
+            })
+
+            segment_vessel = self.build_docker_task({
+                'task_id':'segment_vessel',
+                'pool':'k8operators_limit',
+                'docker_run':'{docker_run}'.format(**config),
+                'image':'{docker_image}'.format(**config),
+                'name':'segment-vessel',
+                'dag':dag,
+                'arguments':['segment_vessel',
+                             '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table}'.format(**config),
+                             '{project_id}:{pipeline_dataset}.{segment_vessel_table} '.format(**config)]
+            })
 
             for sensor in source_sensors:
                 dag >> sensor >> segment
-                
+
             segment >> segment_identity_daily
+
             segment_identity_daily >> segment_info
             segment_identity_daily >> segment_vessel_daily
+
             segment_vessel_daily >> vessel_info
             segment_vessel_daily >> segment_vessel
-    
+
             return dag
 
-
-segment_daily_dag = PipeSegmentDagFactory().build('pipe_segment_daily')
-segment_monthly_dag = PipeSegmentDagFactory(schedule_interval='@monthly').build('pipe_segment_monthly')
-segment_yearly_dag = PipeSegmentDagFactory(schedule_interval='@yearly').build('pipe_segment_yearly')
+for mode in ['daily','monthly', 'yearly']:
+    dag_id = '{}_{}'.format(PIPELINE, mode)
+    globals()[dag_id] = PipeSegmentDagFactory(schedule_interval='@{}'.format(mode)).build(dag_id)

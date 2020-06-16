@@ -6,38 +6,76 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-* [GlobalFishingWatch/pipe-segment/pull/101](https://github.com/GlobalFishingWatch/pipe-segment/pull/101)
+## v3.0.3 - 2020-06-11
+
+### Changed
+
+* [GlobalFishingWatch/gfw-eng-task#111](https://github.com/GlobalFishingWatch/gfw-eng-tasks/issues/111): Changes
+  * the version of the `pipe-tools:v3.1.2`.
+
+## v3.0.2 - 2020-04-07
+
+### Changed
+
+* [GlobalFishingWatch/gfw-eng-task#48](https://github.com/GlobalFishingWatch/gfw-eng-tasks/issues/48): Changes
+    Bash Operator to flexible operator.
+    version to gpsdio-segment:0.20
+
+## v3.0.1 - 2020-04-07
+
+### Changed
+
+* [GlobalFishingWatch/gfw-eng-tasks#49](https://github.com/GlobalFishingWatch/gfw-eng-tasks/issues/49): Changes
+    Pin version of gpsdio-segment to v0.19 non-dev version.
+
+## v3.0.0 - 2020-03-12
+
+### Added
+
+* [GlobalFishingWatch/pipe-segment/pull/101](https://github.com/GlobalFishingWatch/pipe-segment/pull/101): Adds
   - Support new version of gpsdio-segment, but continue to emit old style segments as well for backwards
     compatibility. See PR for details
-  - Update to pipe-tools 3.0 and support Python 3.
   - Improve memory usage significantly by cogrouping messages rather than passing as side arguments.
     Also, filter out noise segments before grouping and use more temporary shards on output.
+  - Update to pipe-tools 3.1.1 and support Python 3.
+  - Upgrade Google SDK to 268 from 232
+  - Remove the fixed version of pip to 9
 
 ## v1.2.1 - 2019-05-15
-* [GlobalFishingWatch/GFW-Tasks#1030](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/1030) Changed the way we pass the machine type to dataflow so it re-allow us to send the custom machine type.
+
+### Changed
+
+* [GlobalFishingWatch/GFW-Tasks#1030](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/1030): Changes
+  - the way we pass the machine type to dataflow so it re-allow us to send the custom machine type.
 
 
 ## v1.2.0 - 2019-05-03
 
 ### Changed
-* [GlobalFishingWatch/GFW-Tasks#1015](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/1015) Updated version of gpsdio-segment in order to include the fix of A vs B messages.
+
+* [GlobalFishingWatch/GFW-Tasks#1015](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/1015): Changes
+  - Updated version of gpsdio-segment in order to include the fix of A vs B messages.
 
 ## v1.1.0 - 2019-04-24
 
 ### Changed
-* [GlobalFishingWatch/GFW-Tasks#1000](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/1000) Forces ordering when serializing and deserializing segmenter state each day so that the segmenter state timestamp is correctly calculated.
+
+* [GlobalFishingWatch/GFW-Tasks#1000](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/1000): Changes
+  - Forces ordering when serializing and deserializing segmenter state each day so that the segmenter state timestamp is correctly calculated.
 
 ## v1.0.0 - 2019-03-28
 
 ### Added
 
-* [GlobalFishingWatch/GFW-Tasks#991](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/991)
-  Moved to pipe-tools version 2.0.0 that split airflow dependencies from dataflow dependencies. Check the [repo](https://github.com/GlobalFishingWatch/airflow-gfw/tree/develop)
+* [GlobalFishingWatch/GFW-Tasks#991](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/991): Adds
+  - version 2.0.0 to pipe-tools that split airflow dependencies from dataflow dependencies. Check the [repo](https://github.com/GlobalFishingWatch/airflow-gfw/tree/develop)
 
 ## 0.3.3 - 2019-03-11
 
-* [GlobalFishingWatch/GFW-Tasks#992](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/992) Fixed issue with a dependency in gpsdio-segment
+### Added
+
+* [GlobalFishingWatch/GFW-Tasks#992](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/992): Adds
+  - Fixed issue with a dependency in gpsdio-segment
 
 ## 0.3.2 - 2019-03-07
 

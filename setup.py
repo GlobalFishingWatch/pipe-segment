@@ -4,12 +4,13 @@
 Setup script for pipe-segement
 """
 
-import codecs
-import os
+from pipe_tools.beam.requirements import requirements as DATAFLOW_PINNED_DEPENDENCIES
 
 from setuptools import find_packages
 from setuptools import setup
-from pipe_tools.beam.requirements import requirements as DATAFLOW_PINNED_DEPENDENCIES
+
+import codecs
+import os
 
 package = __import__('pipe_segment')
 
@@ -22,8 +23,8 @@ DEPENDENCIES = [
     "udatetime",
     "newlinejson",
     "python-stdnum",
-    "gpsdio-segment==0.20-dev",
-    "pipe-tools>=3.0.0",
+    "gpsdio-segment",
+    "pipe-tools",
     "shipdataprocess==0.6.9",
     "jinja2-cli",
     "google-apitools"
