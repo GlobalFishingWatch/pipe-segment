@@ -44,6 +44,28 @@ def is_first_batch(pipeline_start_ts, first_date_ts):
 def filter_by_ssvid_predicate(obj, ssvid_kkdict):
     return obj['ssvid'] in ssvid_kkdict
 
+class LogMapper(object):
+    first_item = True
+    which_item = 0
+
+    def log_first_item(self, obj):
+        if self.first_item:
+            logging.warn("First Item: %s", obj)
+            self.first_item = False
+        return obj
+
+    def log_nth_item(self, obj, n):
+        if self.which_item == n:
+            logging.warn("%sth Item: %s", n, obj)
+            self.which_item += 1
+        return obj
+
+    def log_first_item_keys(self, obj):
+        if self.first_item:
+            logging.warn("First Item's Keys: %s", obj.keys())
+            self.first_item = False
+        return obj
+
 class FilterBySsvid(beam.PTransform):
 
     def __init__(self, ssvid_iter):
@@ -182,6 +204,7 @@ class SegmentPipeline:
         # for purposes of CoGroupByKey, so both messages and segments should be
         # stringified or neither. 
         pipeline = beam.Pipeline(options=self.options)
+
         messages = (
             self.message_sources(pipeline)
             | "MergeMessages" >> beam.Flatten()
@@ -220,6 +243,7 @@ class SegmentPipeline:
                             end_date=safe_dateFromTimestamp(self.date_range[1]),
                             segmenter_params=self.segmenter_params, 
                             look_ahead=self.options.look_ahead)
+
         segmented = args | "Segment" >> segmenter
 
         messages = segmented[segmenter.OUTPUT_TAG_MESSAGES]

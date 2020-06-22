@@ -145,6 +145,8 @@ class Stitch(PTransform):
         add_sig_field('callsigns')
         add_sig_field('imos')
         add_sig_field('destinations')
+        add_sig_field('lengths')
+        add_sig_field('widths')
         add_sig_field('transponders')
 
         return schema

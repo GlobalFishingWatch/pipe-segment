@@ -21,7 +21,9 @@ AugSegmentState = namedtuple('AugSegmentState',
     ['id', 'aug_id', 'ssvid', 'timestamp',
      'first_msg', 'last_msg', 'first_msg_of_day',  'last_msg_of_day', 
      'msg_count', 'noise', 'closed',
-     'transponders', 'shipnames', 'callsigns', 'imos', 'daily_msg_count'])
+     'transponders', 'shipnames', 'callsigns', 'imos', 
+     'destinations', 'lengths', 'widths',
+     'daily_msg_count'])
 
 PlaceHolderSegmentState = namedtuple('PlaceHolderSegmentState', 
         ['id', 'aug_id', 'timestamp', 'last_msg_of_day'])
@@ -87,6 +89,9 @@ class StitcherImplementation(object):
                             transponders = self._as_imutable_sig(seg_record['transponders']),
                             shipnames = self._as_imutable_sig(seg_record['shipnames']),
                             callsigns = self._as_imutable_sig(seg_record['callsigns']),
+                            destinations = self._as_imutable_sig(seg_record['destinations']),
+                            lengths = self._as_imutable_sig(seg_record['lengths']),
+                            widths = self._as_imutable_sig(seg_record['widths']),
                             imos = self._as_imutable_sig(seg_record['imos']),
                             ) 
 
@@ -103,6 +108,9 @@ class StitcherImplementation(object):
                             transponders=self._from_value_count(raw_track['transponders']), 
                             shipnames=self._from_value_count(raw_track['shipnames']),
                             callsigns=self._from_value_count(raw_track['callsigns']), 
+                            destinations=self._from_value_count(raw_track['destinations']), 
+                            lengths=self._from_value_count(raw_track['lengths']), 
+                            widths=self._from_value_count(raw_track['widths']), 
                             imos=self._from_value_count(raw_track['imos'])),
                         parent_track=None
                     )
@@ -200,6 +208,9 @@ class StitcherImplementation(object):
                        'transponders' : self._to_value_count(sig.transponders),
                        'shipnames' : self._to_value_count(sig.shipnames),
                        'callsigns' : self._to_value_count(sig.callsigns),
+                       'destinations' : self._to_value_count(sig.destinations),
+                       'lengths' : self._to_value_count(sig.lengths),
+                       'widths' : self._to_value_count(sig.widths),
                        'imos' : self._to_value_count(sig.imos),
                        }
 

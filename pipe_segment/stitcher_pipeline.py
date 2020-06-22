@@ -156,10 +156,12 @@ class StitcherPipeline:
         track_sink = self.track_sink(stitcher.track_schema, 
                                      self.options.track_dest)
 
+        ssvid_to_skip = set(x.strip() for x in self.options.ssvid_to_skip.split(','))
 
         segments = (
             self.segment_sources(pipeline) 
             | "MergeSegments" >> beam.Flatten()
+            | "FilterSkipped" >> beam.Filter(lambda msg : msg['ssvid'] not in ssvid_to_skip)
             | "SegmentsAddKey" >> beam.Map(self.add_id_tag)
             )
 

@@ -95,6 +95,8 @@ class SegmentImplementation(object):
             callsigns=sigature2record('callsigns'),
             imos=sigature2record('imos'),
             destinations=sigature2record('destinations'),
+            lengths=sigature2record('lengths'),
+            widths=sigature2record('widths'),
             transponders=sigature2record('transponders')
         )
         for field, stats in self.stats_fields:
@@ -180,7 +182,8 @@ class SegmentImplementation(object):
     def _convert_messages_out(self, msg, seg_id):
         msg = msg.copy()
         msg['seg_id'] = seg_id
-        for k1 in ['shipnames', 'callsigns', 'imos', 'destinations', 'n_shipnames', 'n_callsigns', 'n_imos']:
+        for k1 in ['shipnames', 'callsigns', 'imos', 'destinations', 'lengths', 'widths',
+                        'n_shipnames', 'n_callsigns', 'n_imos']:
             msg.pop(k1, None)
         return msg
 
@@ -243,6 +246,8 @@ class SegmentImplementation(object):
         self._update_sig_part(sig, seg.msgs, 'callsign', 'callsigns')
         self._update_sig_part(sig, seg.msgs, 'imo', 'imos')
         self._update_sig_part(sig, seg.msgs, 'destination', 'destinations')
+        self._update_sig_part(sig, seg.msgs, 'length', 'lengths')
+        self._update_sig_part(sig, seg.msgs, 'width', 'widths')
         return sig
 
     def _as_record(self, record):
@@ -274,6 +279,8 @@ class SegmentImplementation(object):
         record.pop('callsigns')
         record.pop('imos')
         record.pop('destinations')
+        record.pop('lengths')
+        record.pop('widths')
         record.pop('transponders')
         return record
 

@@ -50,6 +50,10 @@ class StitcherOptions(PipelineOptions):
             '--min_secondary_track_count', default=1000, type=int,
             help='Minimum number of points for a secondary track to be considered not-noise')
         optional.add_argument(
+            '--ssvid_to_skip', default='', 
+            help='comma-separated list of ssvid to skip'
+            )
+        optional.add_argument(
             '--stitcher_params',
             help='Pass a json object with parameters to pass to the stitcher, or supply a file name to read from '
                  "@path/to/file.json.   For Example:"
