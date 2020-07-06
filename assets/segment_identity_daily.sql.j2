@@ -6,58 +6,66 @@
 #
 
 WITH
-  #
-  # Get segmented messages, including posititional and identity messages
-  #
-  messages AS (
-  SELECT
-    ssvid,
-    seg_id,
-    timestamp,
-    lat,
-    shipname,
-    callsign,
-    imo,
-    n_shipname,
-    n_callsign,
-    n_imo,
-    shiptype,
-    width,
-    length
-  FROM
-    `{{ messages }}`
-  ),
-  #
-  # Get the noise flag that indicates that the segment has bad position data
-  #
-  segment_noise as (
-  SELECT
-    seg_id,
-    LOGICAL_OR(noise) as noise
-  FROM
-    `{{ segments }}`
-  GROUP BY
-    seg_id
-  ),
+  -- #
+  -- # Get segmented messages, including posititional and identity messages
+  -- #
+  -- messages AS (
+  -- SELECT
+  --   ssvid,
+  --   seg_id,
+  --   timestamp,
+  --   lat,
+  --   shipname,
+  --   callsign,
+  --   imo,
+  --   n_shipname,
+  --   n_callsign,
+  --   n_imo,
+  --   shiptype,
+  --   width,
+  --   length
+  -- FROM
+  --   `{{ messages }}`
+  -- ),
+  -- #
+  -- # Get the noise flag that indicates that the segment has bad position data
+  -- #
+  -- segment_noise as (
+  -- SELECT
+  --   seg_id,
+  --   LOGICAL_OR(noise) as noise
+  -- FROM
+  --   `{{ segments }}`
+  -- GROUP BY
+  --   seg_id
+  -- ),
   #
   # Compute overall statistics for each segment, preserve ssvid
   #
+
+
+
+
   segment_summary AS (
   SELECT
     ssvid,
     seg_id,
-    min(timestamp) as first_timestamp,
-    max(timestamp) as last_timestamp,
-    min( IF(lat IS NOT NULL, timestamp, null)) AS first_pos_timestamp,
-    max( IF(lat IS NOT NULL, timestamp, null)) AS last_pos_timestamp,
-    COUNT(*) AS msg_count,
-    COUNTIF(lat IS NOT NULL) AS pos_count,
-    COUNTIF(COALESCE(shipname, callsign, imo) IS NOT NULL) as ident_count
+    first_msg_of_day_timestamp as first_timestamp,
+    last_msg_of_day_timestamp as last_timestamp,
+    first_msg_of_day_timestamp AS first_pos_timestamp,
+    last_msg_of_day_timestamp AS last_pos_timestamp,
+    (SELECT SUM(tr.count)
+     FROM UNNEST(transponders) tr) AS pos_count, -- Approximate, misses type 27 messages (but should be small)
+    (SELECT SUM(sn.count)
+     FROM UNNEST(shipnames) sn) AS ident_count -- Approximate, misses when no shipname broadcast
   FROM
-    messages
+    `{{ segments }}` 
+  USING (ssvid, seg_id)
   GROUP BY
     ssvid,
     seg_id ),
+
+
   #
   # Shipname: count of occurences per segment for each non-null value
   #
@@ -145,10 +153,9 @@ WITH
   #
   segment_daily as (
     SELECT
-      *
+      *, FALSE as noise
     FROM
       segment_summary
-      LEFT JOIN segment_noise USING (seg_id)
       LEFT JOIN segment_shipname USING (seg_id)
       LEFT JOIN segment_callsign USING (seg_id)
       LEFT JOIN segment_imo USING (seg_id)
