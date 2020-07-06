@@ -127,14 +127,14 @@ class Stitch(PTransform):
         add_field('last_msg_speed', 'FLOAT', 'REQUIRED')
         add_field('is_noise', 'BOOLEAN', 'REQUIRED')
 
-        def add_sig_field(name):
+        def add_sig_field(name, value_type='STRING'):
             field = bigquery.TableFieldSchema()
             field.name = name
             field.type = "RECORD"
             field.mode = "REPEATED"
             f1 = bigquery.TableFieldSchema()
             f1.name = 'value'
-            f1.type = 'STRING'
+            f1.type = value_type
             f2 =  bigquery.TableFieldSchema()
             f2.name = 'count'
             f2.type = 'FLOAT'
@@ -145,8 +145,8 @@ class Stitch(PTransform):
         add_sig_field('callsigns')
         add_sig_field('imos')
         add_sig_field('destinations')
-        add_sig_field('lengths')
-        add_sig_field('widths')
+        add_sig_field('lengths', value_type='FLOAT')
+        add_sig_field('widths', value_type='FLOAT')
         add_sig_field('transponders')
 
         return schema

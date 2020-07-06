@@ -135,8 +135,9 @@ class StitcherImplementation(object):
         for seg in segments:
             for name in Signature._fields:
                 for v, c in getattr(seg, name):
-                    # Remove battery suffixes from gear / buoys
-                    v = re.sub(r'(^|[ @_-])1?\d(\.?\d)?V$', '', v)
+                    if name == 'shipnames':
+                        # Remove battery suffixes from gear / buoys
+                        v = re.sub(r'(^|[ @_-])1?\d(\.?\d)?V$', '', v)
                     sig[name][v] = sig[name].get(v, 0) + c
         return {k : tuple(v.items()) for (k, v) in sig.items()}
 

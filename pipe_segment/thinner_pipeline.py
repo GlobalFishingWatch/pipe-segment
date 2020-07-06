@@ -69,6 +69,12 @@ class StitcherPipeline:
         field.mode="NULLABLE"
         schema.fields.append(field)
 
+        field = TableFieldSchema()
+        field.name = "gridcode"
+        field.type = "STRING"
+        field.mode="NULLABLE"
+        schema.fields.append(field)
+
         return schema
 
 
@@ -121,7 +127,8 @@ class StitcherPipeline:
                     timestamp,
                     {dropped_fields}
                 ),
-                       concat(seg_id, '-', format_date('%F', date(timestamp))) aug_seg_id -- TODO: better names
+                       concat(seg_id, '-', format_date('%F', date(timestamp))) AS aug_seg_id,
+                       format("lon:%+07.2f_lat:%+07.2f", round(lon, 2), round(lat, 2)) AS gridcode
                 from `{msg_table}*`
                 where _TABLE_SUFFIX between "{start_date:%Y%m%d}" and "{end_date:%Y%m%d}"
             )
