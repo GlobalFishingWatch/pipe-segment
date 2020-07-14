@@ -62,8 +62,7 @@ class PipeSegmentDagFactory(DagFactory):
                 'dag':dag,
                 'arguments':['segment_identity_daily',
                              '{date_range}'.format(**config),
-                             '{project_id}:{pipeline_dataset}.{messages_table}'.format(**config),
-                             '{project_id}:{pipeline_dataset}.{legacy_segment_v1_table}'.format(**config),
+                             '{project_id}:{pipeline_dataset}.{segments_table}'.format(**config),
                              '{project_id}:{pipeline_dataset}.{segment_identity_daily_table}'.format(**config)]
             })
 
