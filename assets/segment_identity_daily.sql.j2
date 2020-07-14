@@ -1,35 +1,20 @@
 #standardSQL
-#
-# Aggregates segment identity field counts from segment_identity_daily across a
-# multi-day window and assigns a vessel_id guid to each segment for the current day
-# which is the last day of the window
-#
 
 WITH
-  #
-  # Compute overall statistics for each segment, preserve ssvid
-  #
-
   segment_daily AS (
   SELECT
-    ssvid,
     seg_id,
+    ssvid,
     first_msg_of_day_timestamp as first_timestamp,
     last_msg_of_day_timestamp as last_timestamp,
     first_msg_of_day_timestamp AS first_pos_timestamp,
     last_msg_of_day_timestamp AS last_pos_timestamp,
-    (SELECT SUM(x.count)
-     FROM UNNEST(transponders) x) AS pos_count, -- Approximate, misses type 27 messages
-    (SELECT SUM(x.count)
-     FROM UNNEST(shipnames) x) AS ident_count, -- Approximate, misses when no shipname broadcast
-    (SELECT ARRAY_AGG(STRUCT(x.value, x.count))
-     FROM UNNEST(shipnames) x) AS shipname,
-    (SELECT ARRAY_AGG(STRUCT(x.value, x.count))
-     FROM UNNEST(callsigns) x) AS callsign,
-    (SELECT ARRAY_AGG(STRUCT(x.value, x.count))
-     FROM UNNEST(callsigns) x) AS callsign,
-    (SELECT ARRAY_AGG(STRUCT(x.value, x.count))
-     FROM UNNEST(imos) x) AS imo,
+    message_count AS msg_count,
+    (SELECT SUM(x.count) FROM UNNEST(transponders) x) AS pos_count, -- Approximate, misses type 27 messages
+    (SELECT SUM(x.count) FROM UNNEST(shipnames) x) AS ident_count, -- Approximate, misses when no shipname broadcast
+    (SELECT ARRAY_AGG(STRUCT(x.value, x.count)) FROM UNNEST(shipnames) x) AS shipname,
+    (SELECT ARRAY_AGG(STRUCT(x.value, x.count)) FROM UNNEST(callsigns) x) AS callsign,
+    (SELECT ARRAY_AGG(STRUCT(x.value, x.count)) FROM UNNEST(imos) x) AS imo,
     NULL AS n_shipname,
     NULL AS n_callsign,
     NULL AS n_imo,
@@ -39,14 +24,9 @@ WITH
     FALSE AS noise
   FROM
     `{{ segments }}` 
-  GROUP BY
-    ssvid,
-    seg_id )
+  )
 
 SELECT
   *
 FROM
   segment_daily
-
-
-
