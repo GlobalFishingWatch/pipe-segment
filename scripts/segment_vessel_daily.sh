@@ -55,7 +55,8 @@ TABLE_DESC=$( IFS=$'\n'; echo "${TABLE_DESC[*]}" )
 SCHEMA=${ASSETS}/${PROCESS}.schema.json
 bq mk --force \
   --description "${TABLE_DESC}" \
-  ${DEST_TABLE}
+  ${DEST_TABLE} \
+  ${SCHEMA}
 
 if [ "$?" -ne 0 ]; then
   echo "  Unable to create table ${DEST_TABLE}"
