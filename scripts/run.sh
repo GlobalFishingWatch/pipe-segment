@@ -26,8 +26,12 @@ fi
 
 
 case $1 in
+  segment)
+    python -m pipe_segment "${@:2}"
+    ;;
+
   segment_identity_daily)
-    xdaterange ${THIS_SCRIPT_DIR}/segment_identity_daily.sh "${@:2}"
+    python -m pipe_segment.segment_identity "${@:2}"
   ;;
 
   segment_vessel_daily)
@@ -46,9 +50,6 @@ case $1 in
     ${THIS_SCRIPT_DIR}/segment_vessel.sh "${@:2}"
   ;;
 
-  segment)
-    python -m pipe_segment "${@:2}"
-    ;;
 
   *)
     display_usage

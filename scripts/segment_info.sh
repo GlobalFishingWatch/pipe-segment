@@ -3,26 +3,22 @@ set -e
 
 source pipe-tools-utils
 
+PROCESS="segment_info"
 THIS_SCRIPT_DIR="$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )"
-
 ASSETS=${THIS_SCRIPT_DIR}/../assets
-source ${THIS_SCRIPT_DIR}/pipeline.sh
-
-PROCESS=$(basename $0 .sh)
-ARGS=( SEGMENT_IDENTITY_TABLE SEGMENT_VESSEL_DAILY MOST_COMMON_MIN_FREQ DEST_TABLE )
-SCHEMA=${ASSETS}/${PROCESS}.schema.json
-SQL=${ASSETS}/${PROCESS}.sql.j2
-TABLE_DESC=(
-  "Comprehensive table of all segments for all time.  One row per segement"
-  ""
-  "* Pipeline: ${PIPELINE} ${PIPELINE_VERSION}"
-  "* Source: ${SEGMENT_IDENTITY_TABLE}"
-  "* Command: $(basename $0)"
+ARGS=( \
+  SEGMENT_IDENTITY_TABLE \
+  SEGMENT_VESSEL_DAILY \
+  MOST_COMMON_MIN_FREQ \
+  DEST_TABLE \
 )
 
-display_usage()
-{
-  echo -e "\nUsage:\n${PROCESS}.sh ${ARGS[*]} \n"
+################################################################################
+# Validate and extract arguments
+################################################################################
+display_usage() {
+  ARG_NAMES=$(echo "${ARGS[*]}")
+  echo -e "\nUsage:\n$0 $ARG_NAMES\n"
 }
 
 if [[ $# -ne ${#ARGS[@]} ]]
@@ -31,24 +27,43 @@ then
     exit 1
 fi
 
+echo "Running $0"
 ARG_VALUES=("$@")
-PARAMS=()
 for index in ${!ARGS[*]}; do
-  echo ${ARG_VALUES[$index]}
+  echo "  ${ARGS[$index]}=${ARG_VALUES[$index]}"
   declare "${ARGS[$index]}"="${ARG_VALUES[$index]}"
-  PARAMS+=("${ARGS[$index]}=${ARG_VALUES[$index]}")
 done
 
-TABLE_DESC+=(${PARAMS[*]})
+################################################################################
+# Force that the destination table exists
+################################################################################
+echo "Ensuring table ${DEST_TABLE} exists"
+TABLE_DESC=(
+  "* Pipeline: ${PIPELINE} ${PIPELINE_VERSION}"
+  "* Source: ${SOURCE_TABLE}"
+  "* Command:"
+  "$(basename $0)"
+  "$@"
+)
 TABLE_DESC=$( IFS=$'\n'; echo "${TABLE_DESC[*]}" )
+SCHEMA=${ASSETS}/${PROCESS}.schema.json
+bq mk --force \
+  --description "${TABLE_DESC}" \
+  ${DEST_TABLE} \
+  ${SCHEMA}
 
+if [ "$?" -ne 0 ]; then
+  echo "  Unable to create table ${DEST_TABLE}"
+  exit 1
+fi
+echo "  Table ${DEST_TABLE} exists"
+
+################################################################################
+# Generate data
+################################################################################
+SQL=${ASSETS}/${PROCESS}.sql.j2
 
 echo "Publishing ${PROCESS} to ${DEST_TABLE}..."
-echo ""
-echo "Table Description" | indent
-echo "${TABLE_DESC}" | indent
-echo ""
-echo "Executing query..." | indent
 jinja2 ${SQL} \
    -D segment_identity_daily=${SEGMENT_IDENTITY_TABLE//:/.} \
    -D segment_vessel_daily=${SEGMENT_VESSEL_DAILY//:/.} \
@@ -56,8 +71,9 @@ jinja2 ${SQL} \
    | bq query --headless --max_rows=0 --allow_large_results --replace \
      --destination_table ${DEST_TABLE}
 
-echo ""
-bq update --schema ${SCHEMA} --description "${TABLE_DESC}" ${DEST_TABLE}
+if [ "$?" -ne 0 ]; then
+  echo "  Unable to insert records for table ${DEST_TABLE}"
+  exit 1
+fi
 
-echo ""
 echo "DONE ${DEST_TABLE}."

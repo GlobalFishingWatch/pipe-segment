@@ -53,19 +53,28 @@ class PipeSegmentDagFactory(DagFactory):
                 )
             )
 
-            segment_identity_daily = self.build_docker_task({
-                'task_id':'segment_identity_daily',
-                'pool':'k8operators_limit',
-                'docker_run':'{docker_run}'.format(**config),
-                'image':'{docker_image}'.format(**config),
-                'name':'segment-identity-daily',
-                'dag':dag,
-                'arguments':['segment_identity_daily',
-                             '{date_range}'.format(**config),
-                             '{project_id}:{pipeline_dataset}.{messages_table}'.format(**config),
-                             '{project_id}:{pipeline_dataset}.{legacy_segment_v1_table}'.format(**config),
-                             '{project_id}:{pipeline_dataset}.{segment_identity_daily_table}'.format(**config)]
-            })
+            segment_identity_daily = DataFlowDirectRunnerOperator(
+                task_id='segment_identity_daily',
+                py_file=Variable.get('DATAFLOW_WRAPPER_STUB'),
+                priority_weight=10,
+                options=dict(
+                    command='{docker_run} {docker_image} segment_identity_daily'.format(**config),
+                    startup_log_file=pp.join(Variable.get('DATAFLOW_WRAPPER_LOG_PATH'), 'pipe_segment/segment.log'),
+                    date_range='{date_range}'.format(**config),
+                    source='bq://{project_id}:{pipeline_dataset}.{segments_table}'.format(**config),
+                    segment_identity_daily_dest='bq://{project_id}:{pipeline_dataset}.{segment_identity_daily_table}'
+                    runner='{dataflow_runner}'.format(**config),
+                    project=config['project_id'],
+                    max_num_workers='{dataflow_max_num_workers}'.format(**config),
+                    disk_size_gb='{dataflow_disk_size_gb}'.format(**config),
+                    worker_machine_type='{dataflow_machine_type}'.format(**config),
+                    temp_location='gs://{temp_bucket}/dataflow_temp'.format(**config),
+                    staging_location='gs://{temp_bucket}/dataflow_staging'.format(**config),
+                    requirements_file='./requirements.txt',
+                    setup_file='./setup.py',
+                    experiments='shuffle_mode=service'
+                )
+            )
 
             segment_vessel_daily = self.build_docker_task({
                 'task_id':'segment_vessel_daily',
@@ -84,56 +93,58 @@ class PipeSegmentDagFactory(DagFactory):
                              '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table}'.format(**config)]
             })
 
-            segment_info = self.build_docker_task({
-                'task_id':'segment_info',
-                'pool':'k8operators_limit',
-                'docker_run':'{docker_run}'.format(**config),
-                'image':'{docker_image}'.format(**config),
-                'name':'segment-info',
-                'dag':dag,
-                'arguments':['segment_info',
-                             '{project_id}:{pipeline_dataset}.{segment_identity_daily_table}'.format(**config),
-                             '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table}'.format(**config),
-                             '{most_common_min_freq}'.format(**config),
-                             '{project_id}:{pipeline_dataset}.{segment_info_table}'.format(**config)]
-            })
-
-            vessel_info = self.build_docker_task({
-                'task_id':'vessel_info',
-                'pool':'k8operators_limit',
-                'docker_run':'{docker_run}'.format(**config),
-                'image':'{docker_image}'.format(**config),
-                'name':'vessel-info',
-                'dag':dag,
-                'arguments':['vessel_info',
-                             '{project_id}:{pipeline_dataset}.{segment_identity_daily_table}'.format(**config),
-                             '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table}'.format(**config),
-                             '{most_common_min_freq}'.format(**config),
-                             '{project_id}:{pipeline_dataset}.{vessel_info_table}'.format(**config)]
-            })
-
-            segment_vessel = self.build_docker_task({
-                'task_id':'segment_vessel',
-                'pool':'k8operators_limit',
-                'docker_run':'{docker_run}'.format(**config),
-                'image':'{docker_image}'.format(**config),
-                'name':'segment-vessel',
-                'dag':dag,
-                'arguments':['segment_vessel',
-                             '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table}'.format(**config),
-                             '{project_id}:{pipeline_dataset}.{segment_vessel_table} '.format(**config)]
-            })
 
             for sensor in source_sensors:
                 dag >> sensor >> segment
 
             segment >> segment_identity_daily
 
-            segment_identity_daily >> segment_info
             segment_identity_daily >> segment_vessel_daily
 
-            segment_vessel_daily >> vessel_info
-            segment_vessel_daily >> segment_vessel
+            if config.get('enable_aggregate_tables', False):
+                segment_info = self.build_docker_task({
+                    'task_id':'segment_info',
+                    'pool':'k8operators_limit',
+                    'docker_run':'{docker_run}'.format(**config),
+                    'image':'{docker_image}'.format(**config),
+                    'name':'segment-info',
+                    'dag':dag,
+                    'arguments':['segment_info',
+                                 '{project_id}:{pipeline_dataset}.{segment_identity_daily_table}'.format(**config),
+                                 '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table}'.format(**config),
+                                 '{most_common_min_freq}'.format(**config),
+                                 '{project_id}:{pipeline_dataset}.{segment_info_table}'.format(**config)]
+                })
+
+                vessel_info = self.build_docker_task({
+                    'task_id':'vessel_info',
+                    'pool':'k8operators_limit',
+                    'docker_run':'{docker_run}'.format(**config),
+                    'image':'{docker_image}'.format(**config),
+                    'name':'vessel-info',
+                    'dag':dag,
+                    'arguments':['vessel_info',
+                                 '{project_id}:{pipeline_dataset}.{segment_identity_daily_table}'.format(**config),
+                                 '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table}'.format(**config),
+                                 '{most_common_min_freq}'.format(**config),
+                                 '{project_id}:{pipeline_dataset}.{vessel_info_table}'.format(**config)]
+                })
+
+                segment_vessel = self.build_docker_task({
+                    'task_id':'segment_vessel',
+                    'pool':'k8operators_limit',
+                    'docker_run':'{docker_run}'.format(**config),
+                    'image':'{docker_image}'.format(**config),
+                    'name':'segment-vessel',
+                    'dag':dag,
+                    'arguments':['segment_vessel',
+                                 '{project_id}:{pipeline_dataset}.{segment_vessel_daily_table}'.format(**config),
+                                 '{project_id}:{pipeline_dataset}.{segment_vessel_table} '.format(**config)]
+                })
+
+                segment_identity_daily >> segment_info
+                segment_vessel_daily >> vessel_info
+                segment_vessel_daily >> segment_vessel
 
             return dag
 
