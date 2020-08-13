@@ -62,7 +62,7 @@ class PipeSegmentDagFactory(DagFactory):
                     startup_log_file=pp.join(Variable.get('DATAFLOW_WRAPPER_LOG_PATH'), 'pipe_segment/segment.log'),
                     date_range='{date_range}'.format(**config),
                     source='bq://{project_id}:{pipeline_dataset}.{segments_table}'.format(**config),
-                    segment_identity_daily_dest='bq://{project_id}:{pipeline_dataset}.{segment_identity_daily_table}'
+                    segment_identity_daily_dest='bq://{project_id}:{pipeline_dataset}.{segment_identity_daily_table}',
                     runner='{dataflow_runner}'.format(**config),
                     project=config['project_id'],
                     max_num_workers='{dataflow_max_num_workers}'.format(**config),
