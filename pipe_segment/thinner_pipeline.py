@@ -128,7 +128,8 @@ class StitcherPipeline:
                     {dropped_fields}
                 ),
                        concat(seg_id, '-', format_date('%F', date(timestamp))) AS aug_seg_id,
-                       format("lon:%+07.2f_lat:%+07.2f", round(lon, 2), round(lat, 2)) AS gridcode
+                       format("lon:%+07.2f_lat:%+07.2f", IF(ROUND(lon, 2) = 0, 0, ROUND(lon, 2)), 
+                                                         IF(ROUND(lat, 2) = 0, 0, ROUND(lat, 2))) AS gridcode                
                 from `{msg_table}*`
                 where _TABLE_SUFFIX between "{start_date:%Y%m%d}" and "{end_date:%Y%m%d}"
             )

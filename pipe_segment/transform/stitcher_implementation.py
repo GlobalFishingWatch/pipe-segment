@@ -30,6 +30,24 @@ PlaceHolderSegmentState = namedtuple('PlaceHolderSegmentState',
 
 
 class StitcherImplementation(object):
+    """The core of the stitcher with no Beam parts so can be tested locally
+
+    Parameters
+    ----------
+    start_date : datetime.date
+        Only data on or after this date is processed.
+    end_date : datetime.date
+        Only data up to and including this date is processed.
+    look_ahead : int
+        Maximum of days to look into the future before freezing a track.
+    look_back : int
+        How many days into the past to look when collecting signature information.
+        This signature information is used to help identify which tracks should be 
+        joined.
+    stitcher_params : dict or None, optional
+        Dictionary of parameters to be passed to `segment.stitcher`
+    """
+
 
     def __init__(self,
                  start_date,
@@ -121,8 +139,7 @@ class StitcherImplementation(object):
 
     @staticmethod
     def remove_extra_segments(segments):
-        # There is a bug in segments that I haven't tracked down yet
-        # that results in occasional multiple segments per day. Filter out 
+        # There is a bug in segments that results in occasional multiple segments per day. Filter out 
         seen = set()
         for seg in sorted(segments, key=lambda x: (x.aug_id, x.msg_count), reverse=True):
             key = seg.aug_id
@@ -171,7 +188,8 @@ class StitcherImplementation(object):
         emit_datetime = start_datetime
         while emit_datetime <= end_datetime:
             current_segments = [x for x in segments 
-                                    if emit_datetime <= self._as_datetime(x.timestamp.date()) <= emit_datetime + DT.timedelta(days=self.look_ahead - 1)] 
+                                    if emit_datetime <= self._as_datetime(x.timestamp.date()) 
+                                    <= emit_datetime + DT.timedelta(days=self.look_ahead - 1)] 
 
 
             new_tracks = []

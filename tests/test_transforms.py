@@ -152,6 +152,7 @@ class TestTransforms():
                      'last_msg_of_day_speed' : 0,
                      'last_msg_of_day_timestamp' : prev_ts,
                      'message_count': 1,
+                     'daily_message_count' : 1,
                      'shipnames' : [],
                      'callsigns' : [],
                      'imos' : [],
