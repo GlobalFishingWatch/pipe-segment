@@ -124,6 +124,7 @@ class Segment(PTransform):
         add_field('ssvid',  'STRING')
         add_field('closed', 'BOOLEAN')
         add_field('message_count', 'INTEGER')
+        add_field('daily_message_count', 'INTEGER')
         add_field('timestamp', 'TIMESTAMP')
         for prefix in ['first_msg_', 'last_msg_', 'first_msg_of_day_', 'last_msg_of_day_']:
             mode = 'NULLABLE' if prefix.endswith('of_day_') else 'REQUIRED'
@@ -133,14 +134,14 @@ class Segment(PTransform):
             add_field(prefix + 'course', 'FLOAT', mode)
             add_field(prefix + 'speed', 'FLOAT', mode)
 
-        def add_sig_field(name):
+        def add_sig_field(name, value_type='STRING'):
             field = bigquery.TableFieldSchema()
             field.name = name
             field.type = "RECORD"
             field.mode = "REPEATED"
             f1 = bigquery.TableFieldSchema()
             f1.name = 'value'
-            f1.type = 'STRING'
+            f1.type = value_type
             f2 =  bigquery.TableFieldSchema()
             f2.name = 'count'
             f2.type = 'INTEGER'
@@ -150,6 +151,9 @@ class Segment(PTransform):
         add_sig_field('shipnames')
         add_sig_field('callsigns')
         add_sig_field('imos')
+        add_sig_field('destinations')
+        add_sig_field('lengths', value_type='FLOAT')
+        add_sig_field('widths', value_type='FLOAT')
         add_sig_field('transponders')
 
         return schema

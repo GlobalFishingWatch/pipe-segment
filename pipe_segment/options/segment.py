@@ -61,7 +61,7 @@ class SegmentOptions(PipelineOptions):
             )
         optional.add_argument(
             '--pipeline_start_date',
-            help='Firs day of the pipeline data, used to know if we want to exclude the check of pading one day before YYYY-MM-DD')
+            help='First day of the pipeline data, used to know if we want to exclude the check of pading one day before YYYY-MM-DD')
         optional.add_argument(
             '--segmenter_params',
             help='Pass a json object with parameters to pass to the segmenter, or supply a file name to read with '

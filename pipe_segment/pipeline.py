@@ -41,19 +41,30 @@ def offset_timestamp(ts, **timedelta_args):
 def is_first_batch(pipeline_start_ts, first_date_ts):
     return pipeline_start_ts == first_date_ts
 
-def filter_by_ssvid_predicate(obj, ssvid_kkdict):
-    return obj['ssvid'] in ssvid_kkdict
+def filter_by_ssvid_predicate(obj, valid_ssvid_set):
+    return obj['ssvid'] in valid_ssvid_set
 
-class FilterBySsvid(beam.PTransform):
+class LogMapper(object):
+    first_item = True
+    which_item = 0
 
-    def __init__(self, ssvid_iter):
-        self.ssvid_iter = ssvid_iter
+    def log_first_item(self, obj):
+        if self.first_item:
+            logging.warn("First Item: %s", obj)
+            self.first_item = False
+        return obj
 
-    def expand(self, xs):
-        ssvid = set(self.ssvid_iter)
-        return (
-            xs | beam.Filter(self.segment, lambda x: x['ssvid'] in ssvid)
-        )
+    def log_nth_item(self, obj, n):
+        if self.which_item == n:
+            logging.warn("%sth Item: %s", n, obj)
+            self.which_item += 1
+        return obj
+
+    def log_first_item_keys(self, obj):
+        if self.first_item:
+            logging.warn("First Item's Keys: %s", obj.keys())
+            self.first_item = False
+        return obj
 
 
 class SegmentPipeline:
@@ -182,20 +193,21 @@ class SegmentPipeline:
         # for purposes of CoGroupByKey, so both messages and segments should be
         # stringified or neither. 
         pipeline = beam.Pipeline(options=self.options)
+
         messages = (
             self.message_sources(pipeline)
             | "MergeMessages" >> beam.Flatten()
         )
 
         if self.options.ssvid_filter_query:
-            target_ssvid = beam.pvalue.AsDict(
+            valid_ssivd_set = set(beam.pvalue.AsIter(
                 messages
                 | GCPSource(gcp_path=self.options.ssvid_filter_query)
-                | beam.Map(lambda x: (x['ssvid'], x['ssvid']))
-                )
+                | beam.Map(lambda x: (x['ssvid']))
+                ))
             messages = (
                 messages
-                | beam.Filter(filter_by_ssvid_predicate, target_ssvid)
+                | beam.Filter(filter_by_ssvid_predicate, valid_ssivd_set)
             )
 
         messages = (   
@@ -220,6 +232,7 @@ class SegmentPipeline:
                             end_date=safe_dateFromTimestamp(self.date_range[1]),
                             segmenter_params=self.segmenter_params, 
                             look_ahead=self.options.look_ahead)
+
         segmented = args | "Segment" >> segmenter
 
         messages = segmented[segmenter.OUTPUT_TAG_MESSAGES]

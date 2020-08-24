@@ -69,6 +69,7 @@ class SegmentImplementation(object):
             closed=seg_state.closed,
             noise=seg_state.noise,
             message_count=seg_state.msg_count,
+            daily_message_count=seg_state.daily_msg_count,
             first_msg_timestamp=first_msg['timestamp'],
             first_msg_lat=first_msg['lat'],
             first_msg_lon=first_msg['lon'],
@@ -93,6 +94,9 @@ class SegmentImplementation(object):
             shipnames=sigature2record('shipnames'),
             callsigns=sigature2record('callsigns'),
             imos=sigature2record('imos'),
+            destinations=sigature2record('destinations'),
+            lengths=sigature2record('lengths'),
+            widths=sigature2record('widths'),
             transponders=sigature2record('transponders')
         )
         for field, stats in self.stats_fields:
@@ -144,19 +148,12 @@ class SegmentImplementation(object):
                 'course' : seg_record['last_msg_of_day_course'],
                 'speed' : seg_record['last_msg_of_day_speed']
             }
-        def record2signature(name):
-            return {d['value'] : d['count'] for d in seg_record[name]}
-        signature = {
-            'shipnames' : record2signature('shipnames'),
-            'callsigns' : record2signature('callsigns'),
-            'imos' : record2signature('imos'),
-            'transponders' : record2signature('transponders'),
-        }
         return SegmentState(id = seg_record['seg_id'],
                             noise = False,
                             closed = seg_record['closed'],
                             ssvid = seg_record['ssvid'],
                             msg_count = seg_record['message_count'],
+                            daily_msg_count = seg_record['daily_message_count'],
                             first_msg = first_msg,
                             last_msg = last_msg,
                             first_msg_of_day = first_msg_of_day,
@@ -185,7 +182,8 @@ class SegmentImplementation(object):
     def _convert_messages_out(self, msg, seg_id):
         msg = msg.copy()
         msg['seg_id'] = seg_id
-        for k1 in ['shipnames', 'callsigns', 'imos', 'n_shipnames', 'n_callsigns', 'n_imos']:
+        for k1 in ['shipnames', 'callsigns', 'imos', 'destinations', 'lengths', 'widths',
+                        'n_shipnames', 'n_callsigns', 'n_imos']:
             msg.pop(k1, None)
         return msg
 
@@ -232,12 +230,14 @@ class SegmentImplementation(object):
         sig[outer_key] = dict(counter)
 
 
-    def _get_signature(self, seg):
+    def _get_signature(self, seg, date):
         sig = {}
         a_types = {'AIS.1', 'AIS.2', 'AIS.3'}
         b_types = {'AIS.18', 'AIS.19'}
         a_cnt = b_cnt = 0
         for msg in seg.msgs:
+            if msg['timestamp'].date() != date:
+                continue
             msg_type = msg.get('type')
             a_cnt += msg_type in a_types
             b_cnt += msg_type in b_types
@@ -245,6 +245,9 @@ class SegmentImplementation(object):
         self._update_sig_part(sig, seg.msgs, 'shipname', 'shipnames')
         self._update_sig_part(sig, seg.msgs, 'callsign', 'callsigns')
         self._update_sig_part(sig, seg.msgs, 'imo', 'imos')
+        self._update_sig_part(sig, seg.msgs, 'destination', 'destinations')
+        self._update_sig_part(sig, seg.msgs, 'length', 'lengths')
+        self._update_sig_part(sig, seg.msgs, 'width', 'widths')
         return sig
 
     def _as_record(self, record):
@@ -271,9 +274,13 @@ class SegmentImplementation(object):
         record['last_pos_lon'] = record.pop('last_msg_lon')
         record.pop('last_msg_course')
         record.pop('last_msg_speed')
+        record.pop('daily_message_count')
         record.pop('shipnames')
         record.pop('callsigns')
         record.pop('imos')
+        record.pop('destinations')
+        record.pop('lengths')
+        record.pop('widths')
         record.pop('transponders')
         return record
 
@@ -296,11 +303,12 @@ class SegmentImplementation(object):
                     seg.msgs = [x for x in seg.msgs if x['timestamp'].date() <= date]
                     if seg.msgs or seg.prev_state:
                         logger.debug('Segmenting key %r yielding segment %s containing %s messages ' % (seg.ssvid, seg.id, len(seg)))
-                        signature = self._get_signature(seg)
+                        signature = self._get_signature(seg, date)
                         rcd = self._segment_record(seg.state, seg.msgs, timestamp, signature)
                         rcd['closed'] = is_closed
                         output_rcd = rcd.copy()
                         output_rcd['timestamp'] = timestamp
+                        # TODO: also output dated_seg_id == aug_seg_id
                         yield (self.OUTPUT_TAG_SEGMENTS_V1, self._as_record_v1(output_rcd))
                         # Only store new style records, so that we get the ~same code path
                         # running over multiple days as running over a single day.

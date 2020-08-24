@@ -28,7 +28,7 @@ VOLUME ["/root/.config"]
 
 # Setup local application dependencies
 COPY . /opt/project
-RUN pip install cython
+RUN pip install cython pycodestyle
 RUN pip install -r requirements.txt
 RUN pip install -e .
 

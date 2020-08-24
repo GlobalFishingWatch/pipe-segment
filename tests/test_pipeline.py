@@ -20,6 +20,9 @@ from pipe_segment.transform.segment import Segment
 from pipe_segment.pipeline import SegmentPipeline
 
 
+# Set to true if you want to dump the actual data out to look at it.
+DUMP_ACTUAL = False
+
 @pytest.mark.filterwarnings('ignore:Using fallback coder:UserWarning')
 @pytest.mark.filterwarnings('ignore:The compiler package is deprecated and removed in Python 3.x.:DeprecationWarning')
 @pytest.mark.filterwarnings('ignore:open_shards is experimental.:FutureWarning')
@@ -121,6 +124,10 @@ class TestPipeline():
                 with open_shards('%s*' % segments_sink) as actual_output:
                     raw_actual = list(nlj.load(actual_output))
                     actual = listify(raw_actual)
+                    if DUMP_ACTUAL:
+                        with nlj.open('dump_test_Pipeline_parts.json', 'w') as f:
+                            for line in raw_actual:
+                                f.write(line)
                     assert expected == actual
 
 
