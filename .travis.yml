@@ -10,7 +10,6 @@ cache:
   - ~/.cache/pip
 
 python:
-- 2.7
 - 3.7
 
 install:
@@ -18,7 +17,6 @@ install:
 - docker-compose build
 
 script:
-- docker-compose --version
 - docker-compose run py.test tests
 
 notifications:
