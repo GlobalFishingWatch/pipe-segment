@@ -7,6 +7,11 @@ services:
       - ".:/opt/project"
       - "gcp:/root/.config/gcloud"
 
+  frozen_dependencies:
+    image: gfw/pipe-anchorages
+    build: .
+    entrypoint: ["cat","frozen_dependencies.txt"]
+
   py.test:
     image: gfw/pipe-segment
     build: .

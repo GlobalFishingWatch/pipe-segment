@@ -47,7 +47,7 @@ class PipeSegmentDagFactory(DagFactory):
                     worker_machine_type='{dataflow_machine_type}'.format(**config),
                     temp_location='gs://{temp_bucket}/dataflow_temp'.format(**config),
                     staging_location='gs://{temp_bucket}/dataflow_staging'.format(**config),
-                    requirements_file='./requirements.txt',
+                    requirements_file='./frozen_dependencies.txt',
                     setup_file='./setup.py',
                     experiments='shuffle_mode=service'
                 )
@@ -65,7 +65,7 @@ class PipeSegmentDagFactory(DagFactory):
                     experiments='shuffle_mode=service',
                     max_num_workers='{dataflow_max_num_workers}'.format(**config),
                     project=config['project_id'],
-                    requirements_file='./requirements.txt',
+                    requirements_file='./frozen_dependencies.txt',
                     runner='{dataflow_runner}'.format(**config),
                     setup_file='./setup.py',
                     source_segment='bq://{project_id}:{pipeline_dataset}.{segments_table}'.format(**config),
