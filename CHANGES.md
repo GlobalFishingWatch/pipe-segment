@@ -6,6 +6,16 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v3.0.7 - 2020-10-14
+
+### Added
+
+* [Data Pipeline/PIPELINE#31](https://globalfishingwatch.atlassian.net/browse/PIPELINE-31): Adds
+  * Creation of frozen dependencies in the docker image at building time.
+  * Replaces requirements.txt to frozen dependencies for dataflow operators.
+  * Google SDK increment version to `314.0.0`.
+  * description in `README.md`.
+
 ## v3.0.6 - 2020-10-06
 
 ### Changed
