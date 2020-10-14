@@ -40,7 +40,7 @@ case $1 in
 
   local)
     for DT in ${DS}; do
-        docker-compose run pipe_segment \
+        docker-compose run pipe_segment segment \
           --source bq://${PROJECT_ID}:${PIPELINE_DATASET}.${JOB_NAME}_source_ \
           --date_range ${DT},${DT} \
           --dest bq://${PROJECT_ID}:${PIPELINE_DATASET}.${JOB_NAME}_messages_ \
@@ -54,7 +54,7 @@ case $1 in
     ;;
 
   remote)
-    docker-compose run pipe_segment \
+    docker-compose run pipe_segment segment \
       --source bq://${PROJECT_ID}:${PIPELINE_DATASET}.${JOB_NAME}_source_ \
       --date_range 2017-09-21,2017-09-21 \
       --dest bq://${PROJECT_ID}:${PIPELINE_DATASET}.${JOB_NAME}_messages_ \
@@ -67,7 +67,7 @@ case $1 in
       --job_name ${JOB_NAME//_/-} \
       --max_num_workers 4 \
       --disk_size_gb 50 \
-      --requirements_file=./requirements.txt \
+      --requirements_file=./frozen_dependencies.txt \
       --setup_file=./setup.py \
       --log_level=DEBUG
 
