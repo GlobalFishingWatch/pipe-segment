@@ -8,16 +8,23 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [UNRELEASED]
 
+## v3.0.7 - 2020-10-26
+
+### Added
+
+* [Data Pipeline/PIPELINE-129](https://globalfishingwatch.atlassian.net/browse/PIPELINE-129):
+  Adds `segmenter_params` to segment airflow step and `max_gap_size_value` to Airflow variable.
+
 ### Changed
 
-* [PIPELINE-144](https://globalfishingwatch.atlassian.net/browse/PIPELINE-144):
+* [Data Pipeline/PIPELINE-144](https://globalfishingwatch.atlassian.net/browse/PIPELINE-144):
   Changes `gpsdio-segment` version to use the latest fixed version `0.20.2`.
 
 ## v3.0.6 - 2020-10-06
 
 ### Changed
 
-* [PIPELINE-139](https://globalfishingwatch.atlassian.net/browse/PIPELINE-139):
+* [Data Pipeline/PIPELINE-139](https://globalfishingwatch.atlassian.net/browse/PIPELINE-139):
   Changes the `gpsdio-segment` version to use the latest fixed version, `0.20.1`.
 
 ## v3.0.5 - 2020-07-15
