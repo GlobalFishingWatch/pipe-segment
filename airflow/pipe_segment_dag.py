@@ -35,6 +35,7 @@ class PipeSegmentDagFactory(DagFactory):
                     startup_log_file=pp.join(Variable.get('DATAFLOW_WRAPPER_LOG_PATH'), 'pipe_segment/segment.log'),
                     date_range='{date_range}'.format(**config),
                     pipeline_start_date=self.default_args['start_date'].strftime("%Y-%m-%d"),
+                    segmenter_params='{{"max_hours": {max_gap_size_value}}}'.format(**config),
                     source=','.join(source_paths),
                     msg_dest='bq://{project_id}:{pipeline_dataset}.{messages_table}'.format(**config),
                     legacy_seg_v1_dest='bq://{project_id}:{pipeline_dataset}.{legacy_segment_v1_table}'.format(**config),
