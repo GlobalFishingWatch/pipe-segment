@@ -58,12 +58,17 @@ class PipeSegmentDagFactory(DagFactory):
             # It would be nice to have a nodash version of source date range in airflow-gfw instead
             start_date_nodash, end_date_nodash = [x.replace('-', '') for x in self.source_date_range()]
 
+            # This step check that a configurable percentage of the segments
+            # that have messages being appended in a given day have identity
+            # messages assigned to them. Around 80% of the segments for any
+            # given day have identity messages normally in the AIS pipeline,
+            # for example.
             segment_identity_check = BigQueryCheckOperator(
                 task_id='segment_identity_check',
                 sql=
                 """
                     SELECT
-                      if(COUNTIF(ARRAY_LENGTH(shipnames) > 0) / COUNT(*) < {segment_identity_threshold}, 1, 0)
+                      if(COUNTIF(ARRAY_LENGTH(shipnames) > 0) / COUNT(*) < {segment_identity_threshold}, 0, 1)
                     FROM
                       `{project_id}.{pipeline_dataset}.{segments_table}*`
                     WHERE
