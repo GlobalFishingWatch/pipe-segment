@@ -8,6 +8,11 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [UNRELEASED]
 
+### Added
+
+* [Data Pipeline/PIPELINE-155](https://globalfishingwatch.atlassian.net/browse/PIPELINE-155):
+  Adds a new data quality step for segment identity metrics.
+
 ## v3.0.7 - 2020-10-26
 
 ### Added
