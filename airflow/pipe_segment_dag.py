@@ -1,8 +1,9 @@
 from airflow import DAG
 from airflow.models import Variable
-
+from airflow.contrib.operators.bigquery_check_operator import BigQueryCheckOperator
 from airflow_ext.gfw.models import DagFactory
 from airflow_ext.gfw.operators.dataflow_operator import DataFlowDirectRunnerOperator
+from airflow_ext.gfw import config as config_tools
 
 import posixpath as pp
 
@@ -54,6 +55,32 @@ class PipeSegmentDagFactory(DagFactory):
                 )
             )
 
+            # It would be nice to have a nodash version of source date range in airflow-gfw instead
+            start_date_nodash, end_date_nodash = [x.replace('-', '') for x in self.source_date_range()]
+
+            # This step check that a configurable percentage of the segments
+            # that have messages being appended in a given day have identity
+            # messages assigned to them. Around 80% of the segments for any
+            # given day have identity messages normally in the AIS pipeline,
+            # for example.
+            segment_identity_check = BigQueryCheckOperator(
+                task_id='segment_identity_check',
+                sql=
+                """
+                    SELECT
+                      if(COUNTIF(ARRAY_LENGTH(shipnames) > 0) / COUNT(*) < {segment_identity_threshold}, 0, 1)
+                    FROM
+                      `{project_id}.{pipeline_dataset}.{segments_table}*`
+                    WHERE
+                      _table_suffix between '{start_date_nodash}' and '{end_date_nodash}'
+                      AND message_count > {spoofing_threshold}
+                      AND last_msg_timestamp BETWEEN timestamp AND TIMESTAMP_ADD(timestamp, INTERVAL 1 DAY)
+                """.format(**config, start_date_nodash=start_date_nodash, end_date_nodash=end_date_nodash),
+                use_legacy_sql=False,
+                retries=0,
+                on_failure_callback=config_tools.failure_callback_gfw,
+            )
+
             segment_identity_daily = DataFlowDirectRunnerOperator(
                 task_id='segment_identity_daily',
                 py_file=Variable.get('DATAFLOW_WRAPPER_STUB'),
@@ -98,7 +125,9 @@ class PipeSegmentDagFactory(DagFactory):
             for sensor in source_sensors:
                 dag >> sensor >> segment
 
-            segment >> segment_identity_daily
+            segment >> segment_identity_check
+
+            segment_identity_check >> segment_identity_daily
 
             segment_identity_daily >> segment_vessel_daily
 

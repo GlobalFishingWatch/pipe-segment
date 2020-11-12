@@ -31,6 +31,7 @@ python $AIRFLOW_HOME/utils/set_default_variables.py \
     vessel_info_table="vessel_info" \
     temp_bucket="{{ var.value.TEMP_BUCKET }}" \
     window_days="30" \
+    segment_identity_threshold="0.8" \
 
 
 echo "Installation Complete"
