@@ -8,6 +8,8 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [UNRELEASED]
 
+## v3.0.8 - 2020-11-13
+
 ### Added
 
 * [Data Pipeline/PIPELINE-155](https://globalfishingwatch.atlassian.net/browse/PIPELINE-155):
