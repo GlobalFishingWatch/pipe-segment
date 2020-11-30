@@ -13,6 +13,7 @@ from setuptools import setup
 package = __import__('pipe_segment')
 
 DEPENDENCIES = [
+    "packaging==20.4",
     "pytest",
     "nose",
     "ujson",

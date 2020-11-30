@@ -8,9 +8,15 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [Unreleased]
 
-## v1.2.1 - 2019-05-15
-* [GlobalFishingWatch/GFW-Tasks#1030](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/1030) Changed the way we pass the machine type to dataflow so it re-allow us to send the custom machine type.
+## v1.2.1-HOTFIX1 - 2020-11-30
 
+### Added
+
+* [PIPELINE-255](https://globalfishingwatch.atlassian.net/browse/PIPELINE-255) Adds pin over the `packaging-20.4` because after that version the compilation fails.
+
+## v1.2.1 - 2019-05-15
+
+* [GlobalFishingWatch/GFW-Tasks#1030](https://github.com/GlobalFishingWatch/GFW-Tasks/issues/1030) Changed the way we pass the machine type to dataflow so it re-allow us to send the custom machine type.
 
 ## v1.2.0 - 2019-05-03
 
