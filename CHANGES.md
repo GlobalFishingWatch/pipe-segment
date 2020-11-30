@@ -12,7 +12,8 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ### Added
 
-* [PIPELINE-255](https://globalfishingwatch.atlassian.net/browse/PIPELINE-255) Adds pin over the `packaging-20.4` because after that version the compilation fails.
+* [PIPELINE-255](https://globalfishingwatch.atlassian.net/browse/PIPELINE-255) Adds
+  pin over the library `packaging-20.4`, the `pipe-tools:v2.0.0-HOTFIX2` and the `python` image to make the code compile.
 
 ## v1.2.1 - 2019-05-15
 

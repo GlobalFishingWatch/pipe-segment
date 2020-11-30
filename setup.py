@@ -23,7 +23,7 @@ DEPENDENCIES = [
     "newlinejson",
     "python-stdnum",
     "gpsdio-segment==0.18",
-    "pipe-tools==2.0.0",
+    "pipe-tools==2.0.0-HOTFIX2",
     "shipdataprocess==0.5.8",
     "jinja2-cli",
 ]
