@@ -160,7 +160,7 @@ class StitcherPipeline:
 
         segments = (
             self.segment_sources(pipeline) 
-            | "MergeSegments" >> beam.Flatten()
+            | "MergeSources" >> beam.Flatten()
             | "FilterSkipped" >> beam.Filter(lambda msg : msg['ssvid'] not in ssvid_to_skip)
             | "SegmentsAddKey" >> beam.Map(self.add_id_tag)
             )
