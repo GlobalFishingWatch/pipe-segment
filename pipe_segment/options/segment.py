@@ -48,6 +48,15 @@ class SegmentOptions(PipelineOptions):
             '--seg_dest',
             required=True,
             help='Bigquery table or file (prefix) to read and write new (v2) segments')
+        optional.add_argument(
+            '--bad_hour_padding',
+                default=1,
+                help='hours on either side of an hour with bad satellite timing to suppress')
+        optional.add_argument(
+            '--max_timing_offset_s',
+            default=30,
+            help='maximum number of seconds a satelite clock can be off before we drop its messages'
+            )
         required.add_argument(
             '--legacy_seg_v1_dest',
             required=False,
