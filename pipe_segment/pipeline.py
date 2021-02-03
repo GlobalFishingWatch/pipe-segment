@@ -280,11 +280,11 @@ class SegmentPipeline:
 
         if self.options.ssvid_filter_query:
             # TODO: does this work?
-            valid_ssivd_set = set(beam.pvalue.AsIter(
+            valid_ssivd_set = beam.pvalue.AsDict(
                 messages
                 | GCPSource(gcp_path=self.options.ssvid_filter_query)
-                | beam.Map(lambda x: (x['ssvid']))
-                ))
+                | beam.Map(lambda x: (x['ssvid'], x['ssvid']))
+                )
             messages = (
                 messages
                 | beam.Filter(filter_by_ssvid_predicate, valid_ssivd_set)
