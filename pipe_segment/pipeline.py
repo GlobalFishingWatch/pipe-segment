@@ -256,27 +256,31 @@ class SegmentPipeline:
         start_date = safe_dateFromTimestamp(self.date_range[0])
         end_date = safe_dateFromTimestamp(self.date_range[1])
 
-        satellite_offsets = pipeline | SatelliteOffsets(start_date, end_date)
-
-        ( satellite_offsets
-            | "AddTimestamp" >> beam.Map(lambda x: TimestampedValue(x, x['hour']))
-            | "WriteSatOffsets" >> self.sat_offset_sink
-        )
-
-        bad_satellite_hours = (
-            satellite_offsets
-            | beam.Filter(greater_than_max_dt, max_dt=self.options.max_timing_offset_s)
-            | beam.FlatMap(make_offset_sat_key_set, max_offset=self.options.bad_hour_padding)
-        )
-
-        bad_hours = beam.pvalue.AsDict(bad_satellite_hours | beam.Map(lambda x : (x, x)))
-
         messages = (
             self.message_sources(pipeline)
             | "MergeMessages" >> beam.Flatten()
-            | "FilterBadTimes" >> beam.Filter(not_during_bad_hour, bad_hours)
         )
 
+        if self.options.sat_source:
+            satellite_offsets = pipeline | SatelliteOffsets(start_date, end_date)
+
+            if self.options.sat_offset_dest:
+                ( satellite_offsets
+                    | "AddTimestamp" >> beam.Map(lambda x: TimestampedValue(x, x['hour']))
+                    | "WriteSatOffsets" >> self.sat_offset_sink
+                )
+
+            bad_satellite_hours = (
+                satellite_offsets
+                | beam.Filter(greater_than_max_dt, max_dt=self.options.max_timing_offset_s)
+                | beam.FlatMap(make_offset_sat_key_set, max_offset=self.options.bad_hour_padding)
+            )
+
+            bad_hours = beam.pvalue.AsDict(bad_satellite_hours | beam.Map(lambda x : (x, x)))
+
+            messages = ( messages
+                | "FilterBadTimes" >> beam.Filter(not_during_bad_hour, bad_hours)
+            )
 
         if self.options.ssvid_filter_query:
             # TODO: does this work?

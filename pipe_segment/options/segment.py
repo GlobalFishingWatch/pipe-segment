@@ -20,15 +20,15 @@ class SegmentOptions(PipelineOptions):
             required=True,
             action=ReadFileAction,
             help='Bigquery table, query or file to read normalized messages')
-        required.add_argument(
+        optional.add_argument(
             '--sat_source',
-            required=True,
+            required=False,
             action=ReadFileAction,
             help='Bigquery table, query or file to read normalized messages,'
                  'must be a subset of `source`')
-        required.add_argument(
+        optional.add_argument(
             '--sat_offset_dest',
-            required=True,
+            required=False,
             help='Bigquery table to write satellite offsets to.`')
         optional.add_argument(
             '--source_schema',
