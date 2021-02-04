@@ -100,7 +100,7 @@ class SegmentOptions(PipelineOptions):
         optional.add_argument(
             '--ssvid_filter_query',
             help='query that returns a list of ssvid to trim the sourced data down to. Note that '
-                 'the resturned list is used in memory so should not be too large. This meant for '
+                 'the returned list is used in memory so should not be too large. This meant for '
                  'testing purposes and if tempted to use for production, more work should be done '
                  'so that the data is pruned on the way in.'
             )
