@@ -21,6 +21,16 @@ class SegmentOptions(PipelineOptions):
             action=ReadFileAction,
             help='Bigquery table, query or file to read normalized messages')
         optional.add_argument(
+            '--sat_source',
+            required=False,
+            action=ReadFileAction,
+            help='Bigquery table, query or file to read normalized messages,'
+                 'must be a subset of `source`')
+        optional.add_argument(
+            '--sat_offset_dest',
+            required=False,
+            help='Bigquery table to write satellite offsets to.`')
+        optional.add_argument(
             '--source_schema',
             help='JSON schema for the source messages (bigquery).  This is ignored for tables or file sources. '
                  'See examples/message-schema.json for an example.  This must match the fields included in the '
@@ -38,6 +48,15 @@ class SegmentOptions(PipelineOptions):
             '--seg_dest',
             required=True,
             help='Bigquery table or file (prefix) to read and write new (v2) segments')
+        optional.add_argument(
+            '--bad_hour_padding',
+                default=1,
+                help='hours on either side of an hour with bad satellite timing to suppress')
+        optional.add_argument(
+            '--max_timing_offset_s',
+            default=30,
+            help='maximum number of seconds a satelite clock can be off before we drop its messages'
+            )
         required.add_argument(
             '--legacy_seg_v1_dest',
             required=False,
@@ -81,7 +100,7 @@ class SegmentOptions(PipelineOptions):
         optional.add_argument(
             '--ssvid_filter_query',
             help='query that returns a list of ssvid to trim the sourced data down to. Note that '
-                 'the resturned list is used in memory so should not be too large. This meant for '
+                 'the returned list is used in memory so should not be too large. This meant for '
                  'testing purposes and if tempted to use for production, more work should be done '
                  'so that the data is pruned on the way in.'
             )

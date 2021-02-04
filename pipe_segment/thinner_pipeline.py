@@ -96,7 +96,6 @@ class StitcherPipeline:
                               project=self.cloud_options.project,
                               first_date_ts=timestampFromDatetime(start_window),
                               last_date_ts=timestampFromDatetime(end_window))
-        print(helper.build_query())
         return parse_table_schema(helper.table_schema)
    
     @property
