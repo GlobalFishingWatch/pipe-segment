@@ -1,30 +1,31 @@
-import pytest
-import unittest
-from copy import deepcopy
-from datetime import datetime
-import pytz
-import posixpath as pp
-import newlinejson as nlj
-from collections import Counter
-
-import apache_beam as beam
-
-from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
 # rename the class to prevent py.test from trying to collect TestPipeline as a unit test class
-
+from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
+from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import open_shards
 
-from pipe_tools.timestamp import timestampFromDatetime
-from pipe_tools.timestamp import datetimeFromTimestamp
-from pipe_tools.utils.timestamp import as_timestamp
+from collections import Counter
+
+from copy import deepcopy
+
+from datetime import datetime
+
+from pipe_segment.transform.normalize import NormalizeDoFn
+from pipe_segment.transform.segment import Segment
+from pipe_segment.options.segment import SegmentOptions
 
 from pipe_tools.coders import JSONDictCoder
+from pipe_tools.timestamp import datetimeFromTimestamp
+from pipe_tools.timestamp import timestampFromDatetime
+from pipe_tools.utils.timestamp import as_timestamp
 
-from pipe_segment.transform.segment import Segment
-from pipe_segment.transform.normalize import NormalizeDoFn
+import apache_beam as beam
+import newlinejson as nlj
+import posixpath as pp
+import pytest
+import pytz
+import unittest
 
 # >>> Note that cogroupByKey treats unicode and char values as distinct,
 # so tests can sometimes fail unless all ssvid are unicode.
@@ -79,7 +80,14 @@ class TestTransforms():
         messages_file = pp.join(temp_dir, '_run_segment', 'messages')
         segments_file = pp.join(temp_dir, '_run_segment', 'segments')
 
-        with _TestPipeline() as p:
+        args = [
+           f'--source={messages_in}',
+           f'--msg_dest={messages_file}',
+           f'--seg_dest={segments_file}'
+        ]
+        segop = SegmentOptions(args)
+
+        with _TestPipeline(options=segop) as p:
             messages = (
                 p | 'CreateMessages' >> beam.Create(messages_in)
                 | 'AddKeyMessages' >> beam.Map(self.groupby_fn)

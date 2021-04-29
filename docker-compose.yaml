@@ -7,7 +7,7 @@ services:
       - ".:/opt/project"
       - "gcp:/root/.config/gcloud"
 
-  py.test:
+  test:
     image: gfw/pipe-segment
     build: .
     entrypoint: py.test
