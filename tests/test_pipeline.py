@@ -1,23 +1,23 @@
-import pytest
-import posixpath as pp
-import newlinejson as nlj
-
-from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
+from apache_beam import FlatMap
+from apache_beam import GroupByKey
+from apache_beam import Map
 # rename the class to prevent py.test from trying to collect TestPipeline as a unit test class
-
-import apache_beam as beam
+from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import open_shards
-from apache_beam import Map
-from apache_beam import GroupByKey
-from apache_beam import FlatMap
+
+from pipe_segment.__main__ import run as  pipe_segment_run
+from pipe_segment.options.segment import SegmentOptions
+from pipe_segment.pipeline import SegmentPipeline
+from pipe_segment.transform.segment import Segment
 
 from pipe_tools.coders import JSONDictCoder
 
-from pipe_segment.__main__ import run as  pipe_segment_run
-from pipe_segment.transform.segment import Segment
-from pipe_segment.pipeline import SegmentPipeline
+import apache_beam as beam
+import newlinejson as nlj
+import posixpath as pp
+import pytest
 
 
 @pytest.mark.filterwarnings('ignore:Using fallback coder:UserWarning')
@@ -69,7 +69,14 @@ class TestPipeline():
         expected_messages = pp.join(test_data_dir, 'expected_messages.json')
         expected_segments = pp.join(test_data_dir, 'expected_segments.json')
 
-        with _TestPipeline() as p:
+        args = [
+           f'--source={source}',
+           f'--msg_dest={messages_sink}',
+           f'--seg_dest={segments_sink}'
+        ]
+        segop = SegmentOptions(args)
+
+        with _TestPipeline(options=segop) as p:
             messages = (
                 p
                 | beam.io.ReadFromText(file_pattern=source, coder=JSONDictCoder())
