@@ -27,7 +27,8 @@ DEPENDENCIES = [
     "pipe-tools",
     "shipdataprocess==0.6.9",
     "jinja2-cli",
-    "google-apitools"
+    "google-apitools",
+    "numpy<1.20.0"
 ]
 
 
