@@ -8,6 +8,16 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [UNRELEASED]
 
+### v3.1.1 - 2021-06-23
+
+## Changed
+
+* [PIPELINE-431](https://globalfishingwatch.atlassian.net/browse/PIPELINE-431): Removes
+  Travis and its references and uses cloudbuild instead to run the tests.
+  Uses [gfw-pipeline](https://github.com/GlobalFishingWatch/gfw-pipeline) as Docker base image.
+  Updates `pipe-tools` with update in beam reference when reading schema from json.
+  Removes 4 warnings from tests.
+
 ## v3.1.0 - 2021-04-29
 
 ### Added
