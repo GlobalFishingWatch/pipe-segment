@@ -8,14 +8,6 @@ services:
       - ".:/opt/project"
       - "gcp:/root/.config/"
 
-  make_tracks:
-    image: gfw/pipe-segment
-    build: .
-    entrypoint: ["python", "-m", "pipe_segment.make_tracks"]  
-    volumes:
-      - ".:/opt/project"
-      - "gcp:/root/.config/"
-
   gcloud:
     image: gfw/pipe-segment
     build: .

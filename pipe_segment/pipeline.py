@@ -285,7 +285,6 @@ class SegmentPipeline:
             )
 
         if self.options.ssvid_filter_query:
-            # TODO: does this work?
             valid_ssivd_set = beam.pvalue.AsDict(
                 messages
                 | GCPSource(gcp_path=self.options.ssvid_filter_query)
