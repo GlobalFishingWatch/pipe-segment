@@ -56,7 +56,7 @@ rcvrs = plot_daily(daily_offsets, 5)
 
 query = """
 select receiver, dt, hour
-from `machine_learning_dev_ttl_120d.sat_offsets_v20210629_201807*`
+from `machine_learning_dev_ttl_120d.sat_offsets_v20210630_201807*`
 """
 hourly_offsets = pd.read_gbq(query, project_id='world-fishing-827')
 
@@ -135,7 +135,7 @@ exstr = ', '.join(f'timestamp("{x}")' for x in examples)
 
 q = f"""
 select * 
-from `machine_learning_dev_ttl_120d.messages_segmented_v20210629_201807*`
+from `machine_learning_dev_ttl_120d.messages_segmented_v20210630_201807*`
 where receiver = "{rcvrs[0]}"
   and timestamp_trunc(timestamp, hour) in ({exstr})
 limit 100
@@ -157,7 +157,7 @@ exstr = ', '.join(f'timestamp("{x}")' for x in examples)
 
 q = f"""
 select * 
-from `machine_learning_dev_ttl_120d.messages_segmented_v20210629_201807*`
+from `machine_learning_dev_ttl_120d.messages_segmented_v20210630_201807*`
 where receiver = "{rcvrs[0]}"
   and timestamp_trunc(timestamp, hour) in ({exstr})
 """
@@ -183,7 +183,7 @@ where type in ('AIS.1', 'AIS.2', 'AIS.3', 'AIS.18', 'AIS.19')
   )
 union all
 select 'segmented',  count(*) num_invalid
-from `machine_learning_dev_ttl_120d.messages_segmented_v20210629_20180716` 
+from `machine_learning_dev_ttl_120d.messages_segmented_v20210630_20180716` 
 where type in ('AIS.1', 'AIS.2', 'AIS.3', 'AIS.18', 'AIS.19')
   and (lon = 181
     or lat = 91
@@ -209,7 +209,7 @@ where type in ('AIS.27')
   )
 union all
 select 'segmented',  count(*) num_invalid
-from `machine_learning_dev_ttl_120d.messages_segmented_v20210629_20180716` 
+from `machine_learning_dev_ttl_120d.messages_segmented_v20210630_20180716` 
 where type in ('AIS.27')
   and (lon = 181
     or lat = 91
@@ -227,7 +227,7 @@ query = """
 select 'base',  sum(if(a.course = 360 and b.course is null, 1, 0)) replaced_courses, 
                 sum(if(a.course = 360 and b.course is not null, 1, 0)) nonreplaced_courses
 from `pipe_ais_sources_v20190222.normalized_spire_20180716` a
-join  `machine_learning_dev_ttl_120d.messages_segmented_v20210629_20180716` b
+join  `machine_learning_dev_ttl_120d.messages_segmented_v20210630_20180716` b
 using (msgid)
 where a.type in ('AIS.1', 'AIS.2', 'AIS.3', 'AIS.18', 'AIS.19')
 
@@ -236,18 +236,6 @@ df = pd.read_gbq(query, project_id='world-fishing-827')
 df.head()
 
 # Huh? Why is one non-replaced.
-
-query = """
-
-select a.*, b.course
-from `pipe_ais_sources_v20190222.normalized_spire_20180716` a
-join  `machine_learning_dev_ttl_120d.messages_segmented_v20210629_20180716` b
-using (msgid)
-where a.type in ('AIS.1', 'AIS.2', 'AIS.3', 'AIS.18', 'AIS.19')
-  and a.course = 360 and b.course is not null
-"""
-df = pd.read_gbq(query, project_id='world-fishing-827')
-df.head()
 
 # Hmmm. this is related to duplicate message ids with different messages!
 

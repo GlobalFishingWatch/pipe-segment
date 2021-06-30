@@ -25,6 +25,7 @@ from pipe_segment.transform.invalid_values import filter_invalid_values
 from pipe_segment.transform.segment import Segment
 from pipe_segment.transform.satellite_offsets import SatelliteOffsets
 from pipe_segment.transform.normalize import NormalizeDoFn
+from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
 from pipe_segment.io.gcp import GCPSource
 from pipe_segment.io.gcp import GCPSink
 
@@ -73,21 +74,6 @@ class LogMapper(object):
             self.first_item = False
         return obj
 
-
-def make_sat_key(receiver, timestamp, offset=0):
-    dt = datetimeFromTimestamp(timestamp)
-    hour = dt.hour + offset
-    return f'{receiver}-{dt.year}-{dt.month}-{dt.day}-{hour}'
-
-def make_offset_sat_key_set(msg, max_offset):
-    for offset in range(-max_offset, max_offset + 1):
-        yield make_sat_key(msg["receiver"], msg['hour'], offset)
-
-def not_during_bad_hour(msg, bad_hours):
-    return make_sat_key(msg["receiver"], msg['timestamp']) not in bad_hours
-
-def greater_than_max_dt(x, max_dt):
-    return abs(x['dt']) > max_dt
 
 class SegmentPipeline:
     def __init__(self, options):
@@ -272,17 +258,9 @@ class SegmentPipeline:
                     | "WriteSatOffsets" >> self.sat_offset_sink
                 )
 
-            bad_satellite_hours = (
-                satellite_offsets
-                | beam.Filter(greater_than_max_dt, max_dt=self.options.max_timing_offset_s)
-                | beam.FlatMap(make_offset_sat_key_set, max_offset=self.options.bad_hour_padding)
-            )
-
-            bad_hours = beam.pvalue.AsDict(bad_satellite_hours | beam.Map(lambda x : (x, x)))
-
-            messages = ( messages
-                | "FilterBadTimes" >> beam.Filter(not_during_bad_hour, bad_hours)
-            )
+            messages = messages | FilterBadSatelliteTimes(satellite_offsets,
+                                                          self.options.max_timing_offset_s,
+                                                          self.options.bad_hour_padding)
 
         if self.options.ssvid_filter_query:
             valid_ssivd_set = beam.pvalue.AsDict(
