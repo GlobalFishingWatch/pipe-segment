@@ -8,9 +8,9 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [UNRELEASED]
 
-### v3.1.1 - 2021-06-23
+## v3.1.1 - 2021-06-23
 
-## Changed
+### Changed
 
 * [PIPELINE-431](https://globalfishingwatch.atlassian.net/browse/PIPELINE-431): Removes
   Travis and its references and uses cloudbuild instead to run the tests.
