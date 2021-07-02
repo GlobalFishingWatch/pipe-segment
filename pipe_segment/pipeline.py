@@ -259,8 +259,8 @@ class SegmentPipeline:
                 )
 
             messages = messages | FilterBadSatelliteTimes(satellite_offsets,
-                                                          self.options.max_timing_offset_s,
-                                                          self.options.bad_hour_padding)
+                                                max_timing_offset_s=self.options.max_timing_offset_s,
+                                                bad_hour_padding=self.options.bad_hour_padding)
 
         if self.options.ssvid_filter_query:
             valid_ssivd_set = beam.pvalue.AsDict(

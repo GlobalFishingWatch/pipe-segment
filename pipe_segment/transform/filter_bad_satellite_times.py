@@ -1,5 +1,5 @@
 import apache_beam as beam
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 from apache_beam import PTransform
 from apache_beam import FlatMap
@@ -26,7 +26,9 @@ class FilterBadSatelliteTimes(PTransform):
         return abs(x['dt']) > self.max_timing_offset_s
 
     def make_sat_key(self, receiver, timestamp, offset=0):
-        dt = datetimeFromTimestamp(timestamp) + timedelta(hours=offset)
+        dtime = datetimeFromTimestamp(timestamp)
+        hour = datetime(dtime.year, dtime.month, dtime.day, dtime.hour)
+        dt = hour + timedelta(hours=offset)
         return f'{receiver}-{dt.year}-{dt.month}-{dt.day}-{dt.hour}'
 
     def make_offset_sat_key_set(self, msg):

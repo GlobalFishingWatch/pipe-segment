@@ -53,9 +53,9 @@ class SegmentOptions(PipelineOptions):
                 default=1,
                 help='hours on either side of an hour with bad satellite timing to suppress')
         optional.add_argument(
-            '--max_timing_offset_s',
+            '--max_timing_offset_s', type=int,
             default=30,
-            help='maximum number of seconds a satelite clock can be off before we drop its messages'
+            help='maximum number of seconds a satellite clock can be off before we drop its messages'
             )
         required.add_argument(
             '--legacy_seg_v1_dest',
@@ -80,7 +80,7 @@ class SegmentOptions(PipelineOptions):
             )
         optional.add_argument(
             '--pipeline_start_date',
-            help='First day of the pipeline data, used to know if we want to exclude the check of pading one day before YYYY-MM-DD')
+            help='First day of the pipeline data, used to know if we want to exclude the check of padding one day before YYYY-MM-DD')
         optional.add_argument(
             '--segmenter_params',
             help='Pass a json object with parameters to pass to the segmenter, or supply a file name to read with '

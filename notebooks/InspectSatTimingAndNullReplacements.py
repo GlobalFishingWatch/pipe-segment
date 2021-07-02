@@ -112,8 +112,15 @@ plot_rcvr(daily_offsets, hourly_offsets, rcvrs[3])
 
 plot_rcvr(daily_offsets, hourly_offsets, rcvrs[4])
 
-dropped_60 = (abs(hourly_offsets.dt) > 60).mean()
-dropped_30 = (abs(hourly_offsets.dt) > 30).mean()
+dropped_mask_60 = (abs(hourly_offsets.dt) > 60)
+dropped_mask_60[1:] |= dropped_mask_60[:-1]
+dropped_mask_60[:-1] |= dropped_mask_60[1:]
+# We also drop the two adjacent hours
+dropped_mask_30 = (abs(hourly_offsets.dt) > 30)
+dropped_mask_30[1:] |= dropped_mask_30[:-1]
+dropped_mask_30[:-1] |= dropped_mask_30[1:]
+dropped_60 = dropped_mask_60.mean()
+dropped_30 = dropped_mask_30.mean()
 print(f'{100 * dropped_60:.1f}% dropped with 60s threshold')
 print(f'{100 * dropped_30:.1f}% dropped with 30s threshold')
 

@@ -5,6 +5,10 @@ import shutil
 
 import pytest
 
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "slow: mark slow tests that are only run --runslow"
+    )
 
 def pytest_addoption(parser):
     parser.addoption("--runslow", action="store_true",
@@ -23,7 +27,7 @@ def pytest_collection_modifyitems(config, items):
 TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
 TEST_DATA_DIR = posixpath.join(TESTS_DIR, 'data')
 
-# NB:  This module is magially imported when you run py.test
+# NB:  This module is magically imported when you run py.test
 # and the fixtures below are magically provided to any test function in any test module
 # without needing to import them of declare them
 
