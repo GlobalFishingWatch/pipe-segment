@@ -5,8 +5,8 @@ from apache_beam import FlatMap
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.io.gcp.internal.clients import bigquery
 
-from pipe_tools.timestamp import datetimeFromTimestamp
-from pipe_tools.timestamp import timestampFromDatetime
+from ..timestamp import datetimeFromTimestamp
+from ..timestamp import timestampFromDatetime
 
 from .fragment_implementation import FragmentImplementation
 
@@ -20,14 +20,12 @@ class Fragment(PTransform):
         start_date=None,
         end_date=None,
         fragmenter_params=None,
-        look_ahead=0,
         stats_fields=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        # Some of these options (look ahead for instance) can be dropped
         self._fragmenter = FragmentImplementation(
-            start_date, end_date, look_ahead, stats_fields, fragmenter_params
+            start_date, end_date, stats_fields, fragmenter_params
         )
 
     @property
@@ -40,14 +38,14 @@ class Fragment(PTransform):
 
     @staticmethod
     def _convert_message_in(msg):
-        msg = dict(msg)
+        msg = msg.copy()
         msg["raw_timestamp"] = msg["timestamp"]
         msg["timestamp"] = datetimeFromTimestamp(msg["raw_timestamp"])
         return msg
 
     @staticmethod
     def _convert_message_out(msg):
-        msg = dict(msg)
+        msg = msg.copy()
         msg["timestamp"] = msg.pop("raw_timestamp")
         return msg
 
@@ -69,7 +67,6 @@ class Fragment(PTransform):
     @staticmethod
     def _convert_fragment_out(frag):
         frag = dict(frag.items())
-        frag.pop("closed")
         for k in [
             "timestamp",
             "first_msg_timestamp",
@@ -83,11 +80,12 @@ class Fragment(PTransform):
         ]:
             if k in frag and not frag[k] is None:
                 frag[k] = timestampFromDatetime(frag[k])
-
         return frag
 
-    def fragment(self, messages):
+    def fragment(self, item):
+        _, messages = item
         messages = [self._convert_message_in(x) for x in messages]
+        messages.sort(key=lambda x: x["timestamp"])
         logger.debug(
             f"Fragmenting sorted {len(messages)} messages",
         )
@@ -117,13 +115,10 @@ class Fragment(PTransform):
         add_field("frag_id", "STRING")
         add_field("ssvid", "STRING")
         add_field("message_count", "INTEGER")
-        add_field("daily_message_count", "INTEGER")
         add_field("timestamp", "TIMESTAMP")
         for prefix in [
             "first_msg_",
             "last_msg_",
-            "first_msg_of_day_",
-            "last_msg_of_day_",
         ]:
             mode = "NULLABLE" if prefix.endswith("of_day_") else "REQUIRED"
             add_field(prefix + "timestamp", "TIMESTAMP", mode)

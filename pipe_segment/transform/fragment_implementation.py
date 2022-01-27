@@ -188,6 +188,10 @@ class FragmentImplementation(object):
         for field, stats in self.stats_fields:
             for stat in stats:
                 record.pop(self.stat_output_field_name(field, stat))
+        # TODO: eventually don't generate these at all.
+        for end in ["first", "last"]:
+            for name in ["timestamp", "lat", "lon", "course", "speed"]:
+                record.pop(f"{end}_msg_of_day_{name}")
         return record
 
     def fragment(self, messages):

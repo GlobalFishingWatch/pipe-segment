@@ -1,6 +1,5 @@
 import logging
 import ujson
-from datetime import timedelta
 
 import apache_beam as beam
 from apache_beam.runners import PipelineState
@@ -10,10 +9,9 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.io.gcp.internal.clients import bigquery
 
-from pipe_tools.timestamp import TimestampedValueDoFn
-from pipe_tools.timestamp import datetimeFromTimestamp
-from pipe_tools.timestamp import timestampFromDatetime
-from pipe_tools.utils.timestamp import as_timestamp
+from .timestamp import TimestampedValueDoFn
+from .timestamp import datetimeFromTimestamp
+from .timestamp import as_timestamp
 from pipe_tools.io.bigquery import parse_table_schema
 from pipe_tools.io import WriteToBigQueryDatePartitioned
 
@@ -23,10 +21,135 @@ from pipe_segment.transform.fragment import Fragment
 from pipe_segment.transform.satellite_offsets import SatelliteOffsets
 from pipe_segment.transform.normalize import NormalizeDoFn
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
+from pipe_segment.transform.read_messages import ReadMessages
+
 from pipe_segment.io.gcp import GCPSource
 from pipe_segment.io.gcp import GCPSink
 
-PAD_PREV_DAYS = 1
+message_input_schema = {
+    "fields": [
+        {
+            "description": "A unique id, we try using the spire raw id but sometimes it is not unique.",
+            "mode": "NULLABLE",
+            "name": "msgid",
+            "type": "STRING",
+        },
+        {
+            "description": "spire/orbcomm used on posterior steps when both spire and orbcomm are merge to know where they come from.",
+            "mode": "NULLABLE",
+            "name": "source",
+            "type": "STRING",
+        },
+        {
+            "description": "The AIS messages, the format is [AIS.type]",
+            "mode": "NULLABLE",
+            "name": "type",
+            "type": "STRING",
+        },
+        {
+            "description": "The Specific Source Vessel ID, in this case the MMSI",
+            "mode": "NULLABLE",
+            "name": "ssvid",
+            "type": "STRING",
+        },
+        {
+            "description": "The timestap that indicates when the message was transmitted.",
+            "mode": "NULLABLE",
+            "name": "timestamp",
+            "type": "TIMESTAMP",
+        },
+        {
+            "description": "The longitude included in the spire message.",
+            "mode": "NULLABLE",
+            "name": "lon",
+            "type": "FLOAT",
+        },
+        {
+            "description": "The latitude included in the spire message.",
+            "mode": "NULLABLE",
+            "name": "lat",
+            "type": "FLOAT",
+        },
+        {
+            "description": "The speed in knots included in the spire json decoded message.",
+            "mode": "NULLABLE",
+            "name": "speed",
+            "type": "FLOAT",
+        },
+        {
+            "description": "The course included in the spire json decoded message.",
+            "mode": "NULLABLE",
+            "name": "course",
+            "type": "FLOAT",
+        },
+        {
+            "description": "The heading included in the spire json decoded message.",
+            "mode": "NULLABLE",
+            "name": "heading",
+            "type": "FLOAT",
+        },
+        {
+            "description": "The shipname included in the spire json decoded message.",
+            "mode": "NULLABLE",
+            "name": "shipname",
+            "type": "STRING",
+        },
+        {
+            "description": "The callsign included in the spire json decoded message.",
+            "mode": "NULLABLE",
+            "name": "callsign",
+            "type": "STRING",
+        },
+        {
+            "description": "The destination included in the spire json decoded message.",
+            "mode": "NULLABLE",
+            "name": "destination",
+            "type": "STRING",
+        },
+        {
+            "description": "The imo included in the spire json decoded message.",
+            "mode": "NULLABLE",
+            "name": "imo",
+            "type": "STRING",
+        },
+        {
+            "description": "The shiptype included in the spire message using the shiptype.json match.",
+            "mode": "NULLABLE",
+            "name": "shiptype",
+            "type": "STRING",
+        },
+        {
+            "description": "terrestrial or satellite. Obtained through the collection_type in the spire json decoded message.",
+            "mode": "NULLABLE",
+            "name": "receiver_type",
+            "type": "STRING",
+        },
+        {
+            "description": "The source from spire json decoded message.",
+            "mode": "NULLABLE",
+            "name": "receiver",
+            "type": "STRING",
+        },
+        {
+            "description": "The length of the vessel from the SPIRE message.",
+            "mode": "NULLABLE",
+            "name": "length",
+            "type": "FLOAT",
+        },
+        {
+            "description": "The width of the vessel from the SPIRE message.",
+            "mode": "NULLABLE",
+            "name": "width",
+            "type": "FLOAT",
+        },
+        {
+            "description": "The navigational status.",
+            "mode": "NULLABLE",
+            "name": "status",
+            "type": "INTEGER",
+        },
+    ]
+}
 
 
 def safe_dateFromTimestamp(ts):
@@ -38,17 +161,6 @@ def safe_dateFromTimestamp(ts):
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
     return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
-
-
-def offset_timestamp(ts, **timedelta_args):
-    if ts is None:
-        return ts
-    dt = datetimeFromTimestamp(ts) + timedelta(**timedelta_args)
-    return timestampFromDatetime(dt)
-
-
-def is_first_batch(pipeline_start_ts, first_date_ts):
-    return pipeline_start_ts == first_date_ts
 
 
 def filter_by_ssvid_predicate(obj, valid_ssvid_set):
@@ -127,19 +239,32 @@ class FragmentPipeline:
 
     @property
     def message_source_list(self):
-        # creating a GCPSource requires calls to the bigquery API if we are
-        # reading from bigquery, so only do this once.
-        if not self._message_source_list:
-            first_date_ts, last_date_ts = self.date_range
-            gcp_paths = self.options.source.split(",")
-            self._message_source_list = []
-            for gcp_path in gcp_paths:
-                s = GCPSource(
-                    gcp_path=gcp_path,
-                    first_date_ts=first_date_ts,
-                    last_date_ts=last_date_ts,
-                )
-                self._message_source_list.append(s)
+        gcp_paths = self.options.source.split(",")
+        start_date = safe_dateFromTimestamp(self.date_range[0])
+        end_date = safe_dateFromTimestamp(self.date_range[1])
+        self._message_source_list = []
+        for gcp_path in gcp_paths:
+            s = ReadMessages(
+                source=gcp_path,
+                start_date=start_date,
+                end_date=end_date,
+                ssvid_filter_query=self.options.ssvid_filter_query,
+            )
+            self._message_source_list.append(s)
+
+        #         )        # # creating a GCPSource requires calls to the bigquery API if we are
+        # # reading from bigquery, so only do this once.
+        # if not self._message_source_list:
+        #     first_date_ts, last_date_ts = self.date_range
+        #     gcp_paths = self.options.source.split(",")
+        #     self._message_source_list = []
+        #     for gcp_path in gcp_paths:
+        #         s = GCPSource(
+        #             gcp_path=gcp_path,
+        #             first_date_ts=first_date_ts,
+        #             last_date_ts=last_date_ts,
+        #         )
+        #         self._message_source_list.append(s)
 
         return self._message_source_list
 
@@ -153,42 +278,23 @@ class FragmentPipeline:
 
     @property
     def message_input_schema(self):
-        schema = self.options.source_schema
-        if schema is None:
-            # no explicit schema provided. Try to find one in the source(s)
-            schemas = [
-                s.schema for s in self.message_source_list if s.schema is not None
-            ]
-            schema = schemas[0] if schemas else None
-        return parse_table_schema(schema)
+        # schemas = [s.schema for s in self.message_source_list if s.schema is not None]
+        # schema = schemas[0] if schemas else None
+        return message_input_schema
 
     @property
     def message_output_schema(self):
-        schema = self.message_input_schema
+        schema = self.message_input_schema.copy()
+        schema["fields"] = schema["fields"][:]
 
-        field = TableFieldSchema()
-        field.name = "seg_id"
-        field.type = "STRING"
-        field.mode = "NULLABLE"
-        schema.fields.append(field)
-
-        field = TableFieldSchema()
-        field.name = "n_shipname"
-        field.type = "STRING"
-        field.mode = "NULLABLE"
-        schema.fields.append(field)
-
-        field = TableFieldSchema()
-        field.name = "n_callsign"
-        field.type = "STRING"
-        field.mode = "NULLABLE"
-        schema.fields.append(field)
-
-        field = TableFieldSchema()
-        field.name = "n_imo"
-        field.type = "INTEGER"
-        field.mode = "NULLABLE"
-        schema.fields.append(field)
+        schema["fields"].extend(
+            [
+                {"name": "frag_id", "type": "STRING", "mode": "NULLABLE"},
+                {"name": "n_shipname", "type": "STRING", "mode": "NULLABLE"},
+                {"name": "n_callsign", "type": "STRING", "mode": "NULLABLE"},
+                {"name": "n_imo", "type": "STRING", "mode": "NULLABLE"},
+            ]
+        )
 
         return schema
 
@@ -202,7 +308,7 @@ class FragmentPipeline:
 
     @staticmethod
     def groupby_fn(msg):
-        return ((msg["ssvid"], msg["timestamp"].date()), msg)
+        return ((msg["ssvid"], safe_dateFromTimestamp(msg["timestamp"])), msg)
 
     @property
     def message_sink(self):
@@ -252,16 +358,6 @@ class FragmentPipeline:
                 bad_hour_padding=self.options.bad_hour_padding,
             )
 
-        if self.options.ssvid_filter_query:
-            valid_ssivd_set = beam.pvalue.AsDict(
-                messages
-                | GCPSource(gcp_path=self.options.ssvid_filter_query)
-                | beam.Map(lambda x: (x["ssvid"], x["ssvid"]))
-            )
-            messages = messages | beam.Filter(
-                filter_by_ssvid_predicate, valid_ssivd_set
-            )
-
         messages = (
             messages
             | "Normalize" >> beam.ParDo(NormalizeDoFn())
@@ -270,6 +366,8 @@ class FragmentPipeline:
         )
 
         fragmenter = Fragment(
+            # TODO: WRONG. Segmenter shouldn't take start and end date
+            # it should only process current one day ever.
             start_date=safe_dateFromTimestamp(self.date_range[0]),
             end_date=safe_dateFromTimestamp(self.date_range[1]),
             fragmenter_params=self.fragmenter_params,
@@ -278,17 +376,18 @@ class FragmentPipeline:
         fragmented = messages | "Fragment" >> fragmenter
 
         messages = fragmented[fragmenter.OUTPUT_TAG_MESSAGES]
-        fragments = fragmented[fragmenter.OUTPUT_TAG_SEGMENTS]  # TODO: fragment
+        fragments = fragmented[fragmenter.OUTPUT_TAG_FRAGMENTS]
         (
             messages
             | "TimestampMessages" >> beam.ParDo(TimestampedValueDoFn())
             | "WriteMessages" >> self.message_sink
         )
+
         (
             fragments
             | "TimestampFragments" >> beam.ParDo(TimestampedValueDoFn())
             | "WriteFragments"
-            >> self.fragment_sink(fragmenter.fragment_schema, self.options.seg_dest)
+            >> self.fragment_sink(fragmenter.fragment_schema, self.options.frag_dest)
         )
         return pipeline
 

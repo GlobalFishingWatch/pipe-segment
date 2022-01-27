@@ -3,8 +3,8 @@ import sys
 from pipe_tools.options import validate_options
 from pipe_tools.options import LoggingOptions
 
-from pipe_segment.options.fragment import FragmentOptions
-from pipe_segment import fragment_pipeline
+from pipe_segment.options.frag2seg import Frag2SegOptions
+from pipe_segment import frag2seg_pipeline
 
 
 def run(args):
@@ -12,12 +12,12 @@ def run(args):
     args.append("--no_pipeline_type_check")
 
     options = validate_options(
-        args=args, option_classes=[LoggingOptions, FragmentOptions]
+        args=args, option_classes=[LoggingOptions, Frag2SegOptions]
     )
 
     options.view_as(LoggingOptions).configure_logging()
 
-    return fragment_pipeline.run(options)
+    return frag2seg_pipeline.run(options)
 
 
 if __name__ == "__main__":

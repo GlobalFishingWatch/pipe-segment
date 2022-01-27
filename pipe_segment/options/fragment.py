@@ -1,8 +1,4 @@
-import ujson as json
-
 from apache_beam.options.pipeline_options import PipelineOptions
-
-from pipe_tools.options import ReadFileAction
 
 
 class FragmentOptions(PipelineOptions):
@@ -19,13 +15,11 @@ class FragmentOptions(PipelineOptions):
         required.add_argument(
             "--source",
             required=True,
-            action=ReadFileAction,
             help="Bigquery table, query or file to read normalized messages",
         )
         optional.add_argument(
             "--sat_source",
             required=False,
-            action=ReadFileAction,
             help="Bigquery table, query or file to read normalized messages,"
             "must be a subset of `source`",
         )
@@ -33,13 +27,6 @@ class FragmentOptions(PipelineOptions):
             "--sat_offset_dest",
             required=False,
             help="Bigquery table to write satellite offsets to.`",
-        )
-        optional.add_argument(
-            "--source_schema",
-            help="JSON schema for the source messages (bigquery).  This is ignored for tables or file sources. "
-            "See examples/message-schema.json for an example.  This must match the fields included in the "
-            'query or bq table.   You can use "@path/to/file.json" to load this from a file.',
-            action=ReadFileAction,
         )
         optional.add_argument(
             "--date_range",
@@ -93,7 +80,6 @@ class FragmentOptions(PipelineOptions):
             '  "max_speed_exponent": 1.3,'
             "}",
             default="{}",
-            action=ReadFileAction,
         )
         optional.add_argument(
             "--ssvid_filter_query",
