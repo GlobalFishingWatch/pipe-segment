@@ -1,6 +1,7 @@
 import apache_beam as beam
 from collections import defaultdict
 from gpsdio_segment.matcher import Matcher
+from datetime import date
 import math
 
 from ..timestamp import datetimeFromTimestamp
@@ -27,7 +28,7 @@ class CreateSegments(beam.PTransform):
         msg0 = self.frag2msg(frag0, "last")
         msg1 = self.frag2msg(frag1, "first")
         hours = self.matcher.compute_msg_delta_hours(msg0, msg1)
-        if hours <= 0:
+        if not 0 < hours < 24:
             return 0
         # Shorten the hours traveled relative to the length of travel
         # as boats tend to go straight for shorter distances, but at
@@ -58,8 +59,9 @@ class CreateSegments(beam.PTransform):
         frag_map : dict mapping str (frag_id) to dict
         """
         scores = {}
-        for sid in segs:
-            frag0 = frag_map[segs[sid][-1]]
+        for sid, dated_fids in segs.items():
+            _, fid0 = dated_fids[-1]
+            frag0 = frag_map[fid0]
             for fid in frag_ids:
                 frag1 = frag_map[fid]
                 scores[sid, fid] = self.compute_pair_score(frag0, frag1)
@@ -68,23 +70,23 @@ class CreateSegments(beam.PTransform):
     def frags_by_day(self, frags):
         frags = sorted(frags, key=lambda x: x["timestamp"])
         current = []
-        day = datetimeFromTimestamp(frags[0]["timestamp"])
+        day = datetimeFromTimestamp(frags[0]["timestamp"]).date()
         for x in frags:
-            new_day = datetimeFromTimestamp(x["timestamp"])
+            new_day = datetimeFromTimestamp(x["timestamp"]).date()
             if new_day != day:
                 assert len(current) > 0
-                yield current
+                yield day, current
                 current = []
                 day = new_day
             current.append(x["frag_id"])
         assert len(current) > 0
-        yield current
+        yield day, current
 
     def merge_fragments(self, item):
         key, frags = item
         frag_map = {x["frag_id"]: x for x in frags}
         open_segs = {}
-        for daily_fids in self.frags_by_day(frags):
+        for day, daily_fids in self.frags_by_day(frags):
 
             scores = self.compute_scores(open_segs, daily_fids, frag_map)
             active = defaultdict(list)
@@ -92,7 +94,7 @@ class CreateSegments(beam.PTransform):
                 (sid, fid) = max(scores, key=lambda k: scores[k])
                 if scores[sid, fid] == 0:
                     break
-                active[sid].append(fid)
+                active[sid].append((day, fid))
                 daily_fids.remove(fid)
                 scores.update(
                     self.compute_scores({sid: active[sid]}, daily_fids, frag_map)
@@ -103,17 +105,19 @@ class CreateSegments(beam.PTransform):
                         scores.pop(k)
 
             for sid, seg_fids in open_segs.items():
-                for fid in seg_fids:
-                    yield {"seg_id": sid, "frag_id": fid}
+                for frag_day, fid in seg_fids:
+                    assert isinstance(frag_day, date), (frag_day, sid, fid)
+                    yield {"seg_id": sid, "date": frag_day, "frag_id": fid}
 
             open_segs = active
             for fid in daily_fids:
                 sid = fid
-                open_segs[sid] = [fid]
+                open_segs[sid] = [(day, fid)]
 
-        for sid, seg_fids in active.items():
-            for fid in seg_fids:
-                yield {"seg_id": sid, "frag_id": fid}
+        for sid, seg_fids in open_segs.items():
+            for frag_day, fid in seg_fids:
+                assert isinstance(frag_day, date), (frag_day, sid, fid)
+                yield {"seg_id": sid, "date": frag_day, "frag_id": fid}
 
     def expand(self, xs):
         return xs | beam.FlatMap(self.merge_fragments)

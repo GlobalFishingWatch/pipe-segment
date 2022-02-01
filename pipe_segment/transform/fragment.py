@@ -113,6 +113,7 @@ class Fragment(PTransform):
             schema.fields.append(field)
 
         add_field("frag_id", "STRING")
+        add_field("seg_id", "STRING")
         add_field("ssvid", "STRING")
         add_field("message_count", "INTEGER")
         add_field("timestamp", "TIMESTAMP")

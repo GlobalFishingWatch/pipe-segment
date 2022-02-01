@@ -1,6 +1,5 @@
-from datetime import datetime
-
 import apache_beam as beam
+from datetime import date
 
 schema = {
     "fields": [
@@ -16,6 +15,12 @@ schema = {
             "name": "frag_id",
             "type": "STRING",
         },
+        {
+            "description": "Date associated with the fragment",
+            "mode": "REQUIRED",
+            "name": "date",
+            "type": "DATE",
+        },
     ]
 }
 
@@ -26,14 +31,20 @@ class WriteSegmentMap(beam.PTransform):
         self.project = project
         self.temp_location = temp_location
 
-    # def compute_table_for_event(self, event):
-    #     stamp = datetime.fromtimestamp(event["timestamp"])
-    #     return f"{self.project}:{self.sink.get()}{stamp:%Y%m%d}"
+    def date_as_str(self, msg):
+        msg["date"] = f"{msg['date']:%Y-%m-%d}"
+        return msg
+
+    def compute_table_for_event(self, msg):
+        return f"{self.project}:{self.sink}{msg['date'].replace('_', '')}"
 
     def expand(self, pcoll):
-        return pcoll | beam.io.WriteToBigQuery(
-            self.sink,
-            # self.compute_table_for_event,
-            schema=schema,
-            write_disposition="WRITE_TRUNCATE",
+        return (
+            pcoll
+            | beam.Map(self.date_as_str)
+            | beam.io.WriteToBigQuery(
+                self.compute_table_for_event,
+                schema=schema,
+                write_disposition="WRITE_TRUNCATE",
+            )
         )

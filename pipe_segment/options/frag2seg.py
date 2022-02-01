@@ -34,6 +34,16 @@ class Frag2SegOptions(PipelineOptions):
             % cls.DEFAULT_TEMP_SHARDS_PER_DAY,
         )
         optional.add_argument(
+            "--matcher_params",
+            help="Pass a json object with parameters to pass to the fragmenter, or supply a file name to read with "
+            "@path/to/file.json.   For Example:"
+            ""
+            "{"
+            '  "buffer_hours": 0.5,'
+            "}",
+            default="{}",
+        )
+        optional.add_argument(
             "--wait_for_job",
             default=False,
             action="store_true",

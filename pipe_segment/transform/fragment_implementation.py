@@ -39,6 +39,7 @@ class FragmentImplementation(object):
             self.DEFAULT_STATS_FIELDS if (stats_fields is None) else stats_fields
         )
         self.fragmenter_params = fragmenter_params or {}
+        assert self.fragmenter_params.get("max_hours") == 24, self.fragmenter_params
 
     @staticmethod
     def stat_output_field_name(field_name, stat_name):
@@ -205,6 +206,7 @@ class FragmentImplementation(object):
             raise RuntimeError("fragment expects all messages from a single SSVID")
         [ssvid] = ssvids
 
+        assert self.fragmenter_params.get("max_hours") == 24, self.fragmenter_params
         for frag in Fragmenter(messages, ssvid=ssvid, **self.fragmenter_params):
             if not frag.noise:
                 frag.msgs = [x for x in frag.msgs if x["timestamp"].date() <= date]

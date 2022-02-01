@@ -3,6 +3,7 @@ import apache_beam as beam
 from apache_beam.runners import PipelineState
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
+import ujson
 
 from .timestamp import as_timestamp
 from .timestamp import datetimeFromTimestamp
@@ -24,13 +25,6 @@ def safe_dateFromTimestamp(ts):
     return datetimeFromTimestamp(ts).date()
 
 
-def check_format(msg):
-    assert set(msg.keys()) == {"seg_id", "frag_id"}, set(msg.keys())
-    for v in msg.values():
-        assert isinstance(v, str)
-    return msg
-
-
 class Frag2SegPipeline:
     def __init__(self, options):
         self.options = options.view_as(Frag2SegOptions)
@@ -48,6 +42,10 @@ class Frag2SegPipeline:
     def temp_gcs_location(self):
         return self.options.view_as(GoogleCloudOptions).temp_location
 
+    @property
+    def matcher_params(self):
+        return ujson.loads(self.options.matcher_params)
+
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.options)
 
@@ -61,8 +59,7 @@ class Frag2SegPipeline:
             | ReadFragments(fragment_table, start_date, end_date)
             | "AddSsvidKey" >> beam.Map(self.add_ssvid_key)
             | "GroupBySsvid" >> beam.GroupByKey()
-            | CreateSegments()  # TODO: pass in args like segments?
-            | beam.Map(check_format)
+            | CreateSegments(self.matcher_params)
             | WriteSegmentMap(
                 seg_map_table,
                 self.project,
