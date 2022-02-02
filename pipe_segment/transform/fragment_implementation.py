@@ -17,6 +17,7 @@ class FragmentImplementation(object):
     OUTPUT_TAG_MESSAGES = "messages"
     OUTPUT_TAG_FRAGMENTS = "fragments"
 
+    # TODO: remove? Need it for first and last message but could get that cleaner
     DEFAULT_STATS_FIELDS = [
         ("lat", MessageStats.NUMERIC_STATS),
         ("lon", MessageStats.NUMERIC_STATS),
@@ -30,14 +31,12 @@ class FragmentImplementation(object):
         self,
         start_date=None,
         end_date=None,
-        stats_fields=None,
+        # stats_fields=None,
         fragmenter_params=None,
     ):
         self.start_date = start_date
         self.end_date = end_date
-        self.stats_fields = (
-            self.DEFAULT_STATS_FIELDS if (stats_fields is None) else stats_fields
-        )
+        self.stats_fields = self.DEFAULT_STATS_FIELDS
         self.fragmenter_params = fragmenter_params or {}
         assert self.fragmenter_params.get("max_hours") == 24, self.fragmenter_params
 
@@ -57,7 +56,7 @@ class FragmentImplementation(object):
             for f, stats in self.stats_fields
             if set(stats) & set(MessageStats.FREQUENCY_STATS)
         ]
-        has_timestamp = "timestamp" in stats_numeric_fields
+        # has_timestamp = "timestamp" in stats_numeric_fields
         stats_numeric_fields = [x for x in stats_numeric_fields if x != "timestamp"]
         ms = MessageStats(messages, stats_numeric_fields, stats_frequency_fields)
 
@@ -66,11 +65,12 @@ class FragmentImplementation(object):
         first_msg_of_day = frag_state.first_msg_of_day or {}
         last_msg_of_day = frag_state.last_msg_of_day or {}
 
-        def sigature2record(name):
+        def idents2record(name):
             items = []
-            assert name.endswith("s")
             for k, v in signature.get(name, {}).items():
-                items.append({"value": k, "count": v})
+                value = k._asdict()
+                value["COUNT"] = v
+                items.append(value)
             return items
 
         record = dict(
@@ -99,13 +99,7 @@ class FragmentImplementation(object):
             last_msg_of_day_course=last_msg_of_day.get("course"),
             last_msg_of_day_speed=last_msg_of_day.get("speed"),
             timestamp=timestamp,
-            shipnames=sigature2record("shipnames"),
-            callsigns=sigature2record("callsigns"),
-            imos=sigature2record("imos"),
-            destinations=sigature2record("destinations"),
-            lengths=sigature2record("lengths"),
-            widths=sigature2record("widths"),
-            transponders=sigature2record("transponders"),
+            identities=idents2record("identities"),
         )
         for field, stats in self.stats_fields:
             stat_values = ms.field_stats(field)
@@ -113,16 +107,16 @@ class FragmentImplementation(object):
                 record[self.stat_output_field_name(field, stat)] = stat_values.get(
                     stat, None
                 )
-        if has_timestamp:
-            if len(messages):
-                record["timestamp_min"] = messages[0]["timestamp"]
-                record["timestamp_max"] = messages[-1]["timestamp"]
-                record["timestamp_first"] = messages[0]["timestamp"]
-                record["timestamp_last"] = messages[-1]["timestamp"]
-            else:
-                record["timestamp_min"] = record["timestamp_max"] = None
-                record["timestamp_first"] = record["timestamp_last"] = None
-            record["timestamp_count"] = len(messages)
+        # if has_timestamp:
+        #     if len(messages):
+        #         record["timestamp_min"] = messages[0]["timestamp"]
+        #         record["timestamp_max"] = messages[-1]["timestamp"]
+        #         record["timestamp_first"] = messages[0]["timestamp"]
+        #         record["timestamp_last"] = messages[-1]["timestamp"]
+        #     else:
+        #         record["timestamp_min"] = record["timestamp_max"] = None
+        #         record["timestamp_first"] = record["timestamp_last"] = None
+        #     record["timestamp_count"] = len(messages)
         return record
 
     @staticmethod
@@ -133,63 +127,34 @@ class FragmentImplementation(object):
         msg = msg.copy()
         msg["frag_id"] = frag_id
         for k1 in [
-            "shipnames",
-            "callsigns",
-            "imos",
-            "destinations",
-            "lengths",
-            "widths",
-            "n_shipnames",
-            "n_callsigns",
-            "n_imos",
+            "identities",
         ]:
             msg.pop(k1, None)
         return msg
 
     @staticmethod
-    def _update_sig_part(sig, msgs, outer_key):
-        counter = Counter(sig.get(outer_key, {}))
+    def _update_sig_part(sig, msgs, key):
+        counter = Counter(sig.get(key, {}))
         for m in msgs:
-            for k, cnt in m[outer_key].items():
+            for k, cnt in m[key].items():
                 counter.update({k: cnt})
-        sig[outer_key] = dict(counter)
-
-    @staticmethod
-    def _update_simple_sig_part(sig, msgs, inner_key, outer_key):
-        counter = Counter(sig.get(outer_key, {}))
-        for m in msgs:
-            if inner_key in m:
-                counter.update({m[inner_key]: 1})
-        sig[outer_key] = dict(counter)
+        sig[key] = dict(counter)
 
     def _get_signature(self, frag, date):
         sig = {}
-        a_types = {"AIS.1", "AIS.2", "AIS.3"}
-        b_types = {"AIS.18", "AIS.19"}
-        a_cnt = b_cnt = 0
-        for msg in frag.msgs:
-            if msg["timestamp"].date() != date:
-                continue
-            msg_type = msg.get("type")
-            a_cnt += msg_type in a_types
-            b_cnt += msg_type in b_types
-        sig["transponders"] = {"is_A": a_cnt, "is_B": b_cnt}
-        self._update_sig_part(sig, frag.msgs, "shipnames")
-        self._update_sig_part(sig, frag.msgs, "callsigns")
-        self._update_sig_part(sig, frag.msgs, "imos")
-        self._update_simple_sig_part(sig, frag.msgs, "destination", "destinations")
-        self._update_simple_sig_part(sig, frag.msgs, "length", "lengths")
-        self._update_simple_sig_part(sig, frag.msgs, "width", "widths")
+        self._update_sig_part(sig, frag.msgs, "identities")
+        # TODO: add stuff to identities in GPSDIO segment (length, width, type)
+        # TODO: add destinations after implemented in GPSDIO segment
         return sig
 
     def _as_record(self, record):
-        """Return everything except noise and the stats fields"""
+        """Return everything except noise"""
         record = record.copy()
         record.pop("noise")
+        # TODO: eventually don't generate these at all.
         for field, stats in self.stats_fields:
             for stat in stats:
                 record.pop(self.stat_output_field_name(field, stat))
-        # TODO: eventually don't generate these at all.
         for end in ["first", "last"]:
             for name in ["timestamp", "lat", "lon", "course", "speed"]:
                 record.pop(f"{end}_msg_of_day_{name}")

@@ -13,6 +13,8 @@ from .fragment_implementation import FragmentImplementation
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
 
+from gpsdio_segment.msg_processor import Identity
+
 
 class Fragment(PTransform):
     def __init__(
@@ -20,12 +22,11 @@ class Fragment(PTransform):
         start_date=None,
         end_date=None,
         fragmenter_params=None,
-        stats_fields=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self._fragmenter = FragmentImplementation(
-            start_date, end_date, stats_fields, fragmenter_params
+            start_date, end_date, fragmenter_params
         )
 
     @property
@@ -71,13 +72,14 @@ class Fragment(PTransform):
             "timestamp",
             "first_msg_timestamp",
             "last_msg_timestamp",
-            "first_msg_of_day_timestamp",
-            "last_msg_of_day_timestamp",
-            "timestamp_first",
-            "timestamp_last",  # Stats stuff TODO: clean out someday
-            "timestamp_min",
-            "timestamp_max",
+            # "first_msg_of_day_timestamp",
+            # "last_msg_of_day_timestamp",
+            # "timestamp_first",
+            # "timestamp_last",  # Stats stuff TODO: clean out someday
+            # "timestamp_min",
+            # "timestamp_max",
         ]:
+            assert k in frag, frag
             if k in frag and not frag[k] is None:
                 frag[k] = timestampFromDatetime(frag[k])
         return frag
@@ -128,26 +130,44 @@ class Fragment(PTransform):
             add_field(prefix + "course", "FLOAT", mode)
             add_field(prefix + "speed", "FLOAT", mode)
 
-        def add_sig_field(name, value_type="STRING"):
+        def add_ident_field(name, value_type):
             field = bigquery.TableFieldSchema()
             field.name = name
             field.type = "RECORD"
             field.mode = "REPEATED"
-            f1 = bigquery.TableFieldSchema()
-            f1.name = "value"
-            f1.type = value_type
-            f2 = bigquery.TableFieldSchema()
-            f2.name = "count"
-            f2.type = "INTEGER"
-            field.fields = [f1, f2]
+            fields = []
+            for fld_name in value_type._fields:
+                f = bigquery.TableFieldSchema()
+                f.name = fld_name
+                f.type = "STRING"
+                fields.append(f)
+            f = bigquery.TableFieldSchema()
+            f.name = "COUNT"
+            f.type = "INTEGER"
+            fields.append(f)
+            field.fields = fields
             schema.fields.append(field)
 
-        add_sig_field("shipnames")
-        add_sig_field("callsigns")
-        add_sig_field("imos")
-        add_sig_field("destinations")
-        add_sig_field("lengths", value_type="FLOAT")
-        add_sig_field("widths", value_type="FLOAT")
-        add_sig_field("transponders")
+        # def add_ident_field(name, value_type=Identity):
+        #     field = bigquery.TableFieldSchema()
+        #     field.name = name
+        #     field.type = "RECORD"
+        #     field.mode = "REPEATED"
+        #     f1 = bigquery.TableFieldSchema()
+        #     f1.name = "value"
+        #     f1.type = value_type
+        #     f2 = bigquery.TableFieldSchema()
+        #     f2.name = "count"
+        #     f2.type = "INTEGER"
+        #     field.fields = [f1, f2]
+        #     schema.fields.append(field)
+
+        add_ident_field("identities", Identity)
+        # add_sig_field("callsigns")
+        # add_sig_field("imos")
+        # add_sig_field("destinations")
+        # add_sig_field("lengths", value_type="FLOAT")
+        # add_sig_field("widths", value_type="FLOAT")
+        # add_sig_field("transponders")
 
         return schema

@@ -347,6 +347,8 @@ class SegmentPipeline:
     def get_fragment_source(self, full_table_name):
         client = bigquery.Client(self.cloud_options.project)
 
+        # TODO: only want fragments from before start date
+
         test_q = f"SELECT COUNT(*) FROM `{full_table_name}*`"
         request = client.query(test_q)
         try:
