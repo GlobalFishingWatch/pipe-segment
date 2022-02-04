@@ -2,8 +2,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 
 class SegmentOptions(PipelineOptions):
-    DEFAULT_TEMP_SHARDS_PER_DAY = 16
-
     @classmethod
     def _add_argparse_args(cls, parser):
         # Use add_value_provider_argument for arguments to be templatable
@@ -52,13 +50,6 @@ class SegmentOptions(PipelineOptions):
             type=int,
             default=30,
             help="maximum number of seconds a satellite clock can be off before we drop its messages",
-        )
-        optional.add_argument(
-            "--temp_shards_per_day",
-            type=int,
-            help="Number of shards to write per day in messages output temporary storage. "
-            "A good value for this is the max number of workers.  Default %s"
-            % cls.DEFAULT_TEMP_SHARDS_PER_DAY,
         )
         optional.add_argument(
             "--wait_for_job",

@@ -69,8 +69,10 @@ class FragmentImplementation(object):
             items = []
             for k, v in signature.get(name, {}).items():
                 value = k._asdict()
-                value["COUNT"] = v
+                value["count"] = v
                 items.append(value)
+                # TODO: for NESTED remove is we go with flat
+                # items.append({"value": value, "count": v})
             return items
 
         record = dict(

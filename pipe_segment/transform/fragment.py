@@ -9,11 +9,11 @@ from ..timestamp import datetimeFromTimestamp
 from ..timestamp import timestampFromDatetime
 
 from .fragment_implementation import FragmentImplementation
+from gpsdio_segment.msg_processor import Identity
+
 
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
-
-from gpsdio_segment.msg_processor import Identity
 
 
 class Fragment(PTransform):
@@ -130,6 +130,31 @@ class Fragment(PTransform):
             add_field(prefix + "course", "FLOAT", mode)
             add_field(prefix + "speed", "FLOAT", mode)
 
+        # TODO: for NESTED remove is we go with flat
+        # def add_ident_field(name, value_type):
+        #     field = bigquery.TableFieldSchema()
+        #     field.name = name
+        #     field.type = "RECORD"
+        #     field.mode = "REPEATED"
+        #     fc = bigquery.TableFieldSchema()
+        #     fc.name = "count"
+        #     fc.type = "INTEGER"
+        #     fc.mode = "REQUIRED"
+        #     fv = bigquery.TableFieldSchema()
+        #     fv.name = "value"
+        #     fv.type = "RECORD"
+        #     fv.mode = "REQUIRED"
+        #     fields = []
+        #     for fld_name in value_type._fields:
+        #         f = bigquery.TableFieldSchema()
+        #         f.name = fld_name
+        #         f.type = "STRING"
+        #         f.mode = "NULLABLE"
+        #         fields.append(f)
+        #     fv.fields = fields
+        #     field.fields = [fc, fv]
+        #     schema.fields.append(field)
+
         def add_ident_field(name, value_type):
             field = bigquery.TableFieldSchema()
             field.name = name
@@ -140,6 +165,7 @@ class Fragment(PTransform):
                 f = bigquery.TableFieldSchema()
                 f.name = fld_name
                 f.type = "STRING"
+                f.mode = "NULLABLE"
                 fields.append(f)
             f = bigquery.TableFieldSchema()
             f.name = "COUNT"
@@ -148,26 +174,6 @@ class Fragment(PTransform):
             field.fields = fields
             schema.fields.append(field)
 
-        # def add_ident_field(name, value_type=Identity):
-        #     field = bigquery.TableFieldSchema()
-        #     field.name = name
-        #     field.type = "RECORD"
-        #     field.mode = "REPEATED"
-        #     f1 = bigquery.TableFieldSchema()
-        #     f1.name = "value"
-        #     f1.type = value_type
-        #     f2 = bigquery.TableFieldSchema()
-        #     f2.name = "count"
-        #     f2.type = "INTEGER"
-        #     field.fields = [f1, f2]
-        #     schema.fields.append(field)
-
         add_ident_field("identities", Identity)
-        # add_sig_field("callsigns")
-        # add_sig_field("imos")
-        # add_sig_field("destinations")
-        # add_sig_field("lengths", value_type="FLOAT")
-        # add_sig_field("widths", value_type="FLOAT")
-        # add_sig_field("transponders")
 
         return schema

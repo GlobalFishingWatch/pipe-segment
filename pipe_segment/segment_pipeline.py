@@ -5,29 +5,25 @@ import apache_beam as beam
 from apache_beam.runners import PipelineState
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.transforms.window import TimestampedValue
 from apache_beam.io.gcp.internal.clients import bigquery as beam_bigquery
 
 from google.cloud import bigquery
 
 from google.api_core.exceptions import BadRequest
 
-from .timestamp import TimestampedValueDoFn
 from .timestamp import datetimeFromTimestamp
 from .timestamp import as_timestamp
-from pipe_tools.io import WriteToBigQueryDatePartitioned
 
 from pipe_segment.options.segment import SegmentOptions
 from pipe_segment.transform.invalid_values import filter_invalid_values
 from pipe_segment.transform.fragment import Fragment
 from pipe_segment.transform.satellite_offsets import SatelliteOffsets
-from pipe_segment.transform.normalize import NormalizeDoFn
+
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
 from pipe_segment.transform.read_messages import ReadMessages
 from pipe_segment.transform.create_segments import CreateSegments
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
 
-from pipe_segment.io.gcp import GCPSink
 
 message_input_schema = {
     "fields": [
@@ -223,23 +219,18 @@ class SegmentPipeline:
     @property
     def sat_offset_sink(self):
         sink_table = self.options.sat_offset_dest
-        if not sink_table.startswith("bq://"):
-            raise ValueError(
-                "only BigQuery supported as a destination for `sat_offset_dest`,"
-                ' must begin with "bq://"'
-            )
-        sink_table = sink_table[5:]
         if ":" not in sink_table:
             sink_table = self.cloud_options.project + ":" + sink_table
-        print(sink_table)
-        sink = WriteToBigQueryDatePartitioned(
-            table=sink_table,
+
+        def compute_table_for_event(msg):
+            dt = datetimeFromTimestamp(msg["hour"]).date()
+            return f"{sink_table}{dt:%Y%m%d}"
+
+        return beam.io.WriteToBigQuery(
+            compute_table_for_event,
             schema=self.sat_offset_schema,
-            temp_gcs_location=self.temp_gcs_location,
-            temp_shards_per_day=self.options.temp_shards_per_day,
             write_disposition="WRITE_TRUNCATE",
         )
-        return sink
 
     @property
     def message_source_list(self):
@@ -255,20 +246,6 @@ class SegmentPipeline:
                 ssvid_filter_query=self.options.ssvid_filter_query,
             )
             self._message_source_list.append(s)
-
-        #         )        # # creating a GCPSource requires calls to the bigquery API if we are
-        # # reading from bigquery, so only do this once.
-        # if not self._message_source_list:
-        #     first_date_ts, last_date_ts = self.date_range
-        #     gcp_paths = self.options.source.split(",")
-        #     self._message_source_list = []
-        #     for gcp_path in gcp_paths:
-        #         s = GCPSource(
-        #             gcp_path=gcp_path,
-        #             first_date_ts=first_date_ts,
-        #             last_date_ts=last_date_ts,
-        #         )
-        #         self._message_source_list.append(s)
 
         return self._message_source_list
 
@@ -295,9 +272,6 @@ class SegmentPipeline:
             [
                 {"name": "seg_id", "type": "STRING", "mode": "NULLABLE"},
                 {"name": "frag_id", "type": "STRING", "mode": "NULLABLE"},
-                {"name": "n_shipname", "type": "STRING", "mode": "NULLABLE"},
-                {"name": "n_callsign", "type": "STRING", "mode": "NULLABLE"},
-                {"name": "n_imo", "type": "STRING", "mode": "NULLABLE"},
             ]
         )
 
@@ -327,37 +301,59 @@ class SegmentPipeline:
 
     @property
     def message_sink(self):
-        sink = GCPSink(
-            gcp_path=self.options.msg_dest,
+        sink_table = self.options.msg_dest
+        if ":" not in sink_table:
+            sink_table = self.cloud_options.project + ":" + sink_table
+
+        def compute_table_for_event(msg):
+            dt = datetimeFromTimestamp(msg["timestamp"]).date()
+            return f"{sink_table}{dt:%Y%m%d}"
+
+        return beam.io.WriteToBigQuery(
+            compute_table_for_event,
             schema=self.message_output_schema,
-            temp_gcs_location=self.temp_gcs_location,
-            temp_shards_per_day=self.options.temp_shards_per_day,
+            write_disposition="WRITE_TRUNCATE",
         )
-        return sink
 
-    def get_fragment_sink(self, schema, table):
-        sink = GCPSink(
-            gcp_path=table,
+    # TODO: generalize by adding a key
+    # Move to transform.sink
+    def get_fragment_sink(self, schema, sink_table):
+        if ":" not in sink_table:
+            sink_table = self.cloud_options.project + ":" + sink_table
+
+        def compute_table_for_event(msg):
+            dt = datetimeFromTimestamp(msg["timestamp"]).date()
+            return f"{sink_table}{dt:%Y%m%d}"
+
+        return beam.io.WriteToBigQuery(
+            compute_table_for_event,
             schema=schema,
-            temp_gcs_location=self.temp_gcs_location,
-            temp_shards_per_day=self.options.temp_shards_per_day,
+            write_disposition="WRITE_TRUNCATE",
         )
-        return sink
 
+    # Export to ReadFragments
     def get_fragment_source(self, full_table_name):
         client = bigquery.Client(self.cloud_options.project)
 
-        # TODO: only want fragments from before start date
+        start_date = safe_dateFromTimestamp(self.date_range[0])
 
-        test_q = f"SELECT COUNT(*) FROM `{full_table_name}*`"
+        test_q = f'''SELECT COUNT(*) FROM `{full_table_name}*`
+                     WHERE _TABLE_SUFFIX < "{start_date:%Y%m%d}"'''
         request = client.query(test_q)
         try:
             request.result()
-        except BadRequest:
-            logging.warning("no existing fragment table found")
+        except BadRequest as err:
+            logging.warning(
+                f"Could not query existing table. Ignore if this is first run: {err}"
+            )
             return beam.Create([])
         else:
-            query = "SELECT * FROM `{full_table_name}*`"
+            query = f"""SELECT 
+        CAST(UNIX_MILLIS(timestamp) AS FLOAT64) / 1000  AS timestamp,
+        CAST(UNIX_MILLIS(first_msg_timestamp) AS FLOAT64) / 1000  AS first_msg_timestamp,
+        CAST(UNIX_MILLIS(last_msg_timestamp) AS FLOAT64) / 1000  AS last_msg_timestamp,
+        * except (timestamp, first_msg_timestamp, last_msg_timestamp) 
+        FROM `{full_table_name}*`"""
             return beam.io.ReadFromBigQuery(query=query, use_standard_sql=True)
 
     def pipeline(self):
@@ -376,12 +372,7 @@ class SegmentPipeline:
             satellite_offsets = pipeline | SatelliteOffsets(start_date, end_date)
 
             if self.options.sat_offset_dest:
-                (
-                    satellite_offsets
-                    | "AddTimestamp"
-                    >> beam.Map(lambda x: TimestampedValue(x, x["hour"]))
-                    | "WriteSatOffsets" >> self.sat_offset_sink
-                )
+                (satellite_offsets | "WriteSatOffsets" >> self.sat_offset_sink)
 
             messages = messages | FilterBadSatelliteTimes(
                 satellite_offsets,
@@ -391,7 +382,6 @@ class SegmentPipeline:
 
         messages = (
             messages
-            | "Normalize" >> beam.ParDo(NormalizeDoFn())
             | "MessagesAddKey" >> beam.Map(self.groupby_fn)
             | "GroupBySsvidAndDay" >> beam.GroupByKey()
         )
@@ -412,6 +402,17 @@ class SegmentPipeline:
         existing_fragments = pipeline | self.get_fragment_source(
             self.options.segment_dest
         )
+
+        def test(msg):
+            assert isinstance(msg["timestamp"], (int, float)), (
+                msg["timestamp"],
+                type(msg["timestamp"]),
+                msg,
+            )
+
+        existing_fragments | "TestExistingTimeType" >> beam.Map(test)
+        new_fragments | "TestNewTimeType" >> beam.Map(test)
+
         fragmap = (
             (new_fragments, existing_fragments)
             | beam.Flatten()
@@ -427,7 +428,6 @@ class SegmentPipeline:
             {"fragmap": fragmap, "target": tagged_messages}
             | "GroupMsgsWithMap" >> beam.CoGroupByKey()
             | "TagMsgsWithSegId" >> TagWithSegId()
-            | "TimestampMessages" >> beam.ParDo(TimestampedValueDoFn())
             | "WriteMessages" >> self.message_sink
         )
 
@@ -439,7 +439,6 @@ class SegmentPipeline:
             {"fragmap": fragmap, "target": tagged_fragments}
             | "GroupSegsWithMap" >> beam.CoGroupByKey()
             | "TagSegsWithsSegId" >> TagWithSegId()
-            | "TimestampFragments" >> beam.ParDo(TimestampedValueDoFn())
             | "WriteFragments"
             >> self.get_fragment_sink(
                 fragmenter.fragment_schema, self.options.segment_dest

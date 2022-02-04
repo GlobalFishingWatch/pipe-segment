@@ -1,7 +1,7 @@
 import sys
 
-from pipe_tools.options import validate_options
-from pipe_tools.options import LoggingOptions
+from pipe_segment.options.logging_options import validate_options
+from pipe_segment.options.logging_options import LoggingOptions
 
 from pipe_segment.options.segment import SegmentOptions
 from pipe_segment import segment_pipeline

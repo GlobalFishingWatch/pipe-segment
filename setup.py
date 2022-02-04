@@ -21,8 +21,6 @@ DEPENDENCIES = [
     "newlinejson",
     "python-stdnum",
     "gpsdio-segment",
-    "pipe-tools",
-    "shipdataprocess==0.6.9",
     "jinja2-cli",
     "google-apitools",
     "numpy<1.20.0",
