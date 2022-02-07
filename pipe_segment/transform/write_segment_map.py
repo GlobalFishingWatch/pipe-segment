@@ -26,10 +26,9 @@ schema = {
 
 
 class WriteSegmentMap(beam.PTransform):
-    def __init__(self, sink, project, start_date, end_date, temp_location):
+    def __init__(self, sink, project):
         self.sink = sink
         self.project = project
-        self.temp_location = temp_location
 
     def date_as_str(self, msg):
         msg["date"] = f"{msg['date']:%Y-%m-%d}"

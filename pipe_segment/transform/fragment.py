@@ -105,14 +105,16 @@ class Fragment(PTransform):
 
     @property
     def fragment_schema(self):
-        schema = bigquery.TableSchema()
+        schema = {"fields": []}
 
         def add_field(name, field_type, mode="REQUIRED"):
-            field = bigquery.TableFieldSchema()
-            field.name = name
-            field.type = field_type
-            field.mode = mode
-            schema.fields.append(field)
+            schema["fields"].append(
+                dict(
+                    name=name,
+                    type=field_type,
+                    mode=mode,
+                )
+            )
 
         add_field("frag_id", "STRING")
         add_field("seg_id", "STRING")
@@ -155,24 +157,37 @@ class Fragment(PTransform):
         #     field.fields = [fc, fv]
         #     schema.fields.append(field)
 
+        # def add_ident_field(name, value_type):
+        #     field = bigquery.TableFieldSchema()
+        #     field.name = name
+        #     field.type = "RECORD"
+        #     field.mode = "REPEATED"
+        #     fields = []
+        #     for fld_name in value_type._fields:
+        #         f = bigquery.TableFieldSchema()
+        #         f.name = fld_name
+        #         f.type = "STRING"
+        #         f.mode = "NULLABLE"
+        #         fields.append(f)
+        #     f = bigquery.TableFieldSchema()
+        #     f.name = "COUNT"
+        #     f.type = "INTEGER"
+        #     fields.append(f)
+        #     field.fields = fields
+        #     schema.fields.append(field)
+
         def add_ident_field(name, value_type):
-            field = bigquery.TableFieldSchema()
-            field.name = name
-            field.type = "RECORD"
-            field.mode = "REPEATED"
-            fields = []
+            field = dict(
+                name=name,
+                type="RECORD",
+                mode="REPEATED",
+                fields=[dict(name="count", type="INTEGER", mode="NULLABLE")],
+            )
             for fld_name in value_type._fields:
-                f = bigquery.TableFieldSchema()
-                f.name = fld_name
-                f.type = "STRING"
-                f.mode = "NULLABLE"
-                fields.append(f)
-            f = bigquery.TableFieldSchema()
-            f.name = "COUNT"
-            f.type = "INTEGER"
-            fields.append(f)
-            field.fields = fields
-            schema.fields.append(field)
+                field["fields"].append(
+                    dict(name=fld_name, type="STRING", mode="NULLABLE")
+                )
+            schema["fields"].append(field)
 
         add_ident_field("identities", Identity)
 

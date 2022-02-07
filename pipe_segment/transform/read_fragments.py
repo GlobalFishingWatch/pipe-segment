@@ -1,16 +1,34 @@
 import apache_beam as beam
+import logging
+from google.cloud import bigquery
+from google.api_core.exceptions import BadRequest
 
 
 class ReadFragments(beam.PTransform):
     def __init__(
-        self,
-        source,
-        start_date,
-        end_date,
+        self, source, start_date, end_date, create_if_missing=False, project=None
     ):
         self.source = source
+        self.project = project
         self.start_date = start_date
         self.end_date = end_date
+        self.create_if_missing = create_if_missing
+
+    def table_present(self):
+        client = bigquery.Client(self.project)
+        query = f'''SELECT COUNT(*) FROM `{self.source}*`
+                     WHERE _TABLE_SUFFIX BETWEEN "{self.start_date:%Y%m%d}"
+                     AND "{self.end_date:%Y%m%d}"'''
+        request = client.query(query)
+        try:
+            request.result()
+        except BadRequest as err:
+            return False
+            logging.info(
+                f"Could not query existing table. Ignore if this is first run: {err}"
+            )
+        else:
+            return True
 
     @property
     def query(self):
@@ -33,4 +51,9 @@ class ReadFragments(beam.PTransform):
         return query
 
     def expand(self, pcoll):
-        return pcoll | beam.io.ReadFromBigQuery(query=self.query, use_standard_sql=True)
+        if self.create_if_missing and not self.table_present():
+            return beam.Create([])
+        else:
+            return pcoll | beam.io.ReadFromBigQuery(
+                query=self.query, use_standard_sql=True
+            )

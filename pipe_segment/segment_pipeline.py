@@ -1,15 +1,11 @@
 import logging
 import ujson
+from datetime import datetime, timedelta
 
 import apache_beam as beam
 from apache_beam.runners import PipelineState
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.io.gcp.internal.clients import bigquery as beam_bigquery
-
-from google.cloud import bigquery
-
-from google.api_core.exceptions import BadRequest
 
 from .timestamp import datetimeFromTimestamp
 from .timestamp import as_timestamp
@@ -21,137 +17,14 @@ from pipe_segment.transform.satellite_offsets import SatelliteOffsets
 
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
 from pipe_segment.transform.read_messages import ReadMessages
+from pipe_segment.transform.read_fragments import ReadFragments
 from pipe_segment.transform.create_segments import CreateSegments
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
+from pipe_segment.transform.write_date_sharded import WriteDateSharded
+from pipe_segment import message_schema
 
 
-message_input_schema = {
-    "fields": [
-        {
-            "description": "A unique id, we try using the spire raw id but sometimes it is not unique.",
-            "mode": "NULLABLE",
-            "name": "msgid",
-            "type": "STRING",
-        },
-        {
-            "description": "spire/orbcomm used on posterior steps when both spire and orbcomm are merge to know where they come from.",
-            "mode": "NULLABLE",
-            "name": "source",
-            "type": "STRING",
-        },
-        {
-            "description": "The AIS messages, the format is [AIS.type]",
-            "mode": "NULLABLE",
-            "name": "type",
-            "type": "STRING",
-        },
-        {
-            "description": "The Specific Source Vessel ID, in this case the MMSI",
-            "mode": "NULLABLE",
-            "name": "ssvid",
-            "type": "STRING",
-        },
-        {
-            "description": "The timestap that indicates when the message was transmitted.",
-            "mode": "NULLABLE",
-            "name": "timestamp",
-            "type": "TIMESTAMP",
-        },
-        {
-            "description": "The longitude included in the spire message.",
-            "mode": "NULLABLE",
-            "name": "lon",
-            "type": "FLOAT",
-        },
-        {
-            "description": "The latitude included in the spire message.",
-            "mode": "NULLABLE",
-            "name": "lat",
-            "type": "FLOAT",
-        },
-        {
-            "description": "The speed in knots included in the spire json decoded message.",
-            "mode": "NULLABLE",
-            "name": "speed",
-            "type": "FLOAT",
-        },
-        {
-            "description": "The course included in the spire json decoded message.",
-            "mode": "NULLABLE",
-            "name": "course",
-            "type": "FLOAT",
-        },
-        {
-            "description": "The heading included in the spire json decoded message.",
-            "mode": "NULLABLE",
-            "name": "heading",
-            "type": "FLOAT",
-        },
-        {
-            "description": "The shipname included in the spire json decoded message.",
-            "mode": "NULLABLE",
-            "name": "shipname",
-            "type": "STRING",
-        },
-        {
-            "description": "The callsign included in the spire json decoded message.",
-            "mode": "NULLABLE",
-            "name": "callsign",
-            "type": "STRING",
-        },
-        {
-            "description": "The destination included in the spire json decoded message.",
-            "mode": "NULLABLE",
-            "name": "destination",
-            "type": "STRING",
-        },
-        {
-            "description": "The imo included in the spire json decoded message.",
-            "mode": "NULLABLE",
-            "name": "imo",
-            "type": "STRING",
-        },
-        {
-            "description": "The shiptype included in the spire message using the shiptype.json match.",
-            "mode": "NULLABLE",
-            "name": "shiptype",
-            "type": "STRING",
-        },
-        {
-            "description": "terrestrial or satellite. Obtained through the collection_type in the spire json decoded message.",
-            "mode": "NULLABLE",
-            "name": "receiver_type",
-            "type": "STRING",
-        },
-        {
-            "description": "The source from spire json decoded message.",
-            "mode": "NULLABLE",
-            "name": "receiver",
-            "type": "STRING",
-        },
-        {
-            "description": "The length of the vessel from the SPIRE message.",
-            "mode": "NULLABLE",
-            "name": "length",
-            "type": "FLOAT",
-        },
-        {
-            "description": "The width of the vessel from the SPIRE message.",
-            "mode": "NULLABLE",
-            "name": "width",
-            "type": "FLOAT",
-        },
-        {
-            "description": "The navigational status.",
-            "mode": "NULLABLE",
-            "name": "status",
-            "type": "INTEGER",
-        },
-    ]
-}
-
-
-def safe_dateFromTimestamp(ts):
+def safe_date(ts):
     if ts is None:
         return None
     return datetimeFromTimestamp(ts).date()
@@ -162,33 +35,6 @@ def parse_date_range(s):
     return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
 
 
-def filter_by_ssvid_predicate(obj, valid_ssvid_set):
-    return obj["ssvid"] in valid_ssvid_set
-
-
-class LogMapper(object):
-    first_item = True
-    which_item = 0
-
-    def log_first_item(self, obj):
-        if self.first_item:
-            logging.warn("First Item: %s", obj)
-            self.first_item = False
-        return obj
-
-    def log_nth_item(self, obj, n):
-        if self.which_item == n:
-            logging.warn("%sth Item: %s", n, obj)
-            self.which_item += 1
-        return obj
-
-    def log_first_item_keys(self, obj):
-        if self.first_item:
-            logging.warn("First Item's Keys: %s", obj.keys())
-            self.first_item = False
-        return obj
-
-
 class SegmentPipeline:
     def __init__(self, options):
         self.cloud_options = options.view_as(GoogleCloudOptions)
@@ -196,16 +42,19 @@ class SegmentPipeline:
         self.date_range = parse_date_range(self.options.date_range)
         self._message_source_list = None
 
+    # TODO: add to SatOffsets
     @property
     def sat_offset_schema(self):
-        schema = beam_bigquery.TableSchema()
+        schema = {"fields": []}
 
         def add_field(name, field_type, mode="REQUIRED"):
-            field = beam_bigquery.TableFieldSchema()
-            field.name = name
-            field.type = field_type
-            field.mode = mode
-            schema.fields.append(field)
+            schema["fields"].append(
+                dict(
+                    name=name,
+                    type=field_type,
+                    mode=mode,
+                )
+            )
 
         add_field("hour", "timestamp")
         add_field("receiver", "STRING")
@@ -216,27 +65,12 @@ class SegmentPipeline:
 
         return schema
 
-    @property
-    def sat_offset_sink(self):
-        sink_table = self.options.sat_offset_dest
-        if ":" not in sink_table:
-            sink_table = self.cloud_options.project + ":" + sink_table
-
-        def compute_table_for_event(msg):
-            dt = datetimeFromTimestamp(msg["hour"]).date()
-            return f"{sink_table}{dt:%Y%m%d}"
-
-        return beam.io.WriteToBigQuery(
-            compute_table_for_event,
-            schema=self.sat_offset_schema,
-            write_disposition="WRITE_TRUNCATE",
-        )
-
+    # Export with below
     @property
     def message_source_list(self):
         gcp_paths = self.options.source.split(",")
-        start_date = safe_dateFromTimestamp(self.date_range[0])
-        end_date = safe_dateFromTimestamp(self.date_range[1])
+        start_date = safe_date(self.date_range[0])
+        end_date = safe_date(self.date_range[1])
         self._message_source_list = []
         for gcp_path in gcp_paths:
             s = ReadMessages(
@@ -249,6 +83,7 @@ class SegmentPipeline:
 
         return self._message_source_list
 
+    # TODO: export to a transform
     def message_sources(self, pipeline):
         def compose(idx, source):
             return pipeline | "Source%i" % idx >> source
@@ -257,31 +92,9 @@ class SegmentPipeline:
             compose(idx, source) for idx, source in enumerate(self.message_source_list)
         )
 
-    @property
-    def message_input_schema(self):
-        # schemas = [s.schema for s in self.message_source_list if s.schema is not None]
-        # schema = schemas[0] if schemas else None
-        return message_input_schema
-
-    @property
-    def message_output_schema(self):
-        schema = self.message_input_schema.copy()
-        schema["fields"] = schema["fields"][:]
-
-        schema["fields"].extend(
-            [
-                {"name": "seg_id", "type": "STRING", "mode": "NULLABLE"},
-                {"name": "frag_id", "type": "STRING", "mode": "NULLABLE"},
-            ]
-        )
-
-        return schema
-
-    def add_ssvid_key(self, x):
-        return (x["ssvid"], x)
-
-    def add_frag_key(self, x):
-        return (x["frag_id"], x)
+    @staticmethod
+    def groupby_fn(msg):
+        return ((msg["ssvid"], safe_date(msg["timestamp"])), msg)
 
     @property
     def merge_params(self):
@@ -291,76 +104,11 @@ class SegmentPipeline:
     def segmenter_params(self):
         return ujson.loads(self.options.segmenter_params)
 
-    @property
-    def temp_gcs_location(self):
-        return self.cloud_options.temp_location
-
-    @staticmethod
-    def groupby_fn(msg):
-        return ((msg["ssvid"], safe_dateFromTimestamp(msg["timestamp"])), msg)
-
-    @property
-    def message_sink(self):
-        sink_table = self.options.msg_dest
-        if ":" not in sink_table:
-            sink_table = self.cloud_options.project + ":" + sink_table
-
-        def compute_table_for_event(msg):
-            dt = datetimeFromTimestamp(msg["timestamp"]).date()
-            return f"{sink_table}{dt:%Y%m%d}"
-
-        return beam.io.WriteToBigQuery(
-            compute_table_for_event,
-            schema=self.message_output_schema,
-            write_disposition="WRITE_TRUNCATE",
-        )
-
-    # TODO: generalize by adding a key
-    # Move to transform.sink
-    def get_fragment_sink(self, schema, sink_table):
-        if ":" not in sink_table:
-            sink_table = self.cloud_options.project + ":" + sink_table
-
-        def compute_table_for_event(msg):
-            dt = datetimeFromTimestamp(msg["timestamp"]).date()
-            return f"{sink_table}{dt:%Y%m%d}"
-
-        return beam.io.WriteToBigQuery(
-            compute_table_for_event,
-            schema=schema,
-            write_disposition="WRITE_TRUNCATE",
-        )
-
-    # Export to ReadFragments
-    def get_fragment_source(self, full_table_name):
-        client = bigquery.Client(self.cloud_options.project)
-
-        start_date = safe_dateFromTimestamp(self.date_range[0])
-
-        test_q = f'''SELECT COUNT(*) FROM `{full_table_name}*`
-                     WHERE _TABLE_SUFFIX < "{start_date:%Y%m%d}"'''
-        request = client.query(test_q)
-        try:
-            request.result()
-        except BadRequest as err:
-            logging.warning(
-                f"Could not query existing table. Ignore if this is first run: {err}"
-            )
-            return beam.Create([])
-        else:
-            query = f"""SELECT 
-        CAST(UNIX_MILLIS(timestamp) AS FLOAT64) / 1000  AS timestamp,
-        CAST(UNIX_MILLIS(first_msg_timestamp) AS FLOAT64) / 1000  AS first_msg_timestamp,
-        CAST(UNIX_MILLIS(last_msg_timestamp) AS FLOAT64) / 1000  AS last_msg_timestamp,
-        * except (timestamp, first_msg_timestamp, last_msg_timestamp) 
-        FROM `{full_table_name}*`"""
-            return beam.io.ReadFromBigQuery(query=query, use_standard_sql=True)
-
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.options)
 
-        start_date = safe_dateFromTimestamp(self.date_range[0])
-        end_date = safe_dateFromTimestamp(self.date_range[1])
+        start_date = safe_date(self.date_range[0])
+        end_date = safe_date(self.date_range[1])
 
         messages = (
             self.message_sources(pipeline)
@@ -372,7 +120,15 @@ class SegmentPipeline:
             satellite_offsets = pipeline | SatelliteOffsets(start_date, end_date)
 
             if self.options.sat_offset_dest:
-                (satellite_offsets | "WriteSatOffsets" >> self.sat_offset_sink)
+                (
+                    satellite_offsets
+                    | "WriteSatOffsets"
+                    >> WriteDateSharded(
+                        self.options.sat_offset_dest,
+                        self.cloud_options.project,
+                        self.sat_offset_schema,
+                    )
+                )
 
             messages = messages | FilterBadSatelliteTimes(
                 satellite_offsets,
@@ -389,8 +145,8 @@ class SegmentPipeline:
         fragmenter = Fragment(
             # TODO: WRONG. Segmenter shouldn't take start and end date
             # it should only process current one day ever.
-            start_date=safe_dateFromTimestamp(self.date_range[0]),
-            end_date=safe_dateFromTimestamp(self.date_range[1]),
+            start_date=safe_date(self.date_range[0]),
+            end_date=safe_date(self.date_range[1]),
             fragmenter_params=self.segmenter_params,
         )
 
@@ -399,40 +155,43 @@ class SegmentPipeline:
         messages = fragmented[fragmenter.OUTPUT_TAG_MESSAGES]
         new_fragments = fragmented[fragmenter.OUTPUT_TAG_FRAGMENTS]
 
-        existing_fragments = pipeline | self.get_fragment_source(
-            self.options.segment_dest
+        long_ago = datetime(1900, 1, 1)
+
+        existing_fragments = pipeline | ReadFragments(
+            self.options.segment_dest,
+            project=self.cloud_options.project,
+            start_date=long_ago,
+            end_date=start_date - timedelta(days=1),
+            create_if_missing=True,
         )
-
-        def test(msg):
-            assert isinstance(msg["timestamp"], (int, float)), (
-                msg["timestamp"],
-                type(msg["timestamp"]),
-                msg,
-            )
-
-        existing_fragments | "TestExistingTimeType" >> beam.Map(test)
-        new_fragments | "TestNewTimeType" >> beam.Map(test)
 
         fragmap = (
             (new_fragments, existing_fragments)
             | beam.Flatten()
-            | "AddSsvidKey" >> beam.Map(self.add_ssvid_key)
+            | "AddSsvidKey" >> beam.Map(lambda x: (x["ssvid"], x))
             | "GroupBySsvid" >> beam.GroupByKey()
             | CreateSegments(self.merge_params)
             | "AddKeyToFragmap" >> beam.Map(self.add_frag_key)
         )
 
-        tagged_messages = messages | "AddKeyToMessages" >> beam.Map(self.add_frag_key)
+        tagged_messages = messages | "AddKeyToMessages" >> beam.Map(
+            lambda x: (x["frag_id"], x)
+        )
 
         (
             {"fragmap": fragmap, "target": tagged_messages}
             | "GroupMsgsWithMap" >> beam.CoGroupByKey()
             | "TagMsgsWithSegId" >> TagWithSegId()
-            | "WriteMessages" >> self.message_sink
+            | "WriteMessages"
+            >> WriteDateSharded(
+                self.options.msg_dest,
+                self.cloud_options.project,
+                message_schema.message_output_schema,
+            )
         )
 
         tagged_fragments = new_fragments | "AddKeyToFragments" >> beam.Map(
-            self.add_frag_key
+            lambda x: (x["frag_id"], x)
         )
 
         (
@@ -440,8 +199,10 @@ class SegmentPipeline:
             | "GroupSegsWithMap" >> beam.CoGroupByKey()
             | "TagSegsWithsSegId" >> TagWithSegId()
             | "WriteFragments"
-            >> self.get_fragment_sink(
-                fragmenter.fragment_schema, self.options.segment_dest
+            >> WriteDateSharded(
+                self.options.segment_dest,
+                self.cloud_options.project,
+                fragmenter.fragment_schema,
             )
         )
 
