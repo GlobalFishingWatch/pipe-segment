@@ -41,61 +41,6 @@ class SegmentPipeline:
         self.cloud_options = options.view_as(GoogleCloudOptions)
         self.options = options.view_as(SegmentOptions)
         self.date_range = parse_date_range(self.options.date_range)
-        self._message_source_list = None
-
-    # TODO: export to SatOffsets
-    @property
-    def sat_offset_schema(self):
-        schema = {"fields": []}
-
-        def add_field(name, field_type, mode="REQUIRED"):
-            schema["fields"].append(
-                dict(
-                    name=name,
-                    type=field_type,
-                    mode=mode,
-                )
-            )
-
-        add_field("hour", "timestamp")
-        add_field("receiver", "STRING")
-        add_field("dt", "FLOAT")
-        add_field("pings", "INTEGER")
-        add_field("avg_distance_from_sat_km", "FLOAT")
-        add_field("med_dist_from_sat_km", "FLOAT")
-
-        return schema
-
-    # Export with below
-    @property
-    def message_source_list(self):
-        gcp_paths = self.options.source.split(",")
-        start_date = safe_date(self.date_range[0])
-        end_date = safe_date(self.date_range[1])
-        self._message_source_list = []
-        for gcp_path in gcp_paths:
-            s = ReadMessages(
-                source=gcp_path,
-                start_date=start_date,
-                end_date=end_date,
-                ssvid_filter_query=self.options.ssvid_filter_query,
-            )
-            self._message_source_list.append(s)
-
-        return self._message_source_list
-
-    # TODO: export to a transform
-    def message_sources(self, pipeline):
-        def compose(idx, source):
-            return pipeline | "Source%i" % idx >> source
-
-        return (
-            compose(idx, source) for idx, source in enumerate(self.message_source_list)
-        )
-
-    @staticmethod
-    def groupby_fn(msg):
-        return ((msg["ssvid"], safe_date(msg["timestamp"])), msg)
 
     @property
     def merge_params(self):
@@ -105,6 +50,11 @@ class SegmentPipeline:
     def segmenter_params(self):
         return ujson.loads(self.options.segmenter_params)
 
+    @property
+    def source_tables(self):
+        return self.options.source.split(",")
+
+    # TODO: consider breaking up
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.options)
 
@@ -112,8 +62,13 @@ class SegmentPipeline:
         end_date = safe_date(self.date_range[1])
 
         messages = (
-            self.message_sources(pipeline)
-            | "MergeMessages" >> beam.Flatten()
+            pipeline
+            | ReadMessages(
+                sources=self.source_tables,
+                start_date=start_date,
+                end_date=end_date,
+                ssvid_filter_query=self.options.ssvid_filter_query,
+            )
             | "FilterInvalidValues" >> beam.Map(filter_invalid_values)
         )
 
@@ -127,7 +82,7 @@ class SegmentPipeline:
                     >> WriteDateSharded(
                         self.options.sat_offset_dest,
                         self.cloud_options.project,
-                        self.sat_offset_schema,
+                        SatelliteOffsets.schema,
                     )
                 )
 
@@ -139,22 +94,17 @@ class SegmentPipeline:
 
         messages = (
             messages
-            | "MessagesAddKey" >> beam.Map(self.groupby_fn)
+            | "MessagesAddKey"
+            >> beam.Map(lambda x: ((x["ssvid"], safe_date(x["timestamp"])), x))
             | "GroupBySsvidAndDay" >> beam.GroupByKey()
         )
 
-        fragmenter = Fragment(
-            # TODO: WRONG. Segmenter shouldn't take start and end date
-            # it should only process current one day ever.
-            start_date=safe_date(self.date_range[0]),
-            end_date=safe_date(self.date_range[1]),
-            fragmenter_params=self.segmenter_params,
+        fragmented = messages | "Fragment" >> Fragment(
+            fragmenter_params=self.segmenter_params
         )
 
-        fragmented = messages | "Fragment" >> fragmenter
-
-        messages = fragmented[fragmenter.OUTPUT_TAG_MESSAGES]
-        new_fragments = fragmented[fragmenter.OUTPUT_TAG_FRAGMENTS]
+        messages = fragmented[Fragment.OUTPUT_TAG_MESSAGES]
+        new_fragments = fragmented[Fragment.OUTPUT_TAG_FRAGMENTS]
 
         long_ago = datetime(1900, 1, 1)
 
@@ -206,7 +156,7 @@ class SegmentPipeline:
             >> WriteDateSharded(
                 self.options.segment_dest,
                 self.cloud_options.project,
-                fragmenter.fragment_schema,
+                Fragment.schema,
             )
         )
 

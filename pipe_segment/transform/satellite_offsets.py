@@ -7,6 +7,7 @@ from apache_beam import PTransform
 import apache_beam.io.gcp.bigquery
 from apache_beam import io
 
+
 class SatelliteOffsets(PTransform):
     """Generate satellite offset times based on Spire data.
 
@@ -20,11 +21,33 @@ class SatelliteOffsets(PTransform):
         self.start_date = start_date
         self.end_date = end_date
 
+    @property
+    def schema(self):
+        schema = {"fields": []}
+
+        def add_field(name, field_type, mode="REQUIRED"):
+            schema["fields"].append(
+                dict(
+                    name=name,
+                    type=field_type,
+                    mode=mode,
+                )
+            )
+
+        add_field("hour", "timestamp")
+        add_field("receiver", "STRING")
+        add_field("dt", "FLOAT")
+        add_field("pings", "INTEGER")
+        add_field("avg_distance_from_sat_km", "FLOAT")
+        add_field("med_dist_from_sat_km", "FLOAT")
+
+        return schema
+
     def expand(self, xs):
-        return (
-            [xs | 'SatOffsets{}'.format(ndx) >> src for (ndx, src) in 
-                        enumerate(self._sat_offset_iter())]
-            | "MergeSatOffsets" >> beam.Flatten())
+        return [
+            xs | "SatOffsets{}".format(ndx) >> src
+            for (ndx, src) in enumerate(self._sat_offset_iter())
+        ] | "MergeSatOffsets" >> beam.Flatten()
 
     def _sat_offset_iter(self):
         template = """
@@ -222,8 +245,9 @@ class SatelliteOffsets(PTransform):
         """
         for start_window, end_window in self._get_query_windows():
             query = template.format(start_window=start_window, end_window=end_window)
-            yield io.Read(io.gcp.bigquery.BigQuerySource(query=query, use_standard_sql=True))
-
+            yield io.Read(
+                io.gcp.bigquery.BigQuerySource(query=query, use_standard_sql=True)
+            )
 
     def _get_query_windows(self):
         start_date, end_date = self.start_date, self.end_date

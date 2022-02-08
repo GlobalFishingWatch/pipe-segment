@@ -27,14 +27,7 @@ class FragmentImplementation(object):
         ("callsign", MessageStats.FREQUENCY_STATS),
     ]
 
-    def __init__(
-        self,
-        start_date=None,
-        end_date=None,
-        fragmenter_params=None,
-    ):
-        self.start_date = start_date
-        self.end_date = end_date
+    def __init__(self, fragmenter_params=None):
         self.stats_fields = self.DEFAULT_STATS_FIELDS  # TODO: Do we use these?
         self.fragmenter_params = fragmenter_params or {}
         assert self.fragmenter_params.get("max_hours") == 24, self.fragmenter_params

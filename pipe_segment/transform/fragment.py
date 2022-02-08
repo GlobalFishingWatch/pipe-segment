@@ -16,18 +16,60 @@ logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
 
 
+def make_schema():
+    schema = {"fields": []}
+
+    def add_field(name, field_type, mode="REQUIRED"):
+        schema["fields"].append(
+            dict(
+                name=name,
+                type=field_type,
+                mode=mode,
+            )
+        )
+
+    add_field("frag_id", "STRING")
+    add_field("seg_id", "STRING")
+    add_field("ssvid", "STRING")
+    add_field("daily_message_count", "INTEGER")
+    add_field("timestamp", "TIMESTAMP")
+    for prefix in [
+        "first_msg_of_day_",
+        "last_msg_of_day_",
+    ]:
+        add_field(prefix + "timestamp", "TIMESTAMP")
+        add_field(prefix + "lat", "FLOAT")
+        add_field(prefix + "lon", "FLOAT")
+        add_field(prefix + "course", "FLOAT")
+        add_field(prefix + "speed", "FLOAT")
+
+    def add_ident_field(name, value_type):
+        field = dict(
+            name=name,
+            type="RECORD",
+            mode="REPEATED",
+            fields=[dict(name="count", type="INTEGER", mode="NULLABLE")],
+        )
+        for fld_name in value_type._fields:
+            field["fields"].append(dict(name=fld_name, type="STRING", mode="NULLABLE"))
+        schema["fields"].append(field)
+
+    add_ident_field("daily_identities", Identity)
+    add_field("first_timestamp", "TIMESTAMP")
+    add_field("cumulative_msg_count", "INTEGER")
+    add_ident_field("cumulative_identities", Identity)
+
+    return schema
+
+
 class Fragment(PTransform):
     def __init__(
         self,
-        start_date=None,
-        end_date=None,
         fragmenter_params=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self._fragmenter = FragmentImplementation(
-            start_date, end_date, fragmenter_params
-        )
+        self._fragmenter = FragmentImplementation(fragmenter_params)
 
     @property
     def OUTPUT_TAG_FRAGMENTS(self):
@@ -82,94 +124,4 @@ class Fragment(PTransform):
     def expand(self, xs):
         return xs | FlatMap(self.fragment).with_outputs(main=self.OUTPUT_TAG_MESSAGES)
 
-    @property
-    def fragment_schema(self):
-        schema = {"fields": []}
-
-        def add_field(name, field_type, mode="REQUIRED"):
-            schema["fields"].append(
-                dict(
-                    name=name,
-                    type=field_type,
-                    mode=mode,
-                )
-            )
-
-        add_field("frag_id", "STRING")
-        add_field("seg_id", "STRING")
-        add_field("ssvid", "STRING")
-        add_field("daily_message_count", "INTEGER")
-        add_field("timestamp", "TIMESTAMP")
-        for prefix in [
-            "first_msg_of_day_",
-            "last_msg_of_day_",
-        ]:
-            add_field(prefix + "timestamp", "TIMESTAMP")
-            add_field(prefix + "lat", "FLOAT")
-            add_field(prefix + "lon", "FLOAT")
-            add_field(prefix + "course", "FLOAT")
-            add_field(prefix + "speed", "FLOAT")
-
-        # TODO: for NESTED remove is we go with flat
-        # def add_ident_field(name, value_type):
-        #     field = bigquery.TableFieldSchema()
-        #     field.name = name
-        #     field.type = "RECORD"
-        #     field.mode = "REPEATED"
-        #     fc = bigquery.TableFieldSchema()
-        #     fc.name = "count"
-        #     fc.type = "INTEGER"
-        #     fc.mode = "REQUIRED"
-        #     fv = bigquery.TableFieldSchema()
-        #     fv.name = "value"
-        #     fv.type = "RECORD"
-        #     fv.mode = "REQUIRED"
-        #     fields = []
-        #     for fld_name in value_type._fields:
-        #         f = bigquery.TableFieldSchema()
-        #         f.name = fld_name
-        #         f.type = "STRING"
-        #         f.mode = "NULLABLE"
-        #         fields.append(f)
-        #     fv.fields = fields
-        #     field.fields = [fc, fv]
-        #     schema.fields.append(field)
-
-        # def add_ident_field(name, value_type):
-        #     field = bigquery.TableFieldSchema()
-        #     field.name = name
-        #     field.type = "RECORD"
-        #     field.mode = "REPEATED"
-        #     fields = []
-        #     for fld_name in value_type._fields:
-        #         f = bigquery.TableFieldSchema()
-        #         f.name = fld_name
-        #         f.type = "STRING"
-        #         f.mode = "NULLABLE"
-        #         fields.append(f)
-        #     f = bigquery.TableFieldSchema()
-        #     f.name = "COUNT"
-        #     f.type = "INTEGER"
-        #     fields.append(f)
-        #     field.fields = fields
-        #     schema.fields.append(field)
-
-        def add_ident_field(name, value_type):
-            field = dict(
-                name=name,
-                type="RECORD",
-                mode="REPEATED",
-                fields=[dict(name="count", type="INTEGER", mode="NULLABLE")],
-            )
-            for fld_name in value_type._fields:
-                field["fields"].append(
-                    dict(name=fld_name, type="STRING", mode="NULLABLE")
-                )
-            schema["fields"].append(field)
-
-        add_ident_field("daily_identities", Identity)
-        add_field("first_timestamp", "TIMESTAMP")
-        add_field("cumulative_msg_count", "INTEGER")
-        add_ident_field("cumulative_identities", Identity)
-
-        return schema
+    schema = make_schema()
