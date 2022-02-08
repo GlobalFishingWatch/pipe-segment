@@ -31,12 +31,11 @@ class FragmentImplementation(object):
         self,
         start_date=None,
         end_date=None,
-        # stats_fields=None,
         fragmenter_params=None,
     ):
         self.start_date = start_date
         self.end_date = end_date
-        self.stats_fields = self.DEFAULT_STATS_FIELDS
+        self.stats_fields = self.DEFAULT_STATS_FIELDS  # TODO: Do we use these?
         self.fragmenter_params = fragmenter_params or {}
         assert self.fragmenter_params.get("max_hours") == 24, self.fragmenter_params
 
@@ -60,10 +59,8 @@ class FragmentImplementation(object):
         stats_numeric_fields = [x for x in stats_numeric_fields if x != "timestamp"]
         ms = MessageStats(messages, stats_numeric_fields, stats_frequency_fields)
 
-        first_msg = frag_state.first_msg
-        last_msg = frag_state.last_msg
-        first_msg_of_day = frag_state.first_msg_of_day or {}
-        last_msg_of_day = frag_state.last_msg_of_day or {}
+        first_msg_of_day = frag_state.first_msg_of_day
+        last_msg_of_day = frag_state.last_msg_of_day
 
         def idents2record(name):
             items = []
@@ -71,25 +68,13 @@ class FragmentImplementation(object):
                 value = k._asdict()
                 value["count"] = v
                 items.append(value)
-                # TODO: for NESTED remove is we go with flat
-                # items.append({"value": value, "count": v})
             return items
 
         record = dict(
             frag_id=frag_state.id,
             ssvid=frag_state.ssvid,
             noise=frag_state.noise,
-            message_count=frag_state.msg_count,
-            first_msg_timestamp=first_msg["timestamp"],
-            first_msg_lat=first_msg["lat"],
-            first_msg_lon=first_msg["lon"],
-            first_msg_course=first_msg["course"],
-            first_msg_speed=first_msg["speed"],
-            last_msg_timestamp=last_msg["timestamp"],
-            last_msg_lat=last_msg["lat"],
-            last_msg_lon=last_msg["lon"],
-            last_msg_course=last_msg["course"],
-            last_msg_speed=last_msg["speed"],
+            timestamp=timestamp,
             first_msg_of_day_timestamp=first_msg_of_day.get("timestamp"),
             first_msg_of_day_lat=first_msg_of_day.get("lat"),
             first_msg_of_day_lon=first_msg_of_day.get("lon"),
@@ -100,8 +85,8 @@ class FragmentImplementation(object):
             last_msg_of_day_lon=last_msg_of_day.get("lon"),
             last_msg_of_day_course=last_msg_of_day.get("course"),
             last_msg_of_day_speed=last_msg_of_day.get("speed"),
-            timestamp=timestamp,
-            identities=idents2record("identities"),
+            daily_message_count=frag_state.msg_count,
+            daily_identities=idents2record("identities"),
         )
         for field, stats in self.stats_fields:
             stat_values = ms.field_stats(field)
@@ -109,16 +94,6 @@ class FragmentImplementation(object):
                 record[self.stat_output_field_name(field, stat)] = stat_values.get(
                     stat, None
                 )
-        # if has_timestamp:
-        #     if len(messages):
-        #         record["timestamp_min"] = messages[0]["timestamp"]
-        #         record["timestamp_max"] = messages[-1]["timestamp"]
-        #         record["timestamp_first"] = messages[0]["timestamp"]
-        #         record["timestamp_last"] = messages[-1]["timestamp"]
-        #     else:
-        #         record["timestamp_min"] = record["timestamp_max"] = None
-        #         record["timestamp_first"] = record["timestamp_last"] = None
-        #     record["timestamp_count"] = len(messages)
         return record
 
     @staticmethod
@@ -157,9 +132,6 @@ class FragmentImplementation(object):
         for field, stats in self.stats_fields:
             for stat in stats:
                 record.pop(self.stat_output_field_name(field, stat))
-        for end in ["first", "last"]:
-            for name in ["timestamp", "lat", "lon", "course", "speed"]:
-                record.pop(f"{end}_msg_of_day_{name}")
         return record
 
     def fragment(self, messages):

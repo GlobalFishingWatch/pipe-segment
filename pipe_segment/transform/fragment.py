@@ -50,34 +50,13 @@ class Fragment(PTransform):
         msg["timestamp"] = msg.pop("raw_timestamp")
         return msg
 
-    # TODO: do we use this? Doing this daily I don't think so
-    @staticmethod
-    def _convert_fragment_in(frag):
-        frag = dict(frag.items())
-        for k in [
-            "timestamp",
-            "first_msg_timestamp",
-            "last_msg_timestamp",
-            "first_msg_of_day_timestamp",
-            "last_msg_of_day_timestamp",
-        ]:
-            if frag[k] is not None:
-                frag[k] = datetimeFromTimestamp(frag[k])
-        return frag
-
     @staticmethod
     def _convert_fragment_out(frag):
         frag = dict(frag.items())
         for k in [
             "timestamp",
-            "first_msg_timestamp",
-            "last_msg_timestamp",
-            # "first_msg_of_day_timestamp",
-            # "last_msg_of_day_timestamp",
-            # "timestamp_first",
-            # "timestamp_last",  # Stats stuff TODO: clean out someday
-            # "timestamp_min",
-            # "timestamp_max",
+            "first_msg_of_day_timestamp",
+            "last_msg_of_day_timestamp",
         ]:
             assert k in frag, frag
             if k in frag and not frag[k] is None:
@@ -119,18 +98,17 @@ class Fragment(PTransform):
         add_field("frag_id", "STRING")
         add_field("seg_id", "STRING")
         add_field("ssvid", "STRING")
-        add_field("message_count", "INTEGER")
+        add_field("daily_message_count", "INTEGER")
         add_field("timestamp", "TIMESTAMP")
         for prefix in [
-            "first_msg_",
-            "last_msg_",
+            "first_msg_of_day_",
+            "last_msg_of_day_",
         ]:
-            mode = "NULLABLE" if prefix.endswith("of_day_") else "REQUIRED"
-            add_field(prefix + "timestamp", "TIMESTAMP", mode)
-            add_field(prefix + "lat", "FLOAT", mode)
-            add_field(prefix + "lon", "FLOAT", mode)
-            add_field(prefix + "course", "FLOAT", mode)
-            add_field(prefix + "speed", "FLOAT", mode)
+            add_field(prefix + "timestamp", "TIMESTAMP")
+            add_field(prefix + "lat", "FLOAT")
+            add_field(prefix + "lon", "FLOAT")
+            add_field(prefix + "course", "FLOAT")
+            add_field(prefix + "speed", "FLOAT")
 
         # TODO: for NESTED remove is we go with flat
         # def add_ident_field(name, value_type):
@@ -189,6 +167,9 @@ class Fragment(PTransform):
                 )
             schema["fields"].append(field)
 
-        add_ident_field("identities", Identity)
+        add_ident_field("daily_identities", Identity)
+        add_field("first_timestamp", "TIMESTAMP")
+        add_field("cumulative_msg_count", "INTEGER")
+        add_ident_field("cumulative_identities", Identity)
 
         return schema

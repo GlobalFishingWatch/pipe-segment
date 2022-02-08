@@ -17,7 +17,7 @@ class CreateSegments(beam.PTransform):
 
     def frag2msg(self, frag, end):
         msg = {
-            k: frag[f"{end}_msg_{k}"]
+            k: frag[f"{end}_msg_of_day_{k}"]
             for k in ["timestamp", "lon", "lat", "speed", "course"]
         }
         msg["timestamp"] = datetimeFromTimestamp(msg["timestamp"])

@@ -15,6 +15,7 @@ from pipe_segment.transform.invalid_values import filter_invalid_values
 from pipe_segment.transform.fragment import Fragment
 from pipe_segment.transform.satellite_offsets import SatelliteOffsets
 
+from pipe_segment.transform.add_cumulative_data import AddCumulativeData
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
 from pipe_segment.transform.read_messages import ReadMessages
 from pipe_segment.transform.read_fragments import ReadFragments
@@ -42,7 +43,7 @@ class SegmentPipeline:
         self.date_range = parse_date_range(self.options.date_range)
         self._message_source_list = None
 
-    # TODO: add to SatOffsets
+    # TODO: export to SatOffsets
     @property
     def sat_offset_schema(self):
         schema = {"fields": []}
@@ -171,7 +172,7 @@ class SegmentPipeline:
             | "AddSsvidKey" >> beam.Map(lambda x: (x["ssvid"], x))
             | "GroupBySsvid" >> beam.GroupByKey()
             | CreateSegments(self.merge_params)
-            | "AddKeyToFragmap" >> beam.Map(self.add_frag_key)
+            | "AddKeyToFragmap" >> beam.Map(lambda x: (x["frag_id"], x))
         )
 
         tagged_messages = messages | "AddKeyToMessages" >> beam.Map(
@@ -198,6 +199,9 @@ class SegmentPipeline:
             {"fragmap": fragmap, "target": tagged_fragments}
             | "GroupSegsWithMap" >> beam.CoGroupByKey()
             | "TagSegsWithsSegId" >> TagWithSegId()
+            | "AddSegidKey" >> beam.Map(lambda x: (x["seg_id"], x))
+            | "GroupBySegId" >> beam.GroupByKey()
+            | "AddCumulativeData" >> AddCumulativeData()
             | "WriteFragments"
             >> WriteDateSharded(
                 self.options.segment_dest,
