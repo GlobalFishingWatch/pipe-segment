@@ -3,13 +3,12 @@ import logging
 from apache_beam import PTransform
 from apache_beam import FlatMap
 from apache_beam.pvalue import TaggedOutput
-from apache_beam.io.gcp.internal.clients import bigquery
 
-from ..timestamp import datetimeFromTimestamp
-from ..timestamp import timestampFromDatetime
+from ..tools import datetimeFromTimestamp
+from ..tools import timestampFromDatetime
 
 from .fragment_implementation import FragmentImplementation
-from gpsdio_segment.msg_processor import Identity
+from gpsdio_segment.msg_processor import Identity, Destination
 
 
 logger = logging.getLogger(__file__)
@@ -55,14 +54,20 @@ def make_schema():
         schema["fields"].append(field)
 
     add_ident_field("daily_identities", Identity)
+    add_ident_field("daily_destinations", Destination)
     add_field("first_timestamp", "TIMESTAMP")
     add_field("cumulative_msg_count", "INTEGER")
     add_ident_field("cumulative_identities", Identity)
+    add_ident_field("cumulative_destinations", Destination)
 
     return schema
 
 
 class Fragment(PTransform):
+
+    OUTPUT_TAG_FRAGMENTS = FragmentImplementation.OUTPUT_TAG_FRAGMENTS
+    OUTPUT_TAG_MESSAGES = FragmentImplementation.OUTPUT_TAG_MESSAGES
+
     def __init__(
         self,
         fragmenter_params=None,
@@ -70,14 +75,6 @@ class Fragment(PTransform):
     ):
         super().__init__(**kwargs)
         self._fragmenter = FragmentImplementation(fragmenter_params)
-
-    @property
-    def OUTPUT_TAG_FRAGMENTS(self):
-        return self._fragmenter.OUTPUT_TAG_FRAGMENTS
-
-    @property
-    def OUTPUT_TAG_MESSAGES(self):
-        return self._fragmenter.OUTPUT_TAG_MESSAGES
 
     @staticmethod
     def _convert_message_in(msg):
@@ -109,13 +106,9 @@ class Fragment(PTransform):
         _, messages = item
         messages = [self._convert_message_in(x) for x in messages]
         messages.sort(key=lambda x: x["timestamp"])
-        logger.debug(
-            f"Fragmenting sorted {len(messages)} messages",
-        )
         for key, value in self._fragmenter.fragment(messages):
             if key == self.OUTPUT_TAG_MESSAGES:
-                msg = self._convert_message_out(value)
-                yield msg
+                yield self._convert_message_out(value)
             elif key == self.OUTPUT_TAG_FRAGMENTS:
                 yield TaggedOutput(key, self._convert_fragment_out(value))
             else:

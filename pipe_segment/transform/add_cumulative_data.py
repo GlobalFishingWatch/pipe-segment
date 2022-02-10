@@ -20,6 +20,7 @@ class AddCumulativeData(PTransform):
         first_timestamp = frags[0]["first_msg_of_day_timestamp"]
         cumulative_msgs = 0
         cumulative_idents = {}
+        cumulative_dests = {}
         for x in frags:
             x = x.copy()
             cumulative_msgs += x["daily_message_count"]
@@ -33,6 +34,16 @@ class AddCumulativeData(PTransform):
                 cumulative_idents[key] = cumulative_idents.get(key, 0) + ident_cnt
             x["cumulative_identities"] = [
                 idents2dict(k, v) for (k, v) in cumulative_idents.items()
+            ]
+
+            daily_dests = x["daily_destinations"].copy()
+            for dest in daily_dests:
+                dest = dest.copy()
+                dest_cnt = dest.pop("count")
+                key = tuple(dest.items())
+                cumulative_dests[key] = cumulative_dests.get(key, 0) + dest_cnt
+            x["cumulative_destinations"] = [
+                idents2dict(k, v) for (k, v) in cumulative_dests.items()
             ]
             yield x
 

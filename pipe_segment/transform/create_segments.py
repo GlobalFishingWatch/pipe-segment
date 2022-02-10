@@ -4,7 +4,7 @@ from gpsdio_segment.matcher import Matcher
 from datetime import date
 import math
 
-from ..timestamp import datetimeFromTimestamp
+from ..tools import datetimeFromTimestamp
 
 
 class CreateSegments(beam.PTransform):
@@ -24,31 +24,14 @@ class CreateSegments(beam.PTransform):
         return msg
 
     def compute_pair_score(self, frag0, frag1):
-        # TODO: clean this up, add support to Matcher.
         msg0 = self.frag2msg(frag0, "last")
         msg1 = self.frag2msg(frag1, "first")
         hours = self.matcher.compute_msg_delta_hours(msg0, msg1)
-        if not 0 < hours < 24:
-            return 0
-        # Shorten the hours traveled relative to the length of travel
-        # as boats tend to go straight for shorter distances, but at
-        # longer distances, they may not go as straight or travel
-        # the entire time
-        penalized_hours = hours / (
-            1 + (hours / self.matcher.penalty_hours) ** (1 - self.matcher.hours_exp)
-        )
+        if hours < 0:
+            return 0.0
+        penalized_hours = self.matcher.compute_penalized_hours(hours)
         discrepancy = self.matcher.compute_discrepancy(msg0, msg1, penalized_hours)
-        padded_hours = math.hypot(hours, self.matcher.buffer_hours)
-        max_allowed_discrepancy = padded_hours * self.matcher.max_knots
-        if discrepancy > max_allowed_discrepancy:
-            return 0
-        alpha = (
-            self.matcher._discrepancy_alpha_0 * discrepancy / max_allowed_discrepancy
-        )
-        metric = math.exp(-(alpha ** 2)) / padded_hours  # ** 2
-        # Not worrying about transponder mismatch for now, would have to characterize how
-        # uniform transmission is in each chunk -- probably not worth it.
-        return metric
+        return self.matcher.compute_metric(discrepancy, discrepancy)
 
     def compute_scores(self, segs, frag_ids, frag_map):
         """

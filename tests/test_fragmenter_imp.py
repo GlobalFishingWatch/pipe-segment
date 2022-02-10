@@ -2,16 +2,11 @@ import sys
 import json
 from datetime import datetime, timezone
 
-# TODO: install instead (once we rip out pipe-tools...)
-sys.path.append(".")
-
 print(sys.path)
 
 from pipe_segment.transform import fragment_implementation  # noqa: E402
 
 
-# TODO: would like this to read an iterator of iterators so we can traverse file once
-#       if we like
 def read_json(path, ndx=0):
     i = -1
     ssvid = None

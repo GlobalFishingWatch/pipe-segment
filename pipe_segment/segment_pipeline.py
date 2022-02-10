@@ -7,8 +7,8 @@ from apache_beam.runners import PipelineState
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 
-from .timestamp import datetimeFromTimestamp
-from .timestamp import as_timestamp
+from .tools import datetimeFromTimestamp
+from .tools import as_timestamp
 
 from pipe_segment.options.segment import SegmentOptions
 from pipe_segment.transform.invalid_values import filter_invalid_values
@@ -83,6 +83,7 @@ class SegmentPipeline:
                         self.options.sat_offset_dest,
                         self.cloud_options.project,
                         SatelliteOffsets.schema,
+                        key="hour",
                     )
                 )
 

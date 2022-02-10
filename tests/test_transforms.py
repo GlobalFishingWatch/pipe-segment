@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime
+from datetime import datetime, time
 import pytz
 import posixpath as pp
 import newlinejson as nlj
@@ -13,13 +13,13 @@ from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
 from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import open_shards
 
-from dateutil.parser import parse as as_timestamp
-
+from pipe_segment.tools import as_timestamp
 from pipe_segment.tools import timestampFromDatetime
 from pipe_segment.tools import datetimeFromTimestamp
-from pipe_segment.tools import JSONDictCoder
-from pipe_segment.transform.segment import Segment
-from pipe_segment.transform.normalize import NormalizeDoFn
+from pipe_segment.transform.fragment import Fragment
+
+from json_dict_coder import JSONDictCoder
+
 
 # >>> Note that cogroupByKey treats unicode and char values as distinct,
 # so tests can sometimes fail unless all ssvid are unicode.
@@ -29,6 +29,16 @@ from pipe_segment.transform.normalize import NormalizeDoFn
 #
 # for example
 # assert_that(pcoll, contains(expected))
+
+
+def safe_date(ts):
+    if ts is None:
+        return None
+    return timestampFromDatetime(
+        datetime.combine(datetimeFromTimestamp(ts).date(), time()).replace(
+            tzinfo=pytz.UTC
+        )
+    )
 
 
 def contains(subset):
@@ -75,9 +85,21 @@ class TestTransforms:
 
     @staticmethod
     def groupby_fn(msg):
-        return (msg["ssvid"], msg)
+        return ((msg["ssvid"], safe_date(msg["timestamp"])), msg)
 
-    def _run_segment(self, messages_in, segments_in, temp_dir):
+    @staticmethod
+    def convert_timestamp(msg):
+        msg["timestamp"] = timestampFromDatetime(
+            msg["timestamp"].replace(tzinfo=pytz.UTC)
+        )
+        return msg
+
+    @staticmethod
+    def unconvert_timestamp(msg):
+        msg["timestamp"] = datetimeFromTimestamp(msg["timestamp"])
+        return msg
+
+    def _run_segment(self, messages_in, temp_dir):
         messages_file = pp.join(temp_dir, "_run_segment", "messages")
         segments_file = pp.join(temp_dir, "_run_segment", "segments")
 
@@ -85,27 +107,34 @@ class TestTransforms:
             messages = (
                 p
                 | "CreateMessages" >> beam.Create(messages_in)
+                # | "ConvertTimestamps" >> beam.Map(self.convert_timestamp)
                 | "AddKeyMessages" >> beam.Map(self.groupby_fn)
+                | "GroupByKey" >> beam.GroupByKey()
             )
-            segments = (
-                p
-                | "CreateSegments" >> beam.Create(segments_in)
-                | "AddKeySegments" >> beam.Map(self.groupby_fn)
-            )
-            args = {
-                "messages": messages,
-                "segments": segments,
-            } | "GroupByKey" >> beam.CoGroupByKey()
 
-            segmentizer = Segment()
+            segmentizer = Fragment()
 
-            segmented = args | "Segment" >> segmentizer
-            messages = segmented["messages"]
-            segments = segmented[segmentizer.OUTPUT_TAG_SEGMENTS]
-            messages | "WriteMessages" >> beam.io.WriteToText(
-                messages_file, coder=JSONDictCoder()
+            def add_seg_id(msg):
+                msg["seg_id"] = msg["frag_id"]
+                return msg
+
+            segmented = messages | "Segment" >> segmentizer
+            messages = segmented["messages"] | beam.Map(add_seg_id)
+            segments = segmented[
+                segmentizer.OUTPUT_TAG_FRAGMENTS
+            ] | "AddSegIdToFrags" >> beam.Map(add_seg_id)
+
+            (
+                messages
+                |  # "UnconvMsgTimes" >> beam.Map(
+                # self.unconvert_timestamp
+                # ) |
+                "WriteMessages"
+                >> beam.io.WriteToText(messages_file, coder=JSONDictCoder())
             )
-            segments | "WriteSegments" >> beam.io.WriteToText(
+            segments | "UnconvSegTimes" >> beam.Map(
+                self.unconvert_timestamp
+            ) | "WriteSegments" >> beam.io.WriteToText(
                 segments_file, coder=JSONDictCoder()
             )
 
@@ -122,196 +151,18 @@ class TestTransforms:
             return messages, segments
 
     def test_segment_empty(self, temp_dir):
-        self._run_segment([], [], temp_dir=temp_dir)
+        self._run_segment([], temp_dir=temp_dir)
 
     def test_segment_single(self, temp_dir):
         messages_in = [{"ssvid": 1, "timestamp": self.ts, "type": "AIS.1"}]
-        segments_in = []
-        messages_out, segments_out = self._run_segment(
-            messages_in, segments_in, temp_dir=temp_dir
-        )
+        messages_out, segments_out = self._run_segment(messages_in, temp_dir=temp_dir)
 
     def test_segment_segments_in(self, temp_dir):
-        prev_ts = self.ts - 1
         messages_in = [{"ssvid": "1", "timestamp": self.ts, "type": "AIS.1"}]
-        segments_in = [
-            {
-                "ssvid": "1",
-                "seg_id": self._seg_id("1", prev_ts),
-                "timestamp": prev_ts,
-                "closed": False,
-                "first_msg_lat": 0,
-                "first_msg_lon": 0,
-                "first_msg_course": 0,
-                "first_msg_speed": 0,
-                "first_msg_timestamp": prev_ts,
-                "last_msg_lat": 0,
-                "last_msg_lon": 0,
-                "last_msg_course": 0,
-                "last_msg_speed": 0,
-                "last_msg_timestamp": prev_ts,
-                "first_msg_of_day_lat": 0,
-                "first_msg_of_day_lon": 0,
-                "first_msg_of_day_course": 0,
-                "first_msg_of_day_speed": 0,
-                "first_msg_of_day_timestamp": prev_ts,
-                "last_msg_of_day_lat": 0,
-                "last_msg_of_day_lon": 0,
-                "last_msg_of_day_course": 0,
-                "last_msg_of_day_speed": 0,
-                "last_msg_of_day_timestamp": prev_ts,
-                "message_count": 1,
-                "daily_message_count": 1,
-                "shipnames": [],
-                "callsigns": [],
-                "imos": [],
-                "transponders": [],
-            }
-        ]
-        messages_out, segments_out = self._run_segment(
-            messages_in, segments_in, temp_dir=temp_dir
-        )
+        messages_out, segments_out = self._run_segment(messages_in, temp_dir=temp_dir)
         assert (
             messages_out[0]["seg_id"] == None
         )  # No longer assign seg ids to noise segments
-
-    def test_segment_out_in(self, temp_dir):
-        prev_ts = self.ts - 1
-        messages_in = [
-            {
-                "ssvid": u"1",
-                "timestamp": self.ts - 1,
-                "lat": 5.0,
-                "lon": 0.1,
-                "speed": 0.0,
-                "course": 0.0,
-                "type": "AIS.1",
-            },
-            {
-                "ssvid": u"2",
-                "timestamp": self.ts - 1,
-                "lat": 5.0,
-                "lon": 0.1,
-                "speed": 0.0,
-                "course": 0.0,
-                "type": "AIS.1",
-            },
-        ]
-        segments_in = []
-        messages_out, segments_out = self._run_segment(
-            messages_in, segments_in, temp_dir=temp_dir
-        )
-        messages_in = [
-            {
-                "ssvid": u"1",
-                "timestamp": self.ts,
-                "lat": 5.0,
-                "lon": 0.1,
-                "speed": 0.0,
-                "course": 0.0,
-                "type": "AIS.1",
-            },
-            {
-                "ssvid": u"2",
-                "timestamp": self.ts,
-                "lat": 5.0,
-                "lon": 0.1,
-                "speed": 0.0,
-                "course": 0.0,
-                "type": "AIS.1",
-            },
-        ]
-        segments_in = segments_out
-        messages_out, segments_out = self._run_segment(
-            messages_in, segments_in, temp_dir=temp_dir
-        )
-
-        assert len(segments_out) == 2
-        assert all(seg["message_count"] == 2 for seg in segments_out)
-        assert all(
-            seg["seg_id"] == self._seg_id(seg["ssvid"], prev_ts) for seg in segments_out
-        )
-
-    @pytest.mark.parametrize(
-        "message, expected",
-        [
-            ({}, {}),
-            ({"shipname": "f/v boaty Mc Boatface"}, {"n_shipname": "BOATYMCBOATFACE"}),
-            ({"shipname": "Bouy 42%"}, {"n_shipname": "BOUY42"}),
-            ({"callsign": "@@123"}, {"n_callsign": "123"}),
-            ({"imo": 8814275}, {"n_imo": 8814275}),
-        ],
-    )
-    def test_normalize(self, message, expected):
-        normalize = NormalizeDoFn()
-        assert list_contains(list(normalize.process(message)), [expected])
-
-    def test_normalize_invalid_imo(self):
-        normalize = NormalizeDoFn()
-        assert all("n_imo" not in m for m in list(normalize.process({"imo": 0000000})))
-
-    def test_noise_segment(self, temp_dir):
-        messages_in = [
-            {
-                "timestamp": as_timestamp("2017-07-20T05:59:35.000000Z"),
-                "msgid": 0,
-                "ssvid": u"338013000",
-                "lon": -161.3321333333,
-                "lat": -9.52616,
-                "speed": 11.1,
-                "course": 0.0,
-                "type": "AIS.1",
-            },
-            {
-                "timestamp": as_timestamp("2017-07-20T06:00:38.000000Z"),
-                "msgid": 1,
-                "ssvid": u"338013000",
-                "lon": -161.6153106689,
-                "lat": -9.6753702164,
-                "course": 0.0,
-                "speed": 11.3999996185,
-                "type": "AIS.1",
-            },
-            {
-                "timestamp": as_timestamp("2017-07-20T06:01:00.000000Z"),
-                "msgid": 2,
-                "ssvid": u"338013000",
-                "type": "AIS.1",
-            },
-        ]
-
-        segments_in = []
-        messages_out, segments_out = self._run_segment(
-            messages_in, segments_in, temp_dir=temp_dir
-        )
-
-        seg_stats = {(seg["seg_id"], seg["message_count"]) for seg in segments_out}
-
-        assert seg_stats == {
-            (u"338013000-2017-07-20T05:59:35.000000Z", 1),
-            (u"338013000-2017-07-20T06:00:38.000000Z", 1),
-        }
-
-        messages_in = [
-            {
-                "timestamp": as_timestamp("2017-07-20T06:02:00.000000Z"),
-                "ssvid": u"338013000",
-                "type": "AIS.1",
-            }
-        ]
-        segments_in = segments_out
-        messages_out, segments_out = self._run_segment(
-            messages_in, segments_in, temp_dir=temp_dir
-        )
-
-        seg_stats = {
-            (seg["seg_id"], seg["message_count"], seg["closed"]) for seg in segments_out
-        }
-
-        assert seg_stats == {
-            ("338013000-2017-07-20T05:59:35.000000Z", 1, False),
-            ("338013000-2017-07-20T06:00:38.000000Z", 1, False),
-        }
 
     def test_expected_segments(self, temp_dir):
         messages_in = [
@@ -335,11 +186,10 @@ class TestTransforms:
             },
         ]
 
-        segments_in = []
-        messages_out, segments_out = self._run_segment(
-            messages_in, segments_in, temp_dir=temp_dir
+        messages_out, segments_out = self._run_segment(messages_in, temp_dir=temp_dir)
+        seg_stats = set(
+            [(seg["seg_id"], seg["daily_message_count"]) for seg in segments_out]
         )
-        seg_stats = set([(seg["seg_id"], seg["message_count"]) for seg in segments_out])
         print(segments_out)
         expected = {
             ("257666800-2017-11-15T11:14:32.000000Z", 1),
@@ -398,14 +248,11 @@ class TestTransforms:
             },
         ]
 
-        segments_in = []
-        messages_out, segments_out = self._run_segment(
-            messages_in, segments_in, temp_dir=temp_dir
-        )
+        messages_out, segments_out = self._run_segment(messages_in, temp_dir=temp_dir)
         seg_stats = {
             (
                 seg["seg_id"],
-                seg["message_count"],
+                seg["daily_message_count"],
             )
             for seg in segments_out
         }

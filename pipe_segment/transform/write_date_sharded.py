@@ -1,5 +1,5 @@
 import apache_beam as beam
-from ..timestamp import datetimeFromTimestamp
+from ..tools import datetimeFromTimestamp
 
 
 class WriteDateSharded(beam.PTransform):
@@ -10,7 +10,7 @@ class WriteDateSharded(beam.PTransform):
         self.key = key
 
     def compute_table_for_event(self, msg):
-        dt = datetimeFromTimestamp(msg["timestamp"]).date()
+        dt = datetimeFromTimestamp(msg[self.key]).date()
         return f"{self.project}:{self.sink}{dt:%Y%m%d}"
 
     def expand(self, pcoll):

@@ -40,15 +40,15 @@ class ReadFragments(beam.PTransform):
             SELECT
               CAST(UNIX_MILLIS(timestamp) AS FLOAT64) / 1000  AS timestamp,
               CAST(UNIX_MILLIS(first_msg_of_day_timestamp) AS FLOAT64) / 1000
-                    AS first_msg_timestamp,
+                    AS first_msg_of_day_timestamp,
               CAST(UNIX_MILLIS(last_msg_of_day_timestamp) AS FLOAT64) / 1000
-                    AS last_msg_timestamp,
+                    AS last_msg_of_day_timestamp,
               CAST(UNIX_MILLIS(first_timestamp) AS FLOAT64) / 1000
-                    AS last_msg_timestamp,
+                    AS first_timestamp,
                 * except (
                         timestamp, 
                         first_msg_of_day_timestamp, 
-                        last_msg__of_day_timestamp,
+                        last_msg_of_day_timestamp,
                         first_timestamp
                     )
             FROM `{self.source}*`

@@ -1,11 +1,32 @@
 from datetime import timedelta
 
 import apache_beam as beam
-from apache_beam import io
 from apache_beam import PTransform
 
 import apache_beam.io.gcp.bigquery
 from apache_beam import io
+
+
+def make_schema():
+    schema = {"fields": []}
+
+    def add_field(name, field_type, mode="REQUIRED"):
+        schema["fields"].append(
+            dict(
+                name=name,
+                type=field_type,
+                mode=mode,
+            )
+        )
+
+    add_field("hour", "timestamp")
+    add_field("receiver", "STRING")
+    add_field("dt", "FLOAT")
+    add_field("pings", "INTEGER")
+    add_field("avg_distance_from_sat_km", "FLOAT", "NULLABLE")
+    add_field("med_dist_from_sat_km", "FLOAT", "NULLABLE")
+
+    return schema
 
 
 class SatelliteOffsets(PTransform):
@@ -17,31 +38,11 @@ class SatelliteOffsets(PTransform):
         offsets = pipesline | SatelliteOffsets(start_date, end_date)
     """
 
+    schema = make_schema()
+
     def __init__(self, start_date, end_date):
         self.start_date = start_date
         self.end_date = end_date
-
-    @property
-    def schema(self):
-        schema = {"fields": []}
-
-        def add_field(name, field_type, mode="REQUIRED"):
-            schema["fields"].append(
-                dict(
-                    name=name,
-                    type=field_type,
-                    mode=mode,
-                )
-            )
-
-        add_field("hour", "timestamp")
-        add_field("receiver", "STRING")
-        add_field("dt", "FLOAT")
-        add_field("pings", "INTEGER")
-        add_field("avg_distance_from_sat_km", "FLOAT")
-        add_field("med_dist_from_sat_km", "FLOAT")
-
-        return schema
 
     def expand(self, xs):
         return [

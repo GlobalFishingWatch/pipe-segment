@@ -3,9 +3,6 @@ import datetime as dt
 import logging
 import pytz
 
-from pipe_segment.stats import MessageStats
-
-# TODO: what is the new gpsdio segment name here?
 from gpsdio_segment.segmenter import Segmenter as Fragmenter
 
 logger = logging.getLogger(__file__)
@@ -17,40 +14,11 @@ class FragmentImplementation(object):
     OUTPUT_TAG_MESSAGES = "messages"
     OUTPUT_TAG_FRAGMENTS = "fragments"
 
-    # TODO: remove? Need it for first and last message but could get that cleaner
-    DEFAULT_STATS_FIELDS = [
-        ("lat", MessageStats.NUMERIC_STATS),
-        ("lon", MessageStats.NUMERIC_STATS),
-        ("timestamp", MessageStats.NUMERIC_STATS),
-        ("shipname", MessageStats.FREQUENCY_STATS),
-        ("imo", MessageStats.FREQUENCY_STATS),
-        ("callsign", MessageStats.FREQUENCY_STATS),
-    ]
-
     def __init__(self, fragmenter_params=None):
-        self.stats_fields = self.DEFAULT_STATS_FIELDS  # TODO: Do we use these?
         self.fragmenter_params = fragmenter_params or {}
-        assert self.fragmenter_params.get("max_hours") == 24, self.fragmenter_params
-
-    @staticmethod
-    def stat_output_field_name(field_name, stat_name):
-        return "%s_%s" % (field_name, stat_name)
+        assert self.fragmenter_params.get("max_hours", 24) == 24, self.fragmenter_params
 
     def _fragment_record(self, frag_state, messages, timestamp, signature):
-
-        stats_numeric_fields = [
-            f
-            for f, stats in self.stats_fields
-            if set(stats) & set(MessageStats.NUMERIC_STATS)
-        ]
-        stats_frequency_fields = [
-            f
-            for f, stats in self.stats_fields
-            if set(stats) & set(MessageStats.FREQUENCY_STATS)
-        ]
-        # has_timestamp = "timestamp" in stats_numeric_fields
-        stats_numeric_fields = [x for x in stats_numeric_fields if x != "timestamp"]
-        ms = MessageStats(messages, stats_numeric_fields, stats_frequency_fields)
 
         first_msg_of_day = frag_state.first_msg_of_day
         last_msg_of_day = frag_state.last_msg_of_day
@@ -80,13 +48,8 @@ class FragmentImplementation(object):
             last_msg_of_day_speed=last_msg_of_day.get("speed"),
             daily_message_count=frag_state.msg_count,
             daily_identities=idents2record("identities"),
+            daily_destinations=idents2record("destinations"),
         )
-        for field, stats in self.stats_fields:
-            stat_values = ms.field_stats(field)
-            for stat in stats:
-                record[self.stat_output_field_name(field, stat)] = stat_values.get(
-                    stat, None
-                )
         return record
 
     @staticmethod
@@ -96,9 +59,7 @@ class FragmentImplementation(object):
     def _convert_messages_out(self, msg, frag_id):
         msg = msg.copy()
         msg["frag_id"] = frag_id
-        for k1 in [
-            "identities",
-        ]:
+        for k1 in ["identities", "destinations"]:
             msg.pop(k1, None)
         return msg
 
@@ -113,18 +74,13 @@ class FragmentImplementation(object):
     def _get_signature(self, frag, date):
         sig = {}
         self._update_sig_part(sig, frag.msgs, "identities")
-        # TODO: add stuff to identities in GPSDIO segment (length, width, type)
-        # TODO: add destinations after implemented in GPSDIO segment
+        self._update_sig_part(sig, frag.msgs, "destinations")
         return sig
 
     def _as_record(self, record):
         """Return everything except noise"""
         record = record.copy()
         record.pop("noise")
-        # TODO: eventually don't generate these at all.
-        for field, stats in self.stats_fields:
-            for stat in stats:
-                record.pop(self.stat_output_field_name(field, stat))
         return record
 
     def fragment(self, messages):
@@ -138,8 +94,11 @@ class FragmentImplementation(object):
             raise RuntimeError("fragment expects all messages from a single SSVID")
         [ssvid] = ssvids
 
-        assert self.fragmenter_params.get("max_hours") == 24, self.fragmenter_params
         for frag in Fragmenter(messages, ssvid=ssvid, **self.fragmenter_params):
+            if len(frag) > 1:
+                logger.debug(
+                    f"Got a frag containing {len(frag)} messages, noise={frag.noise}"
+                )
             if not frag.noise:
                 frag.msgs = [x for x in frag.msgs if x["timestamp"].date() <= date]
                 if frag.msgs or frag.prev_state:

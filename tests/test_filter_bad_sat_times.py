@@ -3,7 +3,7 @@ from datetime import datetime
 from pytz import UTC
 
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
-from pipe_segment.tools.timestamp import timestampFromDatetime
+from pipe_segment.tools import timestampFromDatetime
 
 
 class TestFilterBadSatelliteTimes:
