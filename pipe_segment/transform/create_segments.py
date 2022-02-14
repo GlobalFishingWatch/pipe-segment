@@ -27,11 +27,11 @@ class CreateSegments(beam.PTransform):
         msg0 = self.frag2msg(frag0, "last")
         msg1 = self.frag2msg(frag1, "first")
         hours = self.matcher.compute_msg_delta_hours(msg0, msg1)
-        if hours < 0:
+        if not 0 < hours < 24:
             return 0.0
         penalized_hours = self.matcher.compute_penalized_hours(hours)
         discrepancy = self.matcher.compute_discrepancy(msg0, msg1, penalized_hours)
-        return self.matcher.compute_metric(discrepancy, discrepancy)
+        return self.matcher.compute_metric(discrepancy, hours)
 
     def compute_scores(self, segs, frag_ids, frag_map):
         """

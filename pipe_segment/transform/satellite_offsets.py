@@ -21,8 +21,8 @@ def make_schema():
 
     add_field("hour", "timestamp")
     add_field("receiver", "STRING")
-    add_field("dt", "FLOAT")
-    add_field("pings", "INTEGER")
+    add_field("dt", "FLOAT", "NULLABLE")
+    add_field("pings", "INTEGER", "NULLABLE")
     add_field("avg_distance_from_sat_km", "FLOAT", "NULLABLE")
     add_field("med_dist_from_sat_km", "FLOAT", "NULLABLE")
 
