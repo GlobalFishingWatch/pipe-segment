@@ -427,7 +427,7 @@ class TestInvalidData:
         source = [
             {
                 "type": "AIS.5",
-                "imo": "0001000000",
+                "imo": "1",
                 "callsign": "1234567",
                 "shipname": "Some ship",
                 "destination": "Some port",
@@ -465,14 +465,14 @@ class TestInvalidData:
         expected = [
             {
                 "type": "AIS.5",
-                "imo": "0001000000",
+                "imo": "1",
                 "callsign": "1234567",
                 "shipname": "Some ship",
                 "destination": "Some port",
             },
             {
                 "type": "AIS.5",
-                "imo": None,
+                "imo": "0000999999",
                 "callsign": None,
                 "shipname": None,
                 "destination": None,

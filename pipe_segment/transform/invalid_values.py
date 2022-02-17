@@ -92,7 +92,7 @@ INVALID_VALUE_RULES_BY_MESSAGE_TYPE = {
     # Class A Ship Static and Voyage Data
     "AIS.5": {
         "imo": validate_field(
-            lambda x: not ("0001000000" <= x.zfill(10) < "1073741824")
+            lambda x: not ("0000000001" <= x.zfill(10) < "1073741824")
         ),
         "callsign": validate_field(lambda x: x == "@@@@@@@"),
         "shipname": validate_field(lambda x: x == "@@@@@@@@@@@@@@@@@@@@"),
