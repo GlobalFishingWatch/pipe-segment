@@ -1,2 +1,2 @@
-https://codeload.github.com/GlobalFishingWatch/gpsdio-segment/tar.gz/atomic-identities#egg=gpsdio-segment
+https://codeload.github.com/GlobalFishingWatch/gpsdio-segment/tar.gz/refactor#egg=gpsdio-segment
 
