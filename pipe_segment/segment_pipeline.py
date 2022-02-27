@@ -107,12 +107,10 @@ class SegmentPipeline:
         messages = fragmented[Fragment.OUTPUT_TAG_MESSAGES]
         new_fragments = fragmented[Fragment.OUTPUT_TAG_FRAGMENTS]
 
-        long_ago = datetime(1900, 1, 1)
-
         existing_fragments = pipeline | ReadFragments(
             self.options.segment_dest,
             project=self.cloud_options.project,
-            start_date=long_ago,
+            start_date=start_date - timedelta(days=1),
             end_date=start_date - timedelta(days=1),
             create_if_missing=True,
         )
