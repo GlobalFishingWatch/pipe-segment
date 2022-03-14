@@ -31,6 +31,7 @@ class WriteSegmentMap(beam.PTransform):
         self.project = project
 
     def date_as_str(self, msg):
+        msg = msg.copy()
         msg["date"] = f"{msg['date']:%Y-%m-%d}"
         return msg
 

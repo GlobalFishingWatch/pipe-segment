@@ -51,6 +51,8 @@ class CreateSegments(beam.PTransform):
         return scores
 
     def frags_by_day(self, frags):
+        # TODO: frags should already be sorted by day due to how they
+        # TODO: are created, so this may not be necessary. Check.
         frags = sorted(frags, key=lambda x: x["timestamp"])
         current = []
         day = datetimeFromTimestamp(frags[0]["timestamp"]).date()

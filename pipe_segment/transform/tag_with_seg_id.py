@@ -13,6 +13,7 @@ class TagWithSegId(PTransform):
         objs = items["target"]
         frag_map = {x["frag_id"]: x["seg_id"] for x in items["fragmap"]}
         for x in objs:
+            x = x.copy()
             x["seg_id"] = frag_map.get(x["frag_id"], None)
             yield x
 
