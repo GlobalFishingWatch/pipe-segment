@@ -1,8 +1,0 @@
-#standardSQL
-
-SELECT
-  *
-FROM
-  `{{ source }}`
-WHERE
-  MOD(FARM_FINGERPRINT(ssvid), 10) = 0
