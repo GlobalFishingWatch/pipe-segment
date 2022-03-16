@@ -5,7 +5,7 @@ from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from pipe_tools.coders import JSONDictCoder
 from pipe_tools.timestamp import ParseBeamBQStrTimestampDoFn
 from pipe_tools.io.bigquery import QueryHelper
-from pipe_tools.io import WriteToBigQueryDatePartitioned
+from pipe_tools.io import WriteToBigQueryDateSharded
 
 from pipe_segment.io.gcp import parse_gcp_path
 
@@ -22,7 +22,7 @@ class GCPSink(beam.PTransform):
         return pcoll | "WriteToFile" >> sink
 
     def expand_table(self, pcoll):
-        sink = WriteToBigQueryDatePartitioned(
+        sink = WriteToBigQueryDateSharded(
             temp_gcs_location=self.temp_gcs_location,
             table=self.path,
             schema=self.schema,

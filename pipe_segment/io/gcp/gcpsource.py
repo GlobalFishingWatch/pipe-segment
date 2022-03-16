@@ -38,10 +38,9 @@ class GCPSource(beam.PTransform):
         else:
             ts_fields = {'timestamp'}
 
-        source = beam.io.gcp.bigquery.BigQuerySource(query=self.query, use_standard_sql=True)
         return (
             pcoll
-            | "ReadFromBigQuery" >> beam.io.Read(source)
+            | "ReadFromBigQuery" >> beam.io.ReadFromBigQuery(query=self.query, use_standard_sql=True)
             | "ConvertTimestamp" >> beam.ParDo(ParseBeamBQStrTimestampDoFn(fields=list(ts_fields)))
         )
 

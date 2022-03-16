@@ -87,7 +87,7 @@ class SegmentPipeline:
         def compose(idx, source):
             return pipeline | "Source%i" % idx >> source
 
-        return (compose (idx, source) for idx, source in enumerate(self.message_source_list))
+        return [compose (idx, source) for idx, source in enumerate(self.message_source_list)]
 
     @property
     def message_input_schema(self):
@@ -198,7 +198,7 @@ class SegmentPipeline:
                 | beam.Filter(filter_by_ssvid_predicate, target_ssvid)
             )
 
-        messages = (   
+        messages = (
             messages
             | "Normalize" >> beam.ParDo(NormalizeDoFn())
             | "MessagesAddKey" >> beam.Map(self.groupby_fn)
