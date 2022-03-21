@@ -103,6 +103,8 @@ class TestTransforms:
         messages_file = pp.join(temp_dir, "_run_segment", "messages")
         segments_file = pp.join(temp_dir, "_run_segment", "segments")
 
+        print(messages_in)
+
         with _TestPipeline() as p:
             messages = (
                 p

@@ -24,7 +24,7 @@ DEPENDENCIES = [
     "jinja2-cli",
     "google-apitools",
     "numpy<1.20.0",
-    "apache-beam[gcp]"
+    "apache-beam[gcp]==2.32.0"
     # "apache-beam[gcp]==2.32.0",
 ]
 
