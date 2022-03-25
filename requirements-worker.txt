@@ -1,4 +1,4 @@
-pipe-tools @ https://codeload.github.com/globalfishingwatch/pipe-tools/tar.gz/v4.0.0
+pipe-tools @ https://codeload.github.com/globalfishingwatch/pipe-tools/tar.gz/48da22d477eeb02bd9236a448bbf0d2218e6f0a3
 gpsdio-segment @ https://codeload.github.com/GlobalFishingWatch/gpsdio-segment/tar.gz/0.20.2
 shipdataprocess @ https://codeload.github.com/GlobalFishingWatch/ShipDataProcess/tar.gz/3896c8c67cf2906adefe11d1b7dc765dcd379ac9
 pandas==1.3.5
