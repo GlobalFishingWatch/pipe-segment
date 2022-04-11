@@ -1,6 +1,6 @@
-pipe-tools @ https://codeload.github.com/globalfishingwatch/pipe-tools/tar.gz/e8f5ca49ea24f7d3dd80b12d365aa5f3d3352057
+pipe-tools @ https://codeload.github.com/globalfishingwatch/pipe-tools/tar.gz/v4.0.0
 gpsdio-segment @ https://codeload.github.com/GlobalFishingWatch/gpsdio-segment/tar.gz/0.20.2
-shipdataprocess @ https://codeload.github.com/GlobalFishingWatch/ShipDataProcess/tar.gz/3896c8c67cf2906adefe11d1b7dc765dcd379ac9
+shipdataprocess @ https://codeload.github.com/GlobalFishingWatch/ShipDataProcess/tar.gz/v0.5.8-HOTFIX-1
 pandas==1.3.5
 python-stdnum==1.17
 
