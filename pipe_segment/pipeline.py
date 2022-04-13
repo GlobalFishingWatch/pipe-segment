@@ -9,7 +9,6 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.io.gcp.bigquery_tools import table_schema_to_dict
 
-from pipe_tools.timestamp import TimestampedValueDoFn
 from pipe_tools.timestamp import datetimeFromTimestamp
 from pipe_tools.timestamp import timestampFromDatetime
 from pipe_tools.utils.timestamp import as_timestamp
@@ -109,37 +108,28 @@ class SegmentPipeline:
         # stringified or neither. 
         pipeline = beam.Pipeline(options=self.options)
 
-        # Obtengo los mensajes de los distintos sources y los uno como si fuese un solo source
-        # messages = (
-        #     self.message_sources(pipeline)
-        #     | "MergeMessages" >> beam.Flatten()
-        # )
         messages = (
             pipeline
             | self.read_from_several_sources
         )
 
         if self.options.ssvid_filter_query:
-            # Query con lista de ssvid, dict (ssvid, ssvid)
             target_ssvid = beam.pvalue.AsDict(
                 messages
                 | beam.io.ReadFromBigQuery(query=self.options.ssvid_filter_query, use_standard_sql=True)
                 | beam.Map(lambda x: (x['ssvid'], x['ssvid']))
             )
-            # De los mensajes filtro los que tienen el ssvid
             messages = (
                 messages
                 | beam.Filter(filter_by_ssvid_predicate, target_ssvid)
             )
 
-        # De los mensajes, normalizo y agrupo por ssvid
         messages = (
             messages
             | "Normalize" >> beam.ParDo(NormalizeDoFn())
             | "MessagesAddKey" >> beam.Map(self.groupby_fn)
         )
 
-        # Leo los ultimos segmentos, borro los seg cerrados y agrupo por ssvid
         segments = (
             pipeline
             | "ReadLastDaySegments" >> self.segment_source
@@ -147,7 +137,6 @@ class SegmentPipeline:
             | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
         )
 
-        # Agrupo por ssvid (mensajes y ultimos segmentos)
         args = (
             {'messages' : messages, 'segments' : segments}
             | 'GroupAllBySSVID' >> beam.CoGroupByKey()
@@ -157,21 +146,17 @@ class SegmentPipeline:
                             end_date=safe_dateFromTimestamp(self.date_range_ts[1]),
                             segmenter_params=self.segmenter_params,
                             look_ahead=self.options.look_ahead)
-        # Runs the segmenter. Input: messages and segments group by ssvid {ssvid: {messages:m, segments:s}
+        # Runs the segmenter. Input: messages and segments group by ssvid {ssvid: {messages:m, segments:s}}
         segmented = args | "Segment" >> segmenter
 
         messages = segmented[segmenter.OUTPUT_TAG_MESSAGES]
         segments = segmented[segmenter.OUTPUT_TAG_SEGMENTS]
         (
             messages
-            # | "writeMsg" >> beam.io.WriteToText('./outputs/output_messages.txt')
-            # | "TimestampMessages" >> beam.ParDo(TimestampedValueDoFn())
             | "WriteMessages" >> self.message_sink
         )
         (
             segments
-            # | "writeSegs" >> beam.io.WriteToText('./outputs/output_segments.txt')
-            # | "TimestampSegments" >> beam.ParDo(TimestampedValueDoFn())
             | "WriteSegments" >> self.segment_sink(segmenter.segment_schema,
                                                    self.options.seg_dest)
         )
@@ -179,8 +164,6 @@ class SegmentPipeline:
             segments_v1 = segmented[segmenter.OUTPUT_TAG_SEGMENTS_V1]
             (
                 segments_v1
-                # | "writeOldSegs" >> beam.io.WriteToText('./outputs/output_old_segments.txt')
-                # | "TimestampOldSegments" >> beam.ParDo(TimestampedValueDoFn())
                 | "WriteOldSegments" >> self.segment_sink(segmenter.segment_schema_v1, 
                                                        self.options.legacy_seg_v1_dest)
             )
