@@ -38,21 +38,6 @@ class ReadSource(beam.PTransform):
         """
         Returns the Beam TableSchema of a date sharded BQ table that is reference in source
         """
-        # client = bigquery.Client(self.project)
-        # query_job = client.query(f"""
-        #     SELECT table_name FROM `{self.dataset}.INFORMATION_SCHEMA.TABLES`
-        #     WHERE table_name LIKE '{self.table_id}%' ORDER BY table_name ASC LIMIT 1
-        # """)
-        # table_ids = [x[0] for x in query_job]
-        # table = client.get_table('.'.join([self.dataset, table_ids[0]]))
-
-        # def build_beam_field(name, field_type, mode):
-        #     tfs = beambq.TableFieldSchema()
-        #     tfs.name = name
-        #     tfs.type = field_type
-        #     tfs.mode = mode
-        #     return tfs
-        # return beambq.TableSchema(fields=[build_beam_field(x.name, x.field_type, x.mode) for x in self.table_info.schema])
         return self.table_info.schema
 
 
