@@ -3,4 +3,5 @@ include CHANGES.md
 include MANIFEST.in
 include README.md
 include setup.py
-recursive-include  assets *
+recursive-include assets *
+recursive-include pipe_segment *
