@@ -8,6 +8,16 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [UNRELEASED]
 
+## v3.2.0 - 2022-03-24
+
+### Changed
+
+* [PIPELINE-807](https://globalfishingwatch.atlassian.net/browse/PIPELINE-807): Changes
+  to support Beam `2.35.0`.
+  Points to last shipdataprocess SHA commit that supports python3.
+  Separates Dockerfile scheduler and worker and create separate images.
+
+
 ## v3.1.1 - 2021-06-23
 
 ### Changed

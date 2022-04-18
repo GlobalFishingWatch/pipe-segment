@@ -1,16 +1,10 @@
 version: '2'
 services:
-  pipe_segment:
+  dev:
     image: gfw/pipe-segment
-    build: .
-    volumes:
-      - ".:/opt/project"
-      - "gcp:/root/.config/gcloud"
-
-  test:
-    image: gfw/pipe-segment
-    build: .
-    entrypoint: py.test
+    build:
+      context: .
+      dockerfile: Dockerfile-scheduler
     volumes:
       - ".:/opt/project"
       - "gcp:/root/.config/"
@@ -21,3 +15,4 @@ services:
 volumes:
   gcp:
     external: true
+

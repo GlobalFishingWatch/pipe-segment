@@ -1,20 +1,22 @@
 import apache_beam as beam
+import datetime as dt
 
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 
 from pipe_tools.utils.timestamp import as_timestamp
 
-from pipe_segment.io.gcp import GCPSource
-from pipe_segment.io.gcp import GCPSink
-
 from pipe_segment.segment_identity.transforms import summarize_identifiers
 from pipe_segment.segment_identity.transforms import to_timestamped_value
+from pipe_segment.segment_identity.transforms import ReadSource
+from pipe_segment.segment_identity.transforms import write_sink
 from pipe_segment.segment_identity.options import SegmentIdentityOptions
 
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
     return list(
         map(as_timestamp, s.split(',')) if s is not None else (None, None))
+
+timezoneToDatetime = lambda ts: dt.datetime.fromtimestamp(ts, tz=dt.timezone.utc)
 
 class SegmentIdentityPipeline:
 
@@ -338,13 +340,9 @@ class SegmentIdentityPipeline:
             }]
         }
 
-    @property
     def source_segments(self):
         from_ts, to_ts = self.date_range
-        return GCPSource(
-            gcp_path=self.options.source_segments,
-            first_date_ts=from_ts,
-            last_date_ts=to_ts)
+        return ReadSource(self.options.source_segments, from_ts, to_ts)
 
     @property
     def summarize_identifiers(self):
@@ -356,17 +354,19 @@ class SegmentIdentityPipeline:
 
     @property
     def dest_segment_identity(self):
-        return GCPSink(
-            gcp_path=self.options.dest_segment_identity,
-            schema=self.dest_segment_identity_schema,
-            temp_gcs_location=self.temp_gcs_location,
-            temp_shards_per_day=self.options.temp_shards_per_day)
+        from_ts, _ = self.date_range
+        return write_sink(
+            self.options.dest_segment_identity,
+            self.dest_segment_identity_schema,
+            timezoneToDatetime(from_ts),
+            "Daily segments identity processed in segment step."
+        )
 
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.options)
 
-        (pipeline
-         | "ReadDailySegments" >> self.source_segments
+        ( pipeline
+         | "ReadDailySegments" >> self.source_segments()
          | "SummarizeIdentifiers" >> self.summarize_identifiers
          | "TimestampMessages" >> self.timestamp_records
          | "WriteSegmentIdentity" >> self.dest_segment_identity)
