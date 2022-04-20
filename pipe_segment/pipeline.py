@@ -1,13 +1,11 @@
-import logging
-import ujson
-from datetime import timedelta
-from apitools.base.py.exceptions import HttpError
-
-import apache_beam as beam
 from apache_beam.runners import PipelineState
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.io.gcp.bigquery_tools import table_schema_to_dict
+
+from apitools.base.py.exceptions import HttpError
+
+from datetime import timedelta
 
 from pipe_tools.timestamp import datetimeFromTimestamp
 from pipe_tools.timestamp import timestampFromDatetime
@@ -19,6 +17,10 @@ from pipe_segment.transform.read_source import ReadSource
 from pipe_segment.transform.read_messages_from_several_sources import ReadMessagesFromSeveralSources
 from pipe_segment.transform.segment import Segment
 from pipe_segment.transform.normalize import NormalizeDoFn
+
+import apache_beam as beam
+import logging
+import ujson
 
 def safe_dateFromTimestamp(ts):
     if ts is None:

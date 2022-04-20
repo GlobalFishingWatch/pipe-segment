@@ -8,6 +8,14 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [UNRELEASED]
 
+## v3.2.1 - 2022-04-19
+
+### Removed
+
+* [PIPELINE-869](https://globalfishingwatch.atlassian.net/browse/PIPELINE-869): Removes
+  deprecated code and type check parameter in segment_identity_daily that let
+  read in EXPORT mode.
+
 ## v3.2.0 - 2022-03-24
 
 ### Changed

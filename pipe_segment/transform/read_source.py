@@ -1,10 +1,9 @@
-import apache_beam as beam
-import apache_beam.io.gcp.internal.clients.bigquery as beambq
-import logging
-
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 
 from datetime import datetime as dt, timezone as tz
+
+import apache_beam as beam
+import logging
 
 
 SOURCE_QUERY_TEMPLATE = """
