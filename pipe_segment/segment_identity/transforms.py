@@ -95,7 +95,6 @@ class ReadSource(beam.PTransform):
         )
         return beam.io.ReadFromBigQuery(
             query = query,
-            method = 'DIRECT_READ',
             use_standard_sql = True,
         )
 

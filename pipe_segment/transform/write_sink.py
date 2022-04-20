@@ -33,3 +33,4 @@ class WriteSink(beam.PTransform):
             write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
         )
+

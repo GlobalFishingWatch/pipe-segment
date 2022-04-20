@@ -26,7 +26,6 @@ if __name__ == '__main__':
     logging.getLogger().setLevel(logging.INFO)
 
     args = sys.argv or []
-    args.append('--no_pipeline_type_check')
 
     options = validate_options(
         args=args, option_classes=[LoggingOptions, SegmentIdentityOptions])
