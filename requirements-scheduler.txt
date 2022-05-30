@@ -1,0 +1,4 @@
+apache-beam[gcp]==2.35.0
+pytest==6.2.5
+jinja2-cli==0.8.2
+numpy<1.20.0

@@ -33,7 +33,7 @@ class Segment(PTransform):
                  stats_fields=None,
                  **kwargs):
         super(Segment, self).__init__(**kwargs)
-        self._segmenter = SegmentImplementation(start_date, end_date, look_ahead, 
+        self._segmenter = SegmentImplementation(start_date, end_date, look_ahead,
                                                 stats_fields, segmenter_params)
 
     @property
@@ -47,47 +47,49 @@ class Segment(PTransform):
     @property
     def OUTPUT_TAG_MESSAGES(self):
         return self._segmenter.OUTPUT_TAG_MESSAGES
-    
+
 
     @staticmethod
     def _convert_message_in(msg):
-        msg = dict(msg)
-        msg['raw_timestamp'] = msg['timestamp']
-        msg['timestamp'] = datetimeFromTimestamp(msg['raw_timestamp'])
-        return msg
+        msg_copy = dict(msg)
+        msg_copy['timestamp'] = msg_copy['timestamp'].replace(tzinfo=pytz.UTC)
+        return msg_copy
 
     @staticmethod
     def _convert_message_out(msg):
-        msg = dict(msg)
-        msg['timestamp'] = msg.pop('raw_timestamp')
+        # msg_copy = dict(msg)
+        # msg_copy['timestamp'] = msg_copy.pop('raw_timestamp')
+        # return msg_copy
         return msg
 
     @staticmethod
     def _convert_segment_in(seg):
-        seg = dict(seg.items())
+        seg_items_cp = dict(seg.items())
         for k in ['timestamp', 'first_msg_timestamp', 'last_msg_timestamp',
                   'first_msg_of_day_timestamp', 'last_msg_of_day_timestamp']:
-            if seg[k] is not None:
-                seg[k] = datetimeFromTimestamp(seg[k])
-        return seg
+            if seg_items_cp[k] is not None:
+                seg_items_cp[k] = seg_items_cp[k].replace(tzinfo=pytz.UTC)
+        return seg_items_cp
 
     @staticmethod
     def _convert_segment_out(seg):
-        seg = dict(seg.items())
-        for k in ['timestamp', 'first_msg_timestamp', 'last_msg_timestamp',
-                  'first_msg_of_day_timestamp', 'last_msg_of_day_timestamp',
-                  'timestamp_first', 'timestamp_last', # Stats stuff TODO: clean out someday
-                  'timestamp_min', 'timestamp_max']:
-            if k in seg and not seg[k] is None:
-                seg[k] = timestampFromDatetime(seg[k])
-
         return seg
+        # seg_items_cp = dict(seg.items())
+        # for k in ['timestamp', 'first_msg_timestamp', 'last_msg_timestamp',
+        #           'first_msg_of_day_timestamp', 'last_msg_of_day_timestamp',
+        #           'timestamp_first', 'timestamp_last', # Stats stuff TODO: clean out someday
+        #           'timestamp_min', 'timestamp_max']:
+        #     if k in seg_items_cp and not seg_items_cp[k] is None:
+        #         seg_items_cp[k] = timestampFromDatetime(seg_items_cp[k])
+
+        # return seg_items_cp
 
 
 
     def segment(self, kv):
         key, seg_mes_map = kv
         segments = [self._convert_segment_in(x) for x in seg_mes_map['segments']]
+        segments = [x for x in seg_mes_map['segments']]
         messages = sorted(seg_mes_map['messages'], key=lambda msg: msg['timestamp'])
         messages = [self._convert_message_in(x) for x in messages]
         logger.debug('Segmenting key %r sorted %s messages and %s segments',
@@ -104,7 +106,7 @@ class Segment(PTransform):
     def expand(self, xs):
         return (
             xs | FlatMap(self.segment)
-                .with_outputs(self.OUTPUT_TAG_SEGMENTS_V1, 
+                .with_outputs(self.OUTPUT_TAG_SEGMENTS_V1,
                               self.OUTPUT_TAG_SEGMENTS,
                               main=self.OUTPUT_TAG_MESSAGES)
         )

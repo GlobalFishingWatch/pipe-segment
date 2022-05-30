@@ -6,6 +6,71 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [UNRELEASED]
+
+## v3.2.1 - 2022-04-19
+
+### Removed
+
+* [PIPELINE-869](https://globalfishingwatch.atlassian.net/browse/PIPELINE-869): Removes
+  deprecated code and type check parameter in segment_identity_daily that let
+  read in EXPORT mode.
+
+## v3.2.0 - 2022-03-24
+
+### Changed
+
+* [PIPELINE-807](https://globalfishingwatch.atlassian.net/browse/PIPELINE-807): Changes
+  to support Beam `2.35.0`.
+  Points to last shipdataprocess SHA commit that supports python3.
+  Separates Dockerfile scheduler and worker and create separate images.
+
+
+## v3.1.1 - 2021-06-23
+
+### Changed
+
+* [PIPELINE-431](https://globalfishingwatch.atlassian.net/browse/PIPELINE-431): Removes
+  Travis and its references and uses cloudbuild instead to run the tests.
+  Uses [gfw-pipeline](https://github.com/GlobalFishingWatch/gfw-pipeline) as Docker base image.
+  Updates `pipe-tools` with update in beam reference when reading schema from json.
+  Removes 4 warnings from tests.
+
+## v3.1.0 - 2021-04-29
+
+### Added
+
+* [Data Pipeline/PIPELINE-84](https://globalfishingwatch.atlassian.net/browse/PIPELINE-84):
+  Adds support of Apache Beam `2.28.0`.
+  Increments Google SDK version to `338.0.0`.
+  Fixes tests after update of Beam.
+
+## v3.0.8 - 2020-11-13
+
+### Added
+
+* [Data Pipeline/PIPELINE-155](https://globalfishingwatch.atlassian.net/browse/PIPELINE-155):
+  Adds a new data quality step for segment identity metrics.
+
+## v3.0.7 - 2020-10-26
+
+### Added
+
+* [Data Pipeline/PIPELINE-129](https://globalfishingwatch.atlassian.net/browse/PIPELINE-129):
+  Adds `segmenter_params` to segment airflow step and `max_gap_size_value` to Airflow variable.
+
+### Changed
+
+* [Data Pipeline/PIPELINE-144](https://globalfishingwatch.atlassian.net/browse/PIPELINE-144):
+  Changes `gpsdio-segment` version to use the latest fixed version `0.20.2`.
+
+## v3.0.6 - 2020-10-06
+
+### Changed
+
+* [Data Pipeline/PIPELINE-139](https://globalfishingwatch.atlassian.net/browse/PIPELINE-139):
+  Changes the `gpsdio-segment` version to use the latest fixed version, `0.20.1`.
+
 ## v3.0.5 - 2020-07-15
 
 ### Added

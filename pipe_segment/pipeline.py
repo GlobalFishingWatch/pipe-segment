@@ -1,35 +1,34 @@
-import logging
-import ujson
-from datetime import timedelta
-from datetime import datetime
-from apitools.base.py.exceptions import HttpError
-import pytz
-
-import apache_beam as beam
 from apache_beam.runners import PipelineState
-from apache_beam.io.gcp.internal.clients.bigquery import TableFieldSchema
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.transforms.window import TimestampedValue
+from apache_beam.io.gcp.bigquery_tools import table_schema_to_dict
 from apache_beam.io.gcp.internal.clients import bigquery
 
-from pipe_tools.timestamp import TimestampedValueDoFn
+from apitools.base.py.exceptions import HttpError
+
+from datetime import timedelta
+from datetime import datetime
+
 from pipe_tools.timestamp import datetimeFromTimestamp
 from pipe_tools.timestamp import timestampFromDatetime
 from pipe_tools.utils.timestamp import as_timestamp
-from pipe_tools.io.bigquery import parse_table_schema
 from pipe_tools.io import WriteToBigQueryDatePartitioned
 
 from pipe_segment.options.segment import SegmentOptions
 from pipe_segment.transform.invalid_values import filter_invalid_values
+from pipe_segment.transform.write_sink import WriteSink
+from pipe_segment.transform.read_source import ReadSource
+from pipe_segment.transform.read_messages_from_several_sources import ReadMessagesFromSeveralSources
 from pipe_segment.transform.segment import Segment
 from pipe_segment.transform.satellite_offsets import SatelliteOffsets
 from pipe_segment.transform.normalize import NormalizeDoFn
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
-from pipe_segment.io.gcp import GCPSource
-from pipe_segment.io.gcp import GCPSink
 
-PAD_PREV_DAYS = 1
+import apache_beam as beam
+import logging
+import ujson
+import pytz
 
 def safe_dateFromTimestamp(ts):
     if ts is None:
@@ -78,8 +77,10 @@ class LogMapper(object):
 class SegmentPipeline:
     def __init__(self, options):
         self.options = options.view_as(SegmentOptions)
-        self.date_range = parse_date_range(self.options.date_range)
+        range_as_timestamp = lambda s: list(map(as_timestamp, s.split(',')) if s is not None else (None, None))
+        self.date_range_ts = range_as_timestamp(self.options.date_range)
         self._message_source_list = None
+        self._read_from_several_sources = None
 
     @property
     def sat_offset_schema(self):
@@ -118,34 +119,6 @@ class SegmentPipeline:
         return sink
 
     @property
-    def message_source_list(self):
-        # creating a GCPSource requires calls to the bigquery API if we are
-        # reading from bigquery, so only do this once.
-        if not self._message_source_list:
-            first_date_ts, last_date_ts = self.date_range
-            #If the first_date_ts is the first day of data, then, don't look back
-            if not is_first_batch(as_timestamp(self.options.pipeline_start_date),first_date_ts):
-                first_date_ts = offset_timestamp(first_date_ts, days=-PAD_PREV_DAYS)
-            if self.options.look_ahead:
-                last_date_ts = offset_timestamp(last_date_ts, days=self.options.look_ahead)
-            gcp_paths = self.options.source.split(',')
-            self._message_source_list = []
-            for gcp_path in gcp_paths:
-                s = GCPSource(gcp_path=gcp_path,
-                               first_date_ts=first_date_ts,
-                               last_date_ts=last_date_ts)
-                self._message_source_list.append(s)
-
-        return self._message_source_list
-
-    def message_sources(self, pipeline):
-        def compose(idx, source):
-            return pipeline | "Source%i" % idx >> source
-
-        return (compose (idx, source) for idx, source in enumerate(self.message_source_list))
-
-
-    @property
     def message_input_schema(self):
         schema = self.options.source_schema
         if schema is None:
@@ -155,35 +128,10 @@ class SegmentPipeline:
         return parse_table_schema(schema)
 
     @property
-    def message_output_schema(self):
-        schema = self.message_input_schema
-
-        field = TableFieldSchema()
-        field.name = "seg_id"
-        field.type = "STRING"
-        field.mode="NULLABLE"
-        schema.fields.append(field)
-
-        field = TableFieldSchema()
-        field.name = "n_shipname"
-        field.type = "STRING"
-        field.mode="NULLABLE"
-        schema.fields.append(field)
-
-        field = TableFieldSchema()
-        field.name = "n_callsign"
-        field.type = "STRING"
-        field.mode="NULLABLE"
-        schema.fields.append(field)
-
-        field = TableFieldSchema()
-        field.name = "n_imo"
-        field.type = "INTEGER"
-        field.mode="NULLABLE"
-        schema.fields.append(field)
-
-        return schema
-
+    def read_from_several_sources(self):
+        if not self._read_from_several_sources:
+            self._read_from_several_sources = ReadMessagesFromSeveralSources(self.options)
+        return self._read_from_several_sources
 
     @property
     def segmenter_params(self):
@@ -199,26 +147,24 @@ class SegmentPipeline:
 
     @property
     def message_sink(self):
-        sink = GCPSink(gcp_path=self.options.msg_dest,
-                       schema=self.message_output_schema,
-                       temp_gcs_location=self.temp_gcs_location,
-                       temp_shards_per_day=self.options.temp_shards_per_day)
-        return sink
+        return WriteSink(
+            self.options.msg_dest,
+            self.read_from_several_sources.message_output_schema,
+            "Daily satellite messages segmented processed in segment step."
+        )
 
     @property
     def segment_source(self):
-        if self.date_range[0] is None:
+        if self.date_range_ts[0] is None:
             return beam.Create([])
 
-        dt = datetimeFromTimestamp(self.date_range[0])
+        dt = datetimeFromTimestamp(self.date_range_ts[0])
         ts = timestampFromDatetime(dt - timedelta(days=1))
 
         try:
-            source = GCPSource(gcp_path=self.options.seg_dest,
-                             first_date_ts=ts,
-                             last_date_ts=ts)
+            source = ReadSource(self.options.seg_dest, ts, ts)
         except HttpError as exn:
-            logging.warn("Segment source not found: %s %s" % (self.options.seg_dest, dt))
+            logging.warn(f"Previous day <{dt.isoformat()}> in Segment source <{self.options.seg_dest}> not found.")
             if exn.status_code == 404:
                 return beam.Create([])
             else:
@@ -227,10 +173,11 @@ class SegmentPipeline:
 
 
     def segment_sink(self, schema, table):
-        sink = GCPSink(gcp_path=table,
-                       schema=schema,
-                       temp_gcs_location=self.temp_gcs_location,
-                       temp_shards_per_day=self.options.temp_shards_per_day)
+        sink = WriteSink(
+            table,
+            table_schema_to_dict(schema),
+            "Daily segments processed in segment step."
+        )
         return sink
 
 
@@ -240,12 +187,12 @@ class SegmentPipeline:
         # stringified or neither.
         pipeline = beam.Pipeline(options=self.options)
 
-        start_date = safe_dateFromTimestamp(self.date_range[0])
-        end_date = safe_dateFromTimestamp(self.date_range[1])
+        start_date = safe_dateFromTimestamp(self.date_range_ts[0])
+        end_date = safe_dateFromTimestamp(self.date_range_ts[1])
 
         messages = (
-            self.message_sources(pipeline)
-            | "MergeMessages" >> beam.Flatten()
+            pipeline
+            | self.read_from_several_sources
             | "FilterInvalidValues" >> beam.Map(filter_invalid_values)
         )
 
@@ -265,9 +212,9 @@ class SegmentPipeline:
         if self.options.ssvid_filter_query:
             valid_ssivd_set = beam.pvalue.AsDict(
                 messages
-                | GCPSource(gcp_path=self.options.ssvid_filter_query)
+                | beam.io.ReadFromBigQuery(query=self.options.ssvid_filter_query, use_standard_sql=True)
                 | beam.Map(lambda x: (x['ssvid'], x['ssvid']))
-                )
+            )
             messages = (
                 messages
                 | beam.Filter(filter_by_ssvid_predicate, valid_ssivd_set)
@@ -281,33 +228,31 @@ class SegmentPipeline:
 
         segments = (
             pipeline
-            | "ReadSegments" >> self.segment_source
+            | "ReadLastDaySegments" >> self.segment_source
             | "RemoveClosedSegments" >> beam.Filter(lambda x: not x['closed'])
             | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
         )
 
         args = (
             {'messages' : messages, 'segments' : segments}
-            | 'GroupByKey' >> beam.CoGroupByKey()
+            | 'GroupAllBySSVID' >> beam.CoGroupByKey()
         )
 
-        segmenter = Segment(start_date=safe_dateFromTimestamp(self.date_range[0]),
-                            end_date=safe_dateFromTimestamp(self.date_range[1]),
+        segmenter = Segment(start_date=safe_dateFromTimestamp(self.date_range_ts[0]),
+                            end_date=safe_dateFromTimestamp(self.date_range_ts[1]),
                             segmenter_params=self.segmenter_params,
                             look_ahead=self.options.look_ahead)
-
+        # Runs the segmenter. Input: messages and segments group by ssvid {ssvid: {messages:m, segments:s}}
         segmented = args | "Segment" >> segmenter
 
         messages = segmented[segmenter.OUTPUT_TAG_MESSAGES]
         segments = segmented[segmenter.OUTPUT_TAG_SEGMENTS]
         (
             messages
-            | "TimestampMessages" >> beam.ParDo(TimestampedValueDoFn())
             | "WriteMessages" >> self.message_sink
         )
         (
             segments
-            | "TimestampSegments" >> beam.ParDo(TimestampedValueDoFn())
             | "WriteSegments" >> self.segment_sink(segmenter.segment_schema,
                                                    self.options.seg_dest)
         )
@@ -315,8 +260,7 @@ class SegmentPipeline:
             segments_v1 = segmented[segmenter.OUTPUT_TAG_SEGMENTS_V1]
             (
                 segments_v1
-                | "TimestampOldSegments" >> beam.ParDo(TimestampedValueDoFn())
-                | "WriteOldSegments" >> self.segment_sink(segmenter.segment_schema_v1,
+                | "WriteOldSegments" >> self.segment_sink(segmenter.segment_schema_v1, 
                                                        self.options.legacy_seg_v1_dest)
             )
         return pipeline
