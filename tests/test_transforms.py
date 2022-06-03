@@ -59,6 +59,33 @@ def contains(subset):
     return _contains
 
 
+DT_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
+strToDatetime = lambda s: datetime.strptime(s, DT_FORMAT).replace(tzinfo=pytz.UTC)
+shortStrToDatetime = lambda s: datetime.strptime(s, "%Y-%m-%d %H:%M").replace(
+    second=0, microsecond=0, tzinfo=pytz.UTC
+)
+shiftDatetimeDays = lambda d, x: d + td(seconds=x)
+
+
+def stringFromDatetimeFields(d):
+    d_cp = dict(d)
+    for x in d_cp.keys():
+        if isinstance(d_cp[x], datetime):
+            d_cp[x] = d_cp[x].strftime(DT_FORMAT)
+    return d_cp
+
+
+def stringToDatetimeFields(time_fields, r):
+    rec = dict(r)
+    for k in time_fields:
+        if rec[k] is not None:
+            rec[k] = strToDatetime(rec[k])
+    return rec
+
+
+_interpret_out = lambda x, y: stringToDatetimeFields(x, ast.literal_eval(y))
+
+
 def list_contains(superset, subset):
     for super, sub in zip(superset, subset):
         for k, v in sub.items():
@@ -105,7 +132,14 @@ class TestTransforms:
 
         print(messages_in)
 
-        with _TestPipeline() as p:
+        args = [
+            f"--source={messages_in}",
+            f"--msg_dest={messages_file}",
+            f"--seg_dest={segments_file}",
+        ]
+        segop = SegmentOptions(args)
+
+        with _TestPipeline(options=segop) as p:
             messages = (
                 p
                 | "CreateMessages" >> beam.Create(messages_in)

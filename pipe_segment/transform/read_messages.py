@@ -1,4 +1,5 @@
 import apache_beam as beam
+import logging
 
 
 class ReadMessages(beam.PTransform):
@@ -29,6 +30,7 @@ class ReadMessages(beam.PTransform):
         """
         if self.ssvid_filter_query is not None:
             query = f"{query} WHERE ssvid IN ({self.ssvid_filter_query})"
+        logging.info(f"QUERY:\n{query}")
         return query
 
     def expand(self, pcoll):

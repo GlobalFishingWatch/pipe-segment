@@ -1,5 +1,7 @@
 from apache_beam.options.pipeline_options import PipelineOptions
 
+# from pipe_tools.options import ReadFileAction
+
 
 class SegmentOptions(PipelineOptions):
     @classmethod
@@ -11,9 +13,7 @@ class SegmentOptions(PipelineOptions):
         optional = parser.add_argument_group("Optional")
 
         required.add_argument(
-            "--source",
-            required=True,
-            help="Bigquery table, query or file to read normalized messages",
+            "--source", required=True, help="Bigquery table to read normalized messages"
         )
         optional.add_argument(
             "--sat_source",
@@ -26,19 +26,15 @@ class SegmentOptions(PipelineOptions):
             required=False,
             help="Bigquery table to write satellite offsets to.`",
         )
-        optional.add_argument(
-            "--date_range",
-            help="Range of dates to read from source. format YYYY-MM-DD,YYYY-MM-DD",
-        )
         required.add_argument(
             "--msg_dest",
             required=True,
-            help="Bigquery table or file (prefix) to write segmented messages",
+            help="Bigquery table to write segmented messages",
         )
         required.add_argument(
             "--segment_dest",
             required=True,
-            help="Bigquery table or file (prefix) to read and write segments-days",
+            help="Bigquery table to read and write segments-days",
         )
         optional.add_argument(
             "--bad_hour_padding",
@@ -50,6 +46,17 @@ class SegmentOptions(PipelineOptions):
             type=int,
             default=30,
             help="maximum number of seconds a satellite clock can be off before we drop its messages",
+        )
+        # optional.add_argument(
+        #     "--source_schema",
+        #     help="JSON schema for the source messages (bigquery).  This is ignored for tables or file sources. "
+        #     "See examples/message-schema.json for an example.  This must match the fields included in the "
+        #     'query or bq table.   You can use "@path/to/file.json" to load this from a file.',
+        #     action=ReadFileAction,
+        # )
+        optional.add_argument(
+            "--date_range",
+            help="Range of dates to read from source. format YYYY-MM-DD,YYYY-MM-DD",
         )
         optional.add_argument(
             "--wait_for_job",

@@ -96,7 +96,7 @@ class SegmentPipeline:
         messages = (
             messages
             | "MessagesAddKey"
-            >> beam.Map(lambda x: ((x["ssvid"], safe_date(x["timestamp"])), x))
+            >> beam.Map(lambda x: ((x["ssvid"], str(safe_date(x["timestamp"]))), x))
             | "GroupBySsvidAndDay" >> beam.GroupByKey()
         )
 
