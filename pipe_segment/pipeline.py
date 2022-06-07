@@ -1,198 +1,74 @@
+import logging
+import ujson
+from datetime import datetime, timedelta
+
+import apache_beam as beam
 from apache_beam.runners import PipelineState
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.transforms.window import TimestampedValue
-from apache_beam.io.gcp.bigquery_tools import table_schema_to_dict
-from apache_beam.io.gcp.internal.clients import bigquery
 
-from apitools.base.py.exceptions import HttpError
-
-from datetime import timedelta
-from datetime import datetime
-
-from pipe_tools.timestamp import datetimeFromTimestamp
-from pipe_tools.timestamp import timestampFromDatetime
-from pipe_tools.utils.timestamp import as_timestamp
-from pipe_tools.io import WriteToBigQueryDatePartitioned
+from .tools import datetimeFromTimestamp
+from .tools import as_timestamp
 
 from pipe_segment.options.segment import SegmentOptions
 from pipe_segment.transform.invalid_values import filter_invalid_values
-from pipe_segment.transform.write_sink import WriteSink
-from pipe_segment.transform.read_source import ReadSource
-from pipe_segment.transform.read_messages_from_several_sources import ReadMessagesFromSeveralSources
-from pipe_segment.transform.segment import Segment
+from pipe_segment.transform.fragment import Fragment
 from pipe_segment.transform.satellite_offsets import SatelliteOffsets
-from pipe_segment.transform.normalize import NormalizeDoFn
+
+from pipe_segment.transform.add_cumulative_data import AddCumulativeData
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
+from pipe_segment.transform.read_messages import ReadMessages
+from pipe_segment.transform.read_fragments import ReadFragments
+from pipe_segment.transform.create_segments import CreateSegments
+from pipe_segment.transform.tag_with_seg_id import TagWithSegId
+from pipe_segment.transform.write_date_sharded import WriteDateSharded
+from pipe_segment import message_schema
 
-import apache_beam as beam
-import logging
-import ujson
-import pytz
 
-def safe_dateFromTimestamp(ts):
+def safe_date(ts):
     if ts is None:
         return None
     return datetimeFromTimestamp(ts).date()
 
+
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
-    return list(map(as_timestamp, s.split(',')) if s is not None else (None, None))
-
-def offset_timestamp(ts, **timedelta_args):
-    if ts is None:
-        return ts
-    dt = datetimeFromTimestamp(ts) + timedelta(**timedelta_args)
-    return timestampFromDatetime(dt)
-
-def is_first_batch(pipeline_start_ts, first_date_ts):
-    return pipeline_start_ts == first_date_ts
-
-def filter_by_ssvid_predicate(obj, valid_ssvid_set):
-    return obj['ssvid'] in valid_ssvid_set
-
-class LogMapper(object):
-    first_item = True
-    which_item = 0
-
-    def log_first_item(self, obj):
-        if self.first_item:
-            logging.warn("First Item: %s", obj)
-            self.first_item = False
-        return obj
-
-    def log_nth_item(self, obj, n):
-        if self.which_item == n:
-            logging.warn("%sth Item: %s", n, obj)
-            self.which_item += 1
-        return obj
-
-    def log_first_item_keys(self, obj):
-        if self.first_item:
-            logging.warn("First Item's Keys: %s", obj.keys())
-            self.first_item = False
-        return obj
+    return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
 
 
 class SegmentPipeline:
     def __init__(self, options):
+        self.cloud_options = options.view_as(GoogleCloudOptions)
         self.options = options.view_as(SegmentOptions)
-        range_as_timestamp = lambda s: list(map(as_timestamp, s.split(',')) if s is not None else (None, None))
-        self.date_range_ts = range_as_timestamp(self.options.date_range)
-        self._message_source_list = None
-        self._read_from_several_sources = None
+        self.date_range = parse_date_range(self.options.date_range)
 
     @property
-    def sat_offset_schema(self):
-        schema = bigquery.TableSchema()
-
-        def add_field(name, field_type, mode='REQUIRED'):
-            field = bigquery.TableFieldSchema()
-            field.name = name
-            field.type = field_type
-            field.mode = mode
-            schema.fields.append(field)
-
-        add_field('hour', 'timestamp')
-        add_field('receiver',  'STRING')
-        add_field('dt', 'FLOAT')
-        add_field('pings', 'INTEGER')
-        add_field('avg_distance_from_sat_km', 'FLOAT')
-        add_field('med_dist_from_sat_km', 'FLOAT')
-
-        return schema
-
-    @property
-    def sat_offset_sink(self):
-        sink_table = self.options.sat_offset_dest
-        if not sink_table.startswith('bq://'):
-            raise ValueError('only BigQuery supported as a destination for `sat_offset_dest, must begine with "bq://"')
-        sink_table = sink_table[5:]
-        if ':' not in sink_table:
-          sink_table = self.cloud_options.project + ':' + sink_table
-        print(sink_table)
-        sink = WriteToBigQueryDatePartitioned(table=sink_table,
-                       schema=self.sat_offset_schema,
-                       temp_gcs_location=self.temp_gcs_location,
-                       temp_shards_per_day=self.options.temp_shards_per_day,
-                       write_disposition="WRITE_TRUNCATE")
-        return sink
-
-    @property
-    def message_input_schema(self):
-        schema = self.options.source_schema
-        if schema is None:
-            # no explicit schema provided. Try to find one in the source(s)
-            schemas = [s.schema for s in self.message_source_list if s.schema is not None]
-            schema = schemas[0] if schemas else None
-        return parse_table_schema(schema)
-
-    @property
-    def read_from_several_sources(self):
-        if not self._read_from_several_sources:
-            self._read_from_several_sources = ReadMessagesFromSeveralSources(self.options)
-        return self._read_from_several_sources
+    def merge_params(self):
+        return ujson.loads(self.options.merge_params)
 
     @property
     def segmenter_params(self):
         return ujson.loads(self.options.segmenter_params)
 
     @property
-    def temp_gcs_location(self):
-        return self.options.view_as(GoogleCloudOptions).temp_location
+    def source_tables(self):
+        return self.options.source.split(",")
 
-    @staticmethod
-    def groupby_fn(msg):
-        return (msg['ssvid'], msg)
-
-    @property
-    def message_sink(self):
-        return WriteSink(
-            self.options.msg_dest,
-            self.read_from_several_sources.message_output_schema,
-            "Daily satellite messages segmented processed in segment step."
-        )
-
-    @property
-    def segment_source(self):
-        if self.date_range_ts[0] is None:
-            return beam.Create([])
-
-        dt = datetimeFromTimestamp(self.date_range_ts[0])
-        ts = timestampFromDatetime(dt - timedelta(days=1))
-
-        try:
-            source = ReadSource(self.options.seg_dest, ts, ts)
-        except HttpError as exn:
-            logging.warn(f"Previous day <{dt.isoformat()}> in Segment source <{self.options.seg_dest}> not found.")
-            if exn.status_code == 404:
-                return beam.Create([])
-            else:
-                raise
-        return source
-
-
-    def segment_sink(self, schema, table):
-        sink = WriteSink(
-            table,
-            table_schema_to_dict(schema),
-            "Daily segments processed in segment step."
-        )
-        return sink
-
-
+    # TODO: consider breaking up
     def pipeline(self):
-        # Note that Beam appears to treat str(x) and unicode(x) as distinct
-        # for purposes of CoGroupByKey, so both messages and segments should be
-        # stringified or neither.
         pipeline = beam.Pipeline(options=self.options)
 
-        start_date = safe_dateFromTimestamp(self.date_range_ts[0])
-        end_date = safe_dateFromTimestamp(self.date_range_ts[1])
+        start_date = safe_date(self.date_range[0])
+        end_date = safe_date(self.date_range[1])
 
         messages = (
             pipeline
-            | self.read_from_several_sources
+            | ReadMessages(
+                sources=self.source_tables,
+                start_date=start_date,
+                end_date=end_date,
+                ssvid_filter_query=self.options.ssvid_filter_query,
+            )
             | "FilterInvalidValues" >> beam.Map(filter_invalid_values)
         )
 
@@ -200,69 +76,89 @@ class SegmentPipeline:
             satellite_offsets = pipeline | SatelliteOffsets(start_date, end_date)
 
             if self.options.sat_offset_dest:
-                ( satellite_offsets
-                    | "AddTimestamp" >> beam.Map(lambda x: TimestampedValue(x, x['hour']))
-                    | "WriteSatOffsets" >> self.sat_offset_sink
+                (
+                    satellite_offsets
+                    | "WriteSatOffsets"
+                    >> WriteDateSharded(
+                        self.options.sat_offset_dest,
+                        self.cloud_options.project,
+                        SatelliteOffsets.schema,
+                        key="hour",
+                    )
                 )
 
-            messages = messages | FilterBadSatelliteTimes(satellite_offsets,
-                                                max_timing_offset_s=self.options.max_timing_offset_s,
-                                                bad_hour_padding=self.options.bad_hour_padding)
-
-        if self.options.ssvid_filter_query:
-            valid_ssivd_set = beam.pvalue.AsDict(
-                messages
-                | beam.io.ReadFromBigQuery(query=self.options.ssvid_filter_query, use_standard_sql=True)
-                | beam.Map(lambda x: (x['ssvid'], x['ssvid']))
-            )
-            messages = (
-                messages
-                | beam.Filter(filter_by_ssvid_predicate, valid_ssivd_set)
+            messages = messages | FilterBadSatelliteTimes(
+                satellite_offsets,
+                max_timing_offset_s=self.options.max_timing_offset_s,
+                bad_hour_padding=self.options.bad_hour_padding,
             )
 
         messages = (
             messages
-            | "Normalize" >> beam.ParDo(NormalizeDoFn())
-            | "MessagesAddKey" >> beam.Map(self.groupby_fn)
+            | "MessagesAddKey"
+            >> beam.Map(lambda x: ((x["ssvid"], str(safe_date(x["timestamp"]))), x))
+            | "GroupBySsvidAndDay" >> beam.GroupByKey()
         )
 
-        segments = (
-            pipeline
-            | "ReadLastDaySegments" >> self.segment_source
-            | "RemoveClosedSegments" >> beam.Filter(lambda x: not x['closed'])
-            | "SegmentsAddKey" >> beam.Map(self.groupby_fn)
+        fragmented = messages | "Fragment" >> Fragment(
+            fragmenter_params=self.segmenter_params
         )
 
-        args = (
-            {'messages' : messages, 'segments' : segments}
-            | 'GroupAllBySSVID' >> beam.CoGroupByKey()
+        messages = fragmented[Fragment.OUTPUT_TAG_MESSAGES]
+        new_fragments = fragmented[Fragment.OUTPUT_TAG_FRAGMENTS]
+
+        existing_fragments = pipeline | ReadFragments(
+            self.options.segment_dest,
+            project=self.cloud_options.project,
+            start_date=start_date - timedelta(days=1),
+            end_date=start_date - timedelta(days=1),
+            create_if_missing=True,
         )
 
-        segmenter = Segment(start_date=safe_dateFromTimestamp(self.date_range_ts[0]),
-                            end_date=safe_dateFromTimestamp(self.date_range_ts[1]),
-                            segmenter_params=self.segmenter_params,
-                            look_ahead=self.options.look_ahead)
-        # Runs the segmenter. Input: messages and segments group by ssvid {ssvid: {messages:m, segments:s}}
-        segmented = args | "Segment" >> segmenter
+        fragmap = (
+            (new_fragments, existing_fragments)
+            | beam.Flatten()
+            | "AddSsvidKey" >> beam.Map(lambda x: (x["ssvid"], x))
+            | "GroupBySsvid" >> beam.GroupByKey()
+            | CreateSegments(self.merge_params)
+            | "AddKeyToFragmap" >> beam.Map(lambda x: (x["frag_id"], x))
+        )
 
-        messages = segmented[segmenter.OUTPUT_TAG_MESSAGES]
-        segments = segmented[segmenter.OUTPUT_TAG_SEGMENTS]
+        tagged_messages = messages | "AddKeyToMessages" >> beam.Map(
+            lambda x: (x["frag_id"], x)
+        )
+
         (
-            messages
-            | "WriteMessages" >> self.message_sink
-        )
-        (
-            segments
-            | "WriteSegments" >> self.segment_sink(segmenter.segment_schema,
-                                                   self.options.seg_dest)
-        )
-        if self.options.legacy_seg_v1_dest:
-            segments_v1 = segmented[segmenter.OUTPUT_TAG_SEGMENTS_V1]
-            (
-                segments_v1
-                | "WriteOldSegments" >> self.segment_sink(segmenter.segment_schema_v1, 
-                                                       self.options.legacy_seg_v1_dest)
+            {"fragmap": fragmap, "target": tagged_messages}
+            | "GroupMsgsWithMap" >> beam.CoGroupByKey()
+            | "TagMsgsWithSegId" >> TagWithSegId()
+            | "WriteMessages"
+            >> WriteDateSharded(
+                self.options.msg_dest,
+                self.cloud_options.project,
+                message_schema.message_output_schema,
             )
+        )
+
+        tagged_fragments = new_fragments | "AddKeyToFragments" >> beam.Map(
+            lambda x: (x["frag_id"], x)
+        )
+
+        (
+            {"fragmap": fragmap, "target": tagged_fragments}
+            | "GroupSegsWithMap" >> beam.CoGroupByKey()
+            | "TagSegsWithsSegId" >> TagWithSegId()
+            | "AddSegidKey" >> beam.Map(lambda x: (x["seg_id"], x))
+            | "GroupBySegId" >> beam.GroupByKey()
+            | "AddCumulativeData" >> AddCumulativeData()
+            | "WriteFragments"
+            >> WriteDateSharded(
+                self.options.segment_dest,
+                self.cloud_options.project,
+                Fragment.schema,
+            )
+        )
+
         return pipeline
 
     def run(self):
@@ -276,12 +172,15 @@ def run(options):
 
     success_states = set([PipelineState.DONE])
 
-    if pipeline.options.wait_for_job or options.view_as(StandardOptions).runner == 'DirectRunner':
+    if (
+        pipeline.options.wait_for_job
+        or options.view_as(StandardOptions).runner == "DirectRunner"
+    ):
         result.wait_until_finish()
     else:
         success_states.add(PipelineState.RUNNING)
         success_states.add(PipelineState.UNKNOWN)
         success_states.add(PipelineState.PENDING)
 
-    logging.info('returning with result.state=%s' % result.state)
+    logging.info("returning with result.state=%s" % result.state)
     return 0 if result.state in success_states else 1

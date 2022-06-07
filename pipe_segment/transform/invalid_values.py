@@ -1,5 +1,6 @@
 import decimal
 
+
 def validate_field(is_invalid):
     """
     Returns a function which checks a value using the `is_invalid` function. If
@@ -19,6 +20,7 @@ def validate_field(is_invalid):
     """
     return lambda value: None if is_invalid(value) else value
 
+
 def float_to_fixed_point(value, precision):
     """
     Converts a given floating point value to a fixed precision decimal.
@@ -37,6 +39,7 @@ def float_to_fixed_point(value, precision):
     precision_decimal = decimal.Decimal(precision_format_string.format(1))
     return decimal.Decimal(value).quantize(precision_decimal)
 
+
 def validate_fixed_position_field(precision, is_invalid):
     """
     This is a specialization for `validate_field`, which converts the value to
@@ -49,7 +52,10 @@ def validate_fixed_position_field(precision, is_invalid):
     validator(6) -> None
     ```
     """
-    return validate_field(lambda value: is_invalid(float_to_fixed_point(value, precision)))
+    return validate_field(
+        lambda value: is_invalid(float_to_fixed_point(value, precision))
+    )
+
 
 INVALID_VALUE_RULES_BY_MESSAGE_TYPE = {
     # Class A Position Report
@@ -85,7 +91,9 @@ INVALID_VALUE_RULES_BY_MESSAGE_TYPE = {
     },
     # Class A Ship Static and Voyage Data
     "AIS.5": {
-        "imo": validate_field(lambda x: len(x) != 10 or x < "0001000000"),
+        "imo": validate_field(
+            lambda x: not ("0000000001" <= x.zfill(10) < "1073741824")
+        ),
         "callsign": validate_field(lambda x: x == "@@@@@@@"),
         "shipname": validate_field(lambda x: x == "@@@@@@@@@@@@@@@@@@@@"),
         "destination": validate_field(lambda x: x == "@@@@@@@@@@@@@@@@@@@@"),
@@ -138,6 +146,7 @@ INVALID_VALUE_RULES_BY_MESSAGE_TYPE = {
         "speed": validate_fixed_position_field(0, lambda x: x < 0 or x >= 63),
     },
 }
+
 
 def filter_invalid_values(element):
     field_validators = INVALID_VALUE_RULES_BY_MESSAGE_TYPE.get(element["type"])
