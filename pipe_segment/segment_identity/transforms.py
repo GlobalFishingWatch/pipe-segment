@@ -1,8 +1,7 @@
-from functools import reduce
 from collections import defaultdict
 
 from apache_beam.transforms.window import TimestampedValue
-from pipe_tools.utils.timestamp import as_timestamp
+from ..tools import as_timestamp
 
 from shipdataprocess.normalize import normalize_callsign
 from shipdataprocess.normalize import normalize_shipname
