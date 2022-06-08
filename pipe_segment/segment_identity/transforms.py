@@ -1,4 +1,5 @@
 from functools import reduce
+from collections import defaultdict
 
 from apache_beam.transforms.window import TimestampedValue
 from pipe_tools.utils.timestamp import as_timestamp
@@ -9,32 +10,48 @@ from stdnum import imo as imo_validator
 
 import apache_beam as beam
 
+
 def normalize_imo(value):
     if imo_validator.is_valid(str(value)):
         return value
     else:
         return None
 
+
 def extract_count(x):
     return x.get("count", 0)
+
 
 def normalize_counted_array(f, xs):
     result = []
     for x in xs:
         value = f(x.get("value"))
         if value is not None:
-            result.append({
-                "count": x.get("count"),
-                "value": value,
-            })
+            result.append(
+                {
+                    "count": x.get("count"),
+                    "value": value,
+                }
+            )
 
     return result
 
+
+def extract(identities, key):
+    mapping = defaultdict(int)
+    for ident in identities:
+        value = ident[key]
+        if value is not None:
+            mapping[value] += ident["count"]
+    return dict(mapping.items())
+
+
 def summarize_identifiers(segment):
-    transponders = segment.get("transponders", [])
-    shipnames = segment.get("shipnames", [])
-    callsigns = segment.get("callsigns", [])
-    imos = segment.get("imos", [])
+    identities = segment["daily_identities"]
+    transponders = extract(identities, "transponder_type")
+    shipnames = extract(identities, "shipname")
+    callsigns = extract(identities, "callsign")
+    imos = extract(identities, "imo")
 
     return {
         "seg_id": segment.get("seg_id"),
@@ -60,8 +77,9 @@ def summarize_identifiers(segment):
         "shiptype": None,
         "length": None,
         "width": None,
-        "noise": False
+        "noise": False,
     }
+
 
 def to_timestamped_value(record):
     result = record.copy()
@@ -81,25 +99,27 @@ SOURCE_QUERY_TEMPLATE = """
       AND TRUE
 """
 
+
 class ReadSource(beam.PTransform):
     def __init__(self, source_table, start_ts, end_ts):
-        self.source_table = source_table.replace('bq://','').replace(':', '.')
+        self.source_table = source_table.replace("bq://", "").replace(":", ".")
         self.start_ts = int(start_ts)
         self.end_ts = int(end_ts)
 
     def read_source(self):
         query = SOURCE_QUERY_TEMPLATE.format(
-            source_table = self.source_table,
-            start_ts = self.start_ts,
-            end_ts = self.end_ts,
+            source_table=self.source_table,
+            start_ts=self.start_ts,
+            end_ts=self.end_ts,
         )
         return beam.io.ReadFromBigQuery(
-            query = query,
-            use_standard_sql = True,
+            query=query,
+            use_standard_sql=True,
         )
 
     def expand(self, pcoll):
         return pcoll | self.read_source()
+
 
 BQ_PARAMS = {
     "destinationTableProperties": {
@@ -107,10 +127,11 @@ BQ_PARAMS = {
     },
 }
 
+
 def write_sink(sink_table, schema, from_dt, description):
-    sink_table = sink_table.replace('bq://','')
+    sink_table = sink_table.replace("bq://", "")
     bq_params_cp = dict(BQ_PARAMS)
-    bq_params_cp['destinationTableProperties']['description'] = description
+    bq_params_cp["destinationTableProperties"]["description"] = description
 
     def compute_table(message):
         table_suffix = from_dt.strftime("%Y%m%d")
