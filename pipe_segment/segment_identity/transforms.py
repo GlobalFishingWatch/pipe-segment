@@ -42,7 +42,7 @@ def extract(identities, key):
         value = ident[key]
         if value is not None:
             mapping[value] += ident["count"]
-    return dict(mapping.items())
+    return [{"value": k, "count": v} for (k, v) in mapping.items()]
 
 
 def summarize_identifiers(segment):
