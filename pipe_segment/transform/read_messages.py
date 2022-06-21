@@ -25,7 +25,6 @@ class ReadMessages(beam.PTransform):
             FROM `{source}*`
             WHERE _TABLE_SUFFIX BETWEEN 
              '{self.start_date:%Y%m%d}' AND '{self.end_date:%Y%m%d}'
-            ORDER BY ssvid, timestamp
         )
         """
         if self.ssvid_filter_query is not None:
