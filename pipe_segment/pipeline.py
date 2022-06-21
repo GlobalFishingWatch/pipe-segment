@@ -22,7 +22,12 @@ from pipe_segment.transform.read_fragments import ReadFragments
 from pipe_segment.transform.create_segments import CreateSegments
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
 from pipe_segment.transform.write_date_sharded import WriteDateSharded
+from pipe_segment.transform.tag_with_fragid_and_date import TagWithFragIdAndDate
 from pipe_segment import message_schema
+
+
+def timestamp_to_date(ts: float) -> datetime.date:
+    return datetimeFromTimestamp(ts).date()
 
 
 def safe_date(ts):
@@ -121,11 +126,11 @@ class SegmentPipeline:
             | "AddSsvidKey" >> beam.Map(lambda x: (x["ssvid"], x))
             | "GroupBySsvid" >> beam.GroupByKey()
             | CreateSegments(self.merge_params)
-            | "AddKeyToFragmap" >> beam.Map(lambda x: (x["frag_id"], x))
+            | TagWithFragIdAndDate(start_date, end_date)
         )
 
         tagged_messages = messages | "AddKeyToMessages" >> beam.Map(
-            lambda x: (x["frag_id"], x)
+            lambda x: ((x["frag_id"], str(timestamp_to_date(x["timestamp"]))), x)
         )
 
         (
@@ -141,7 +146,7 @@ class SegmentPipeline:
         )
 
         tagged_fragments = new_fragments | "AddKeyToFragments" >> beam.Map(
-            lambda x: (x["frag_id"], x)
+            lambda x: ((x["frag_id"], str(timestamp_to_date(x["timestamp"]))), x)
         )
 
         (
