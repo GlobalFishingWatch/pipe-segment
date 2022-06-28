@@ -1,5 +1,6 @@
-import apache_beam as beam
 import logging
+
+import apache_beam as beam
 
 
 class ReadMessages(beam.PTransform):
@@ -17,14 +18,22 @@ class ReadMessages(beam.PTransform):
 
     def query(self, source):
         query = f"""
-        SELECT *
-        FROM (
-            SELECT
-              CAST(UNIX_MILLIS(timestamp) AS FLOAT64) / 1000  AS timestamp,
-                * except (timestamp)
+        WITH source_with_trimmed_times AS (
+            SELECT LEAST(timestamp,
+                   TIMESTAMP(FORMAT("%s-%s-%sT23:59:59.999999Z",SUBSTR(_table_suffix, 1, 4), 
+                            SUBSTR(_table_suffix, 5, 2), SUBSTR(_table_suffix, 7, 2)))) AS timestamp,
+                   * EXCEPT (timestamp)
             FROM `{source}*`
             WHERE _TABLE_SUFFIX BETWEEN 
              '{self.start_date:%Y%m%d}' AND '{self.end_date:%Y%m%d}'
+        )
+
+        SELECT *
+        FROM (
+            SELECT
+              CAST(UNIX_MICROS(timestamp) AS FLOAT64) / 1000000  AS timestamp,
+                * except (timestamp)
+            FROM source_with_trimmed_times
         )
         """
         if self.ssvid_filter_query is not None:

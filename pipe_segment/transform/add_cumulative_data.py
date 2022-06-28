@@ -1,7 +1,8 @@
 import logging
 
-from apache_beam import PTransform
-from apache_beam import FlatMap
+from apache_beam import FlatMap, PTransform
+
+from .util import by_day
 
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
@@ -13,6 +14,10 @@ def idents2dict(key, cnt):
     return d
 
 
+def convert_idents(d: dict):
+    return [idents2dict(k, v) for (k, v) in d.items()]
+
+
 class AddCumulativeData(PTransform):
     def update_msgs(self, items):
         _, frags = items
@@ -21,30 +26,38 @@ class AddCumulativeData(PTransform):
         cumulative_msgs = 0
         cumulative_idents = {}
         cumulative_dests = {}
-        for x in frags:
-            x = x.copy()
-            cumulative_msgs += x["daily_message_count"]
-            x["first_timestamp"] = first_timestamp
-            x["cumulative_msg_count"] = cumulative_msgs
-            daily_idents = x["daily_identities"].copy()
-            for ident in daily_idents:
-                ident = ident.copy()
-                ident_cnt = ident.pop("count")
-                key = tuple(ident.items())
-                cumulative_idents[key] = cumulative_idents.get(key, 0) + ident_cnt
-            x["cumulative_identities"] = [
-                idents2dict(k, v) for (k, v) in cumulative_idents.items()
-            ]
 
-            daily_dests = x["daily_destinations"].copy()
-            for dest in daily_dests:
-                dest = dest.copy()
-                dest_cnt = dest.pop("count")
-                key = tuple(dest.items())
-                cumulative_dests[key] = cumulative_dests.get(key, 0) + dest_cnt
-            x["cumulative_destinations"] = [
-                idents2dict(k, v) for (k, v) in cumulative_dests.items()
-            ]
+        for _, daily_frags in by_day(frags):
+            daily_msgs = 0
+            daily_idents = {}
+            daily_dests = {}
+
+            for x in daily_frags:
+                x = x.copy()
+
+                daily_msgs += x["daily_message_count"]
+                cumulative_msgs += x["daily_message_count"]
+                x["first_timestamp"] = first_timestamp
+                x["daily_message_count"] = daily_msgs
+                x["cumulative_msg_count"] = cumulative_msgs
+                for ident in x["daily_identities"]:
+                    ident = ident.copy()
+                    ident_cnt = ident.pop("count")
+                    key = tuple(ident.items())
+                    daily_idents[key] = daily_idents.get(key, 0) + ident_cnt
+                    cumulative_idents[key] = cumulative_idents.get(key, 0) + ident_cnt
+                x["daily_identities"] = convert_idents(daily_idents)
+                x["cumulative_identities"] = convert_idents(cumulative_idents)
+
+                for dest in x["daily_destinations"]:
+                    dest = dest.copy()
+                    dest_cnt = dest.pop("count")
+                    key = tuple(dest.items())
+                    daily_dests[key] = daily_dests.get(key, 0) + dest_cnt
+                    cumulative_dests[key] = cumulative_dests.get(key, 0) + dest_cnt
+                x["daily_destinations"] = convert_idents(daily_dests)
+                x["cumulative_destinations"] = convert_idents(cumulative_dests)
+            # Only yield last fragment for this seg_id per day.
             yield x
 
     def expand(self, xs):

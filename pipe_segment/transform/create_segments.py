@@ -1,10 +1,11 @@
-import apache_beam as beam
 from collections import defaultdict
-from gpsdio_segment.matcher import Matcher
 from datetime import date
-import math
+
+import apache_beam as beam
+from gpsdio_segment.matcher import Matcher
 
 from ..tools import datetimeFromTimestamp
+from .util import by_day
 
 
 class CreateSegments(beam.PTransform):
@@ -51,21 +52,8 @@ class CreateSegments(beam.PTransform):
         return scores
 
     def frags_by_day(self, frags):
-        # TODO: frags should already be sorted by day due to how they
-        # TODO: are created, so this may not be necessary. Check.
-        frags = sorted(frags, key=lambda x: x["timestamp"])
-        current = []
-        day = datetimeFromTimestamp(frags[0]["timestamp"]).date()
-        for x in frags:
-            new_day = datetimeFromTimestamp(x["timestamp"]).date()
-            if new_day != day:
-                assert len(current) > 0
-                yield day, current
-                current = []
-                day = new_day
-            current.append(x["frag_id"])
-        assert len(current) > 0
-        yield day, current
+        for day, frags_by_day in by_day(frags):
+            yield day, [x["frag_id"] for x in frags_by_day]
 
     def merge_fragments(self, item):
         key, frags = item
