@@ -18,14 +18,25 @@ class ReadMessages(beam.PTransform):
 
     def query(self, source):
         query = f"""
-        WITH source_with_trimmed_times AS (
-            SELECT LEAST(timestamp,
-                   TIMESTAMP(FORMAT("%s-%s-%sT23:59:59.999999Z",SUBSTR(_table_suffix, 1, 4), 
-                            SUBSTR(_table_suffix, 5, 2), SUBSTR(_table_suffix, 7, 2)))) AS timestamp,
-                   * EXCEPT (timestamp)
+        WITH time_augmented AS (
+            SELECT *,
+                   TIMESTAMP(DATETIME_ADD(
+                        PARSE_DATETIME("%Y%m%d", _table_suffix ),  
+                        INTERVAL 1 DAY) AS midnight,
+                   TIMESTAMP(DATETIME_SUB(DATETIME_ADD(
+                        PARSE_DATETIME("%Y%m%d", _table_suffix ),  
+                        INTERVAL 1 DAY), INTERVAL 1 MICROSECOND) AS almost_midnight,
             FROM `{source}*`
             WHERE _TABLE_SUFFIX BETWEEN 
              '{self.start_date:%Y%m%d}' AND '{self.end_date:%Y%m%d}'
+        ),
+
+
+        source_with_fixed_times AS (
+            SELECT LEAST(timestamp, almost_midnight) AS timestamp,
+                   * EXCEPT (timestamp, midnight, almost_midnight)
+            FROM time_augmented
+            WHERE timestamp <= midnight
         )
 
         SELECT *
@@ -33,7 +44,7 @@ class ReadMessages(beam.PTransform):
             SELECT
               CAST(UNIX_MICROS(timestamp) AS FLOAT64) / 1000000  AS timestamp,
                 * except (timestamp)
-            FROM source_with_trimmed_times
+            FROM source_with_fixed_times
         )
         """
         if self.ssvid_filter_query is not None:
