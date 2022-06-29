@@ -13,4 +13,5 @@ def by_day(items, key="timestamp"):
             current = []
             day = new_day
         current.append(x)
+    assert len(current) > 0
     yield day, current
