@@ -1,15 +1,11 @@
 import logging
 
-from apache_beam import PTransform
-from apache_beam import FlatMap
+from apache_beam import FlatMap, PTransform
 from apache_beam.pvalue import TaggedOutput
+from gpsdio_segment.msg_processor import Destination, Identity
 
-from ..tools import datetimeFromTimestamp
-from ..tools import timestampFromDatetime
-
+from ..tools import datetimeFromTimestamp, timestampFromDatetime
 from .fragment_implementation import FragmentImplementation
-from gpsdio_segment.msg_processor import Identity, Destination
-
 
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
@@ -39,7 +35,7 @@ def make_schema():
         add_field(prefix + "timestamp", "TIMESTAMP")
         add_field(prefix + "lat", "FLOAT")
         add_field(prefix + "lon", "FLOAT")
-        add_field(prefix + "course", "FLOAT")
+        add_field(prefix + "course", "FLOAT", mode="NULLABLE")
         add_field(prefix + "speed", "FLOAT")
 
     def add_ident_field(name, value_type):

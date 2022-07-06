@@ -1,5 +1,6 @@
-import apache_beam as beam
 import logging
+
+import apache_beam as beam
 
 
 class ReadMessages(beam.PTransform):
@@ -20,7 +21,7 @@ class ReadMessages(beam.PTransform):
         SELECT *
         FROM (
             SELECT
-              CAST(UNIX_MILLIS(timestamp) AS FLOAT64) / 1000  AS timestamp,
+              CAST(UNIX_MICROS(timestamp) AS FLOAT64) / 1000000  AS timestamp,
                 * except (timestamp)
             FROM `{source}*`
             WHERE _TABLE_SUFFIX BETWEEN 
