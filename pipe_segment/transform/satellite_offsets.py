@@ -1,10 +1,8 @@
 from datetime import timedelta
 
 import apache_beam as beam
-from apache_beam import PTransform
-
 import apache_beam.io.gcp.bigquery
-from apache_beam import io
+from apache_beam import PTransform, io
 
 
 def make_schema():
@@ -40,7 +38,8 @@ class SatelliteOffsets(PTransform):
 
     schema = make_schema()
 
-    def __init__(self, start_date, end_date):
+    def __init__(self, source_table, start_date, end_date):
+        self.source_table = source_table
         self.start_date = start_date
         self.end_date = end_date
 
@@ -57,13 +56,16 @@ class SatelliteOffsets(PTransform):
             position_messages as (
               SELECT *,
                      ABS(TIMESTAMP_DIFF(LAG(timestamp) OVER 
-                         (PARTITION BY ssvid ORDER BY timestamp), timestamp, SECOND)) next_dt,
+                         (PARTITION BY ssvid, EXTRACT(DAY FROM timestamp) ORDER BY timestamp, receiver), 
+                         timestamp, SECOND)) next_dt,
                      ABS(TIMESTAMP_DIFF(LEAD(timestamp) OVER 
-                         (PARTITION BY ssvid ORDER BY timestamp), timestamp, SECOND)) prev_dt,
+                         (PARTITION BY ssvid, EXTRACT(DAY FROM timestamp)  ORDER BY timestamp, receiver), 
+                         timestamp, SECOND)) prev_dt,
                      TIMESTAMP_TRUNC(timestamp, HOUR) hour,
                      ROW_NUMBER() OVER (PARTITION BY ssvid, receiver, EXTRACT(MINUTE FROM timestamp)
-                                        ORDER by ABS(EXTRACT(SECOND FROM timestamp) - 30)) rn
-              FROM `pipe_ais_sources_v20190222.normalized_spire_*`
+                                ORDER by ABS(EXTRACT(MICROSECOND FROM timestamp) - 30), receiver,
+                                lon, lat, speed, course) rn
+              FROM `{self.source_table}*`
               WHERE _table_suffix BETWEEN "{start_window:%Y%m%d}" AND "{end_window:%Y%m%d}"
                 AND lat IS NOT NULL AND lon IS NOT NULL 
                 AND ABS(lat) <= 90 AND ABS(lon) <= 180
@@ -138,7 +140,6 @@ class SatelliteOffsets(PTransform):
                 AND abs(lon) <= 180
                 AND receiver_type = 'satellite'
                 AND type != 'AIS.27'
-                -- AND source = 'spire' 
                 AND rn = 1 -- only 1 point per ssvid, receiver pair per minute
             ),
             hours as (
@@ -158,12 +159,12 @@ class SatelliteOffsets(PTransform):
                 0.5 * (a.course + b.course) AS course,
                 a.receiver AS receiver1, b.receiver AS receiver2,
                 ROW_NUMBER() OVER (PARTITION BY ssvid, a.receiver, b.receiver, hour 
-                                   ORDER BY timestamp_diff(b.timestamp, a.timestamp, millisecond)) rn
+                        ORDER BY abs(timestamp_diff(b.timestamp, a.timestamp, MICROSECOND)),
+                          a.lat, b.lat, a.lon, b.lon, a.speed, b.speed, a.course, b.course) rn
               FROM base AS a
               JOIN base AS b
               USING (hour, ssvid) -- Joining w/ hour limits the range, chops off some offsets at edges
               WHERE a.receiver != b.receiver
-               AND ABS(timestamp_diff(b.timestamp, a.timestamp, millisecond) / 1000.0) < 600
                AND cos(3.14159 / 180 * (a.course - b.course)) > 0.8 -- very little difference in course
             ),
             -- This collects ping pairs with timestamp withing 10 minutes of each other.
@@ -230,8 +231,10 @@ class SatelliteOffsets(PTransform):
             safe_time_offset_by_hour_by_satellite AS (
                 SELECT receiver, hour,
                        GREATEST(dt, 
-                                IFNULL(LAG(dt) OVER(PARTITION BY receiver ORDER BY hour), 0),
-                                IFNULL(LEAD(dt) OVER(PARTITION BY receiver ORDER BY hour), 0)), dt
+                                IFNULL(LAG(dt) OVER(PARTITION BY receiver, EXTRACT(DAY FROM hour)
+                                 ORDER BY hour), 0),
+                                IFNULL(LEAD(dt) OVER(PARTITION BY receiver, EXTRACT(DAY FROM hour)
+                                 ORDER BY hour), 0)), dt
                 FROM time_offset_by_hour_by_satellite
             )
 

@@ -1,29 +1,28 @@
 import logging
-import ujson
 from datetime import datetime, timedelta
 
 import apache_beam as beam
+import ujson
+from apache_beam.options.pipeline_options import (GoogleCloudOptions,
+                                                  StandardOptions)
 from apache_beam.runners import PipelineState
-from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.options.pipeline_options import StandardOptions
-
-from .tools import datetimeFromTimestamp
-from .tools import as_timestamp
-
+from pipe_segment import message_schema
 from pipe_segment.options.segment import SegmentOptions
-from pipe_segment.transform.invalid_values import filter_invalid_values
-from pipe_segment.transform.fragment import Fragment
-from pipe_segment.transform.satellite_offsets import SatelliteOffsets
-
 from pipe_segment.transform.add_cumulative_data import AddCumulativeData
-from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
-from pipe_segment.transform.read_messages import ReadMessages
-from pipe_segment.transform.read_fragments import ReadFragments
 from pipe_segment.transform.create_segments import CreateSegments
+from pipe_segment.transform.filter_bad_satellite_times import \
+    FilterBadSatelliteTimes
+from pipe_segment.transform.fragment import Fragment
+from pipe_segment.transform.invalid_values import filter_invalid_values
+from pipe_segment.transform.read_fragments import ReadFragments
+from pipe_segment.transform.read_messages import ReadMessages
+from pipe_segment.transform.satellite_offsets import SatelliteOffsets
+from pipe_segment.transform.tag_with_fragid_and_date import \
+    TagWithFragIdAndDate
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
 from pipe_segment.transform.write_date_sharded import WriteDateSharded
-from pipe_segment.transform.tag_with_fragid_and_date import TagWithFragIdAndDate
-from pipe_segment import message_schema
+
+from .tools import as_timestamp, datetimeFromTimestamp
 
 
 def timestamp_to_date(ts: float) -> datetime.date:
@@ -78,7 +77,9 @@ class SegmentPipeline:
         )
 
         if self.options.sat_source:
-            satellite_offsets = pipeline | SatelliteOffsets(start_date, end_date)
+            satellite_offsets = pipeline | SatelliteOffsets(
+                self.options.sat_source, start_date, end_date
+            )
 
             if self.options.sat_offset_dest:
                 (

@@ -1,7 +1,8 @@
-import apache_beam as beam
 import logging
-from google.cloud import bigquery
+
+import apache_beam as beam
 from google.api_core.exceptions import BadRequest
+from google.cloud import bigquery
 
 
 class ReadFragments(beam.PTransform):
@@ -19,6 +20,7 @@ class ReadFragments(beam.PTransform):
         query = f'''SELECT COUNT(*) cnt FROM `{self.source}*`
                      WHERE _TABLE_SUFFIX BETWEEN "{self.start_date:%Y%m%d}"
                      AND "{self.end_date:%Y%m%d}"'''
+        logging.info(f"QUERY:\n{query}")
         request = client.query(query)
         try:
             [row] = request.result()

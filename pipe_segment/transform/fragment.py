@@ -1,4 +1,5 @@
 import logging
+import math
 
 from apache_beam import FlatMap, PTransform
 from apache_beam.pvalue import TaggedOutput
@@ -9,6 +10,10 @@ from .fragment_implementation import FragmentImplementation
 
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
+
+
+def none_to_inf(x):
+    return math.inf if (x is None) else x
 
 
 def make_schema():
@@ -101,7 +106,15 @@ class Fragment(PTransform):
     def fragment(self, item):
         _, messages = item
         messages = [self._convert_message_in(x) for x in messages]
-        messages.sort(key=lambda x: x["timestamp"])
+        messages.sort(
+            key=lambda x: (
+                x["timestamp"],
+                none_to_inf(x["lon"]),
+                none_to_inf(x["lat"]),
+                none_to_inf(x["speed"]),
+                none_to_inf(x["course"]),
+            )
+        )
         for key, value in self._fragmenter.fragment(messages):
             if key == self.OUTPUT_TAG_MESSAGES:
                 yield self._convert_message_out(value)
