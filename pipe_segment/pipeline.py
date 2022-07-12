@@ -116,26 +116,30 @@ class SegmentPipeline:
         existing_fragments = pipeline | ReadFragments(
             self.options.segment_dest,
             project=self.cloud_options.project,
-            start_date=start_date - timedelta(days=1),
+            start_date=None,
             end_date=start_date - timedelta(days=1),
             create_if_missing=True,
         )
 
-        fragmap = (
-            (new_fragments, existing_fragments)
-            | beam.Flatten()
+        all_fragments = (new_fragments, existing_fragments) | beam.Flatten()
+
+        segments = (
+            all_fragments
             | "AddSsvidKey" >> beam.Map(lambda x: (x["ssvid"], x))
             | "GroupBySsvid" >> beam.GroupByKey()
             | CreateSegments(self.merge_params)
-            | TagWithFragIdAndDate(start_date, end_date)
         )
+
+        msg_segmap = segments | TagWithFragIdAndDate(start_date, end_date)
+
+        frag_segmap = segments | "AddFragidKey" >> beam.Map(lambda x: (x["frag_id"], x))
 
         tagged_messages = messages | "AddKeyToMessages" >> beam.Map(
             lambda x: ((x["frag_id"], str(timestamp_to_date(x["timestamp"]))), x)
         )
 
         (
-            {"fragmap": fragmap, "target": tagged_messages}
+            {"segmap": msg_segmap, "target": tagged_messages}
             | "GroupMsgsWithMap" >> beam.CoGroupByKey()
             | "TagMsgsWithSegId" >> TagWithSegId()
             | "WriteMessages"
@@ -146,17 +150,21 @@ class SegmentPipeline:
             )
         )
 
-        tagged_fragments = new_fragments | "AddKeyToFragments" >> beam.Map(
-            lambda x: ((x["frag_id"], str(timestamp_to_date(x["timestamp"]))), x)
+        tagged_fragments = all_fragments | "AddKeyToFragments" >> beam.Map(
+            lambda x: (x["frag_id"], x)
         )
 
         (
-            {"fragmap": fragmap, "target": tagged_fragments}
+            {"segmap": frag_segmap, "target": tagged_fragments}
             | "GroupSegsWithMap" >> beam.CoGroupByKey()
             | "TagSegsWithsSegId" >> TagWithSegId()
             | "AddSegidKey" >> beam.Map(lambda x: (x["seg_id"], x))
             | "GroupBySegId" >> beam.GroupByKey()
             | "AddCumulativeData" >> AddCumulativeData()
+            # | "FilterFragsToDateRange"
+            # >> beam.Filter(
+            #     lambda x: start_date <= timestamp_to_date(x["timestamp"]) <= end_date
+            # )
             | "WriteFragments"
             >> WriteDateSharded(
                 self.options.segment_dest,

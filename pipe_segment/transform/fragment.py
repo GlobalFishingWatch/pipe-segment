@@ -29,7 +29,7 @@ def make_schema():
         )
 
     add_field("frag_id", "STRING")
-    add_field("seg_id", "STRING")
+    add_field("seg_id", "STRING", mode="NULLABLE")
     add_field("ssvid", "STRING")
     add_field("daily_message_count", "INTEGER")
     add_field("timestamp", "TIMESTAMP")
@@ -57,7 +57,9 @@ def make_schema():
     add_ident_field("daily_identities", Identity)
     add_ident_field("daily_destinations", Destination)
     add_field("first_timestamp", "TIMESTAMP")
-    add_field("cumulative_msg_count", "INTEGER")
+    add_field(
+        "cumulative_msg_count", "INTEGER"
+    )  # TODO: make name consistent with daily
     add_ident_field("cumulative_identities", Identity)
     add_ident_field("cumulative_destinations", Destination)
 

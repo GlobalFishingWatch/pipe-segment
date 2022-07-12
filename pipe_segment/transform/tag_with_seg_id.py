@@ -10,9 +10,9 @@ class TagWithSegId(PTransform):
     def tag_msgs(self, keyed_items):
         key, items = keyed_items
         objs = items["target"]
-        for x in items["fragmap"]:
+        for x in items["segmap"]:
             assert x["seg_id"] is not None, x
-        frag_map = {x["frag_id"]: x["seg_id"] for x in items["fragmap"]}
+        frag_map = {x["frag_id"]: x["seg_id"] for x in items["segmap"]}
         for x in objs:
             x = x.copy()
             x["seg_id"] = frag_map.get(x["frag_id"], None)

@@ -64,7 +64,7 @@ class CreateSegments(beam.PTransform):
             scores = self.compute_scores(open_segs, daily_fids, frag_map)
             active = defaultdict(list)
             while scores and daily_fids:
-                (sid, fid) = max(scores, key=lambda k: scores[k])
+                (sid, fid) = max(scores, key=lambda k: (scores[k], k))
                 if scores[sid, fid] == 0:
                     break
                 active[sid].append((day, fid))

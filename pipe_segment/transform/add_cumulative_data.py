@@ -20,7 +20,7 @@ def convert_idents(d: dict):
 
 class AddCumulativeData(PTransform):
     def update_msgs(self, items):
-        _, frags = items
+        seg_id, frags = items
         frags = sorted(frags, key=lambda x: x["timestamp"])
         first_timestamp = frags[0]["first_msg_of_day_timestamp"]
         cumulative_msgs = 0
@@ -32,11 +32,15 @@ class AddCumulativeData(PTransform):
             daily_idents = {}
             daily_dests = {}
 
+            daily_frags_output = []
             for x in daily_frags:
                 x = x.copy()
+                x["seg_id"] = None
 
+                # TODO: only update final item of day.
+                # TODO: need first_msg_of_frag_timestamp, last_msg_of_frag_timestampefrag_message_count, frag_identities, frag_destinations
                 daily_msgs += x["daily_message_count"]
-                cumulative_msgs += x["daily_message_count"]
+                cumulative_msgs += x["daily_message_count"]  # TODO change?
                 x["first_timestamp"] = first_timestamp
                 x["daily_message_count"] = daily_msgs
                 x["cumulative_msg_count"] = cumulative_msgs
@@ -57,8 +61,11 @@ class AddCumulativeData(PTransform):
                     cumulative_dests[key] = cumulative_dests.get(key, 0) + dest_cnt
                 x["daily_destinations"] = convert_idents(daily_dests)
                 x["cumulative_destinations"] = convert_idents(cumulative_dests)
-            # Only yield last fragment for this seg_id per day.
-            yield x
+                daily_frags_output.append(x)
+            # Only add seg_id to last fragment on a given day
+            daily_frags_output[-1]["seg_id"] = seg_id
+            for frag in daily_frags_output:
+                yield frag
 
     def expand(self, xs):
         return xs | FlatMap(self.update_msgs)
