@@ -47,18 +47,15 @@ class ReadFragments(beam.PTransform):
         SELECT *
         FROM (
             SELECT
-              null as seg_id,
               CAST(UNIX_MICROS(timestamp) AS FLOAT64) / 1000000  AS timestamp,
-              CAST(UNIX_MICROS(first_msg_of_day_timestamp) AS FLOAT64) / 1000000
-                    AS first_msg_of_day_timestamp,
-              CAST(UNIX_MICROS(last_msg_of_day_timestamp) AS FLOAT64) / 1000000
-                    AS last_msg_of_day_timestamp,
-              null AS first_timestamp,
-                * except (seg_id,
+              CAST(UNIX_MICROS(first_msg_timestamp) AS FLOAT64) / 1000000
+                    AS first_msg_timestamp,
+              CAST(UNIX_MICROS(last_msg_timestamp) AS FLOAT64) / 1000000
+                    AS last_msg_timestamp,
+                * except (
                         timestamp, 
-                        first_msg_of_day_timestamp, 
-                        last_msg_of_day_timestamp,
-                        first_timestamp
+                        first_msg_timestamp, 
+                        last_msg_timestamp
                     )
             FROM `{self.source}*`
             WHERE {self.query_condition}

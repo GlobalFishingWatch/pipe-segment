@@ -12,10 +12,10 @@ class TagWithSegId(PTransform):
         objs = items["target"]
         for x in items["segmap"]:
             assert x["seg_id"] is not None, x
-        frag_map = {x["frag_id"]: x["seg_id"] for x in items["segmap"]}
+        seg_map = {x["frag_id"]: x["seg_id"] for x in items["segmap"]}
         for x in objs:
             x = x.copy()
-            x["seg_id"] = frag_map.get(x["frag_id"], None)
+            x["seg_id"] = seg_map.get(x["frag_id"], None)
             yield x
 
     def expand(self, xs):
