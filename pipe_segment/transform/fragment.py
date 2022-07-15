@@ -104,10 +104,12 @@ class Fragment(PTransform):
         messages.sort(
             key=lambda x: (
                 x["timestamp"],
+                x["msgid"],
                 none_to_inf(x["lon"]),
                 none_to_inf(x["lat"]),
                 none_to_inf(x["speed"]),
                 none_to_inf(x["course"]),
+                none_to_inf(x["heading"]),
             )
         )
         for key, value in self._fragmenter.fragment(messages):
