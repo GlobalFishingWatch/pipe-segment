@@ -1,8 +1,8 @@
-from collections import Counter
 import datetime as dt
 import logging
-import pytz
+from collections import Counter
 
+import pytz
 from gpsdio_segment.segmenter import Segmenter as Fragmenter
 
 logger = logging.getLogger(__file__)
@@ -36,19 +36,19 @@ class FragmentImplementation(object):
             ssvid=frag_state.ssvid,
             noise=frag_state.noise,
             timestamp=timestamp,
-            first_msg_of_day_timestamp=first_msg_of_day.get("timestamp"),
-            first_msg_of_day_lat=first_msg_of_day.get("lat"),
-            first_msg_of_day_lon=first_msg_of_day.get("lon"),
-            first_msg_of_day_course=first_msg_of_day.get("course"),
-            first_msg_of_day_speed=first_msg_of_day.get("speed"),
-            last_msg_of_day_timestamp=last_msg_of_day.get("timestamp"),
-            last_msg_of_day_lat=last_msg_of_day.get("lat"),
-            last_msg_of_day_lon=last_msg_of_day.get("lon"),
-            last_msg_of_day_course=last_msg_of_day.get("course"),
-            last_msg_of_day_speed=last_msg_of_day.get("speed"),
-            daily_message_count=frag_state.msg_count,
-            daily_identities=idents2record("identities"),
-            daily_destinations=idents2record("destinations"),
+            first_msg_timestamp=first_msg_of_day.get("timestamp"),
+            first_msg_lat=first_msg_of_day.get("lat"),
+            first_msg_lon=first_msg_of_day.get("lon"),
+            first_msg_course=first_msg_of_day.get("course"),
+            first_msg_speed=first_msg_of_day.get("speed"),
+            last_msg_timestamp=last_msg_of_day.get("timestamp"),
+            last_msg_lat=last_msg_of_day.get("lat"),
+            last_msg_lon=last_msg_of_day.get("lon"),
+            last_msg_course=last_msg_of_day.get("course"),
+            last_msg_speed=last_msg_of_day.get("speed"),
+            msg_count=frag_state.msg_count,
+            identities=idents2record("identities"),
+            destinations=idents2record("destinations"),
         )
         return record
 

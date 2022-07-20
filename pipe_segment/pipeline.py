@@ -1,29 +1,28 @@
 import logging
-import ujson
 from datetime import datetime, timedelta
 
 import apache_beam as beam
+import ujson
+from apache_beam.options.pipeline_options import (GoogleCloudOptions,
+                                                  StandardOptions)
 from apache_beam.runners import PipelineState
-from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.options.pipeline_options import StandardOptions
-
-from .tools import datetimeFromTimestamp
-from .tools import as_timestamp
-
+from pipe_segment import message_schema, segment_schema
 from pipe_segment.options.segment import SegmentOptions
-from pipe_segment.transform.invalid_values import filter_invalid_values
-from pipe_segment.transform.fragment import Fragment
-from pipe_segment.transform.satellite_offsets import SatelliteOffsets
-
-from pipe_segment.transform.add_cumulative_data import AddCumulativeData
-from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
-from pipe_segment.transform.read_messages import ReadMessages
-from pipe_segment.transform.read_fragments import ReadFragments
+from pipe_segment.transform.create_segment_map import CreateSegmentMap
 from pipe_segment.transform.create_segments import CreateSegments
+from pipe_segment.transform.filter_bad_satellite_times import \
+    FilterBadSatelliteTimes
+from pipe_segment.transform.fragment import Fragment
+from pipe_segment.transform.invalid_values import filter_invalid_values
+from pipe_segment.transform.read_fragments import ReadFragments
+from pipe_segment.transform.read_messages import ReadMessages
+from pipe_segment.transform.satellite_offsets import SatelliteOffsets
+from pipe_segment.transform.tag_with_fragid_and_date import \
+    TagWithFragIdAndDate
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
 from pipe_segment.transform.write_date_sharded import WriteDateSharded
-from pipe_segment.transform.tag_with_fragid_and_date import TagWithFragIdAndDate
-from pipe_segment import message_schema
+
+from .tools import as_timestamp, datetimeFromTimestamp
 
 
 def timestamp_to_date(ts: float) -> datetime.date:
@@ -78,7 +77,9 @@ class SegmentPipeline:
         )
 
         if self.options.sat_source:
-            satellite_offsets = pipeline | SatelliteOffsets(start_date, end_date)
+            satellite_offsets = pipeline | SatelliteOffsets(
+                self.options.sat_source, start_date, end_date
+            )
 
             if self.options.sat_offset_dest:
                 (
@@ -112,29 +113,37 @@ class SegmentPipeline:
         messages = fragmented[Fragment.OUTPUT_TAG_MESSAGES]
         new_fragments = fragmented[Fragment.OUTPUT_TAG_FRAGMENTS]
 
+        new_fragments | WriteDateSharded(
+            self.options.fragment_tbl, self.cloud_options.project, Fragment.schema
+        )
+
         existing_fragments = pipeline | ReadFragments(
-            self.options.segment_dest,
+            self.options.fragment_tbl,
             project=self.cloud_options.project,
-            start_date=start_date - timedelta(days=1),
+            # TODO should be able to use single lookback, but would have to
+            # lookback at fragments not segments or something otherwise complicated
+            start_date=None,  # start_date - timedelta(days=1),
             end_date=start_date - timedelta(days=1),
             create_if_missing=True,
         )
 
-        fragmap = (
-            (new_fragments, existing_fragments)
-            | beam.Flatten()
+        all_fragments = (new_fragments, existing_fragments) | beam.Flatten()
+
+        segmap_src = (
+            all_fragments
             | "AddSsvidKey" >> beam.Map(lambda x: (x["ssvid"], x))
             | "GroupBySsvid" >> beam.GroupByKey()
-            | CreateSegments(self.merge_params)
-            | TagWithFragIdAndDate(start_date, end_date)
+            | CreateSegmentMap(self.merge_params)
         )
+
+        msg_segmap = segmap_src | TagWithFragIdAndDate(start_date, end_date)
 
         tagged_messages = messages | "AddKeyToMessages" >> beam.Map(
             lambda x: ((x["frag_id"], str(timestamp_to_date(x["timestamp"]))), x)
         )
 
         (
-            {"fragmap": fragmap, "target": tagged_messages}
+            {"segmap": msg_segmap, "target": tagged_messages}
             | "GroupMsgsWithMap" >> beam.CoGroupByKey()
             | "TagMsgsWithSegId" >> TagWithSegId()
             | "WriteMessages"
@@ -145,22 +154,30 @@ class SegmentPipeline:
             )
         )
 
-        tagged_fragments = new_fragments | "AddKeyToFragments" >> beam.Map(
-            lambda x: ((x["frag_id"], str(timestamp_to_date(x["timestamp"]))), x)
+        frag_segmap = segmap_src | "AddFragidKey" >> beam.Map(
+            lambda x: (x["frag_id"], x)
+        )
+
+        tagged_fragments = all_fragments | "AddKeyToFragments" >> beam.Map(
+            lambda x: (x["frag_id"], x)
         )
 
         (
-            {"fragmap": fragmap, "target": tagged_fragments}
+            {"segmap": frag_segmap, "target": tagged_fragments}
             | "GroupSegsWithMap" >> beam.CoGroupByKey()
             | "TagSegsWithsSegId" >> TagWithSegId()
             | "AddSegidKey" >> beam.Map(lambda x: (x["seg_id"], x))
             | "GroupBySegId" >> beam.GroupByKey()
-            | "AddCumulativeData" >> AddCumulativeData()
-            | "WriteFragments"
+            | "AddCumulativeData" >> CreateSegments()
+            | "FilterSegsToDateRange"
+            >> beam.Filter(
+                lambda x: start_date <= timestamp_to_date(x["timestamp"]) <= end_date
+            )
+            | "WriteSegments"
             >> WriteDateSharded(
                 self.options.segment_dest,
                 self.cloud_options.project,
-                Fragment.schema,
+                segment_schema.segment_schema,
             )
         )
 

@@ -32,9 +32,14 @@ class SegmentOptions(PipelineOptions):
             help="Bigquery table to write segmented messages",
         )
         required.add_argument(
+            "--fragment_tbl",
+            required=True,
+            help="Bigquery table to read and write fragments",
+        )
+        required.add_argument(
             "--segment_dest",
             required=True,
-            help="Bigquery table to read and write segments-days",
+            help="Bigquery table to write segments-days",
         )
         optional.add_argument(
             "--bad_hour_padding",

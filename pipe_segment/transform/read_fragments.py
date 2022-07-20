@@ -1,7 +1,8 @@
-import apache_beam as beam
 import logging
-from google.cloud import bigquery
+
+import apache_beam as beam
 from google.api_core.exceptions import BadRequest
+from google.cloud import bigquery
 
 
 class ReadFragments(beam.PTransform):
@@ -16,9 +17,9 @@ class ReadFragments(beam.PTransform):
 
     def table_present(self):
         client = bigquery.Client(self.project)
-        query = f'''SELECT COUNT(*) cnt FROM `{self.source}*`
-                     WHERE _TABLE_SUFFIX BETWEEN "{self.start_date:%Y%m%d}"
-                     AND "{self.end_date:%Y%m%d}"'''
+        query = f"""SELECT COUNT(*) cnt FROM `{self.source}*`
+                     WHERE {self.query_condition}"""
+        logging.info(f"QUERY:\n{query}")
         request = client.query(query)
         try:
             [row] = request.result()
@@ -33,30 +34,35 @@ class ReadFragments(beam.PTransform):
             return True
 
     @property
+    def query_condition(self):
+        if self.start_date is None:
+            return f'''_TABLE_SUFFIX <= "{self.end_date:%Y%m%d}"'''
+        else:
+            return '''_TABLE_SUFFIX BETWEEN "{self.start_date:%Y%m%d}"
+                         AND "{self.end_date:%Y%m%d}"'''
+
+    @property
     def query(self):
         query = f"""
         SELECT *
         FROM (
             SELECT
-              CAST(UNIX_MILLIS(timestamp) AS FLOAT64) / 1000  AS timestamp,
-              CAST(UNIX_MILLIS(first_msg_of_day_timestamp) AS FLOAT64) / 1000
-                    AS first_msg_of_day_timestamp,
-              CAST(UNIX_MILLIS(last_msg_of_day_timestamp) AS FLOAT64) / 1000
-                    AS last_msg_of_day_timestamp,
-              CAST(UNIX_MILLIS(first_timestamp) AS FLOAT64) / 1000
-                    AS first_timestamp,
+              CAST(UNIX_MICROS(timestamp) AS FLOAT64) / 1000000  AS timestamp,
+              CAST(UNIX_MICROS(first_msg_timestamp) AS FLOAT64) / 1000000
+                    AS first_msg_timestamp,
+              CAST(UNIX_MICROS(last_msg_timestamp) AS FLOAT64) / 1000000
+                    AS last_msg_timestamp,
                 * except (
                         timestamp, 
-                        first_msg_of_day_timestamp, 
-                        last_msg_of_day_timestamp,
-                        first_timestamp
+                        first_msg_timestamp, 
+                        last_msg_timestamp
                     )
             FROM `{self.source}*`
-            WHERE _TABLE_SUFFIX BETWEEN 
-             '{self.start_date:%Y%m%d}' AND '{self.end_date:%Y%m%d}'
+            WHERE {self.query_condition}
             ORDER BY ssvid, timestamp
         )
         """
+        logging.info(f"READ FRAGMENTS QUERY:\n{query}")
         return query
 
     def expand(self, pcoll):

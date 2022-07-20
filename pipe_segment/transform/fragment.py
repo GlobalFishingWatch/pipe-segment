@@ -1,4 +1,5 @@
 import logging
+import math
 
 from apache_beam import FlatMap, PTransform
 from apache_beam.pvalue import TaggedOutput
@@ -9,6 +10,10 @@ from .fragment_implementation import FragmentImplementation
 
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
+
+
+def none_to_inf(x):
+    return math.inf if (x is None) else x
 
 
 def make_schema():
@@ -24,13 +29,12 @@ def make_schema():
         )
 
     add_field("frag_id", "STRING")
-    add_field("seg_id", "STRING")
     add_field("ssvid", "STRING")
-    add_field("daily_message_count", "INTEGER")
+    add_field("msg_count", "INTEGER")
     add_field("timestamp", "TIMESTAMP")
     for prefix in [
-        "first_msg_of_day_",
-        "last_msg_of_day_",
+        "first_msg_",
+        "last_msg_",
     ]:
         add_field(prefix + "timestamp", "TIMESTAMP")
         add_field(prefix + "lat", "FLOAT")
@@ -49,12 +53,8 @@ def make_schema():
             field["fields"].append(dict(name=fld_name, type="STRING", mode="NULLABLE"))
         schema["fields"].append(field)
 
-    add_ident_field("daily_identities", Identity)
-    add_ident_field("daily_destinations", Destination)
-    add_field("first_timestamp", "TIMESTAMP")
-    add_field("cumulative_msg_count", "INTEGER")
-    add_ident_field("cumulative_identities", Identity)
-    add_ident_field("cumulative_destinations", Destination)
+    add_ident_field("identities", Identity)
+    add_ident_field("destinations", Destination)
 
     return schema
 
@@ -90,8 +90,8 @@ class Fragment(PTransform):
         frag = dict(frag.items())
         for k in [
             "timestamp",
-            "first_msg_of_day_timestamp",
-            "last_msg_of_day_timestamp",
+            "first_msg_timestamp",
+            "last_msg_timestamp",
         ]:
             assert k in frag, frag
             if k in frag and not frag[k] is None:
@@ -101,7 +101,17 @@ class Fragment(PTransform):
     def fragment(self, item):
         _, messages = item
         messages = [self._convert_message_in(x) for x in messages]
-        messages.sort(key=lambda x: x["timestamp"])
+        messages.sort(
+            key=lambda x: (
+                x["timestamp"],
+                x["msgid"],
+                none_to_inf(x["lon"]),
+                none_to_inf(x["lat"]),
+                none_to_inf(x["speed"]),
+                none_to_inf(x["course"]),
+                none_to_inf(x["heading"]),
+            )
+        )
         for key, value in self._fragmenter.fragment(messages):
             if key == self.OUTPUT_TAG_MESSAGES:
                 yield self._convert_message_out(value)
