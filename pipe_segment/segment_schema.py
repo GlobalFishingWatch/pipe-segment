@@ -1,10 +1,8 @@
 from gpsdio_segment.msg_processor import Destination, Identity
 
-from .transform.fragment import make_schema as make_fragment_schema
-
 
 def make_schema():
-    schema = make_fragment_schema()
+    schema = {"fields": []}
 
     def add_field(name, field_type, mode="REQUIRED", index=None):
         if index is None:
@@ -18,14 +16,10 @@ def make_schema():
             ),
         )
 
-    to_delete = {"msg_count", "identities", "destinations"}
-    for x in schema["fields"]:
-        k = x["name"]
-        if k.startswith("first_msg") or k.startswith("last_msg"):
-            to_delete.add(k)
-    schema["fields"] = [v for v in schema["fields"] if v["name"] not in to_delete]
-
+    add_field("frag_id", "STRING")
     add_field("seg_id", "STRING", index=0)
+    add_field("ssvid", "STRING")
+    add_field("timestamp", "TIMESTAMP")
 
     def add_ident_field(name, value_type):
         field = dict(
