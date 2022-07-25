@@ -65,7 +65,7 @@ class SatelliteOffsets(PTransform):
                      ROW_NUMBER() OVER (PARTITION BY ssvid, receiver, EXTRACT(MINUTE FROM timestamp)
                                 ORDER by ABS(EXTRACT(MICROSECOND FROM timestamp) - 30), receiver,
                                 lon, lat, speed, course) rn
-              FROM `{self.source_table}*`
+              FROM `{source}*`
               WHERE _table_suffix BETWEEN "{start_window:%Y%m%d}" AND "{end_window:%Y%m%d}"
                 AND lat IS NOT NULL AND lon IS NOT NULL 
                 AND ABS(lat) <= 90 AND ABS(lon) <= 180
@@ -248,7 +248,7 @@ class SatelliteOffsets(PTransform):
             ORDER BY receiver, hour
         """
         for start_window, end_window in self._get_query_windows():
-            query = template.format(start_window=start_window, end_window=end_window)
+            query = template.format(source=self.source_table, start_window=start_window, end_window=end_window)
             yield io.Read(
                 io.gcp.bigquery.BigQuerySource(query=query, use_standard_sql=True)
             )
