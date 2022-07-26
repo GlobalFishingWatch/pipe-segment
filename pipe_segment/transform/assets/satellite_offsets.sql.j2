@@ -1,10 +1,9 @@
 WITH
 
 raw_position_messages AS (
-    SELECT 
-        *
+    SELECT *
     FROM `{{source}}*`
-    WHERE _table_suffix BETWEEN "{{start_window:%Y%m%d}}" AND "{{end_window:%Y%m%d}}"
+    WHERE _TABLE_SUFFIX BETWEEN "{{start_window:%Y%m%d}}" AND "{{end_window:%Y%m%d}}"
         AND lat IS NOT NULL AND lon IS NOT NULL
         AND receiver IS NOT NULL
         AND ABS(lat) <= 90 AND ABS(lon) <= 180
@@ -56,8 +55,13 @@ distance_from_satellite_table as (
 ),
 
 median_dist_from_sat AS (
-    SELECT hour, receiver, AVG(distance_from_sat_km) avg_distance_from_sat_km, 
-    med_dist_from_sat_km 
+    SELECT 
+        hour, 
+        receiver,
+        -- NOTE: AVG() is non-deterministic and therefore may yield different results 
+        -- per run on the same data. Differences should only be to last few decimal points.
+        AVG(distance_from_sat_km) AS avg_distance_from_sat_km, 
+        med_dist_from_sat_km 
     FROM (
         SELECT 
             hour, receiver, distance_from_sat_km,
@@ -96,36 +100,38 @@ hours as (
     FROM base
     GROUP BY receiver, hour
 ),
+
 pairs AS (
     SELECT
     ssvid,
     hour,
     -- dt is in seconds
-    timestamp_diff(b.timestamp, a.timestamp, millisecond) / 1000.0 AS dt, 
+    TIMESTAMP_DIFF(b.timestamp, a.timestamp, MICROSECOND) / 1e6 AS dt, 
     a.lat AS lat1, b.lat AS lat2,
     a.lon AS lon1, b.lon AS lon2,
     0.5 * (a.speed + b.speed) AS speed,
     0.5 * (a.course + b.course) AS course,
     a.receiver AS receiver1, b.receiver AS receiver2,
     ROW_NUMBER() OVER (PARTITION BY ssvid, a.receiver, b.receiver, hour 
-            ORDER BY abs(timestamp_diff(b.timestamp, a.timestamp, MICROSECOND)),
+            ORDER BY ABS(timestamp_diff(b.timestamp, a.timestamp, MICROSECOND)),
                 a.lat, b.lat, a.lon, b.lon, a.speed, b.speed, a.course, b.course) rn
     FROM base AS a
     JOIN base AS b
     USING (hour, ssvid) -- Joining w/ hour limits the range, chops off some offsets at edges
     WHERE a.receiver != b.receiver
-    AND cos(3.14159 / 180 * (a.course - b.course)) > 0.8 -- very little difference in course
+    AND COS(3.14159 / 180 * (a.course - b.course)) > 0.8 -- very little difference in course
 ),
+
 -- This collects ping pairs with timestamp withing 10 minutes of each other.
 -- The two pairs also have similar course (from above), so we expect that
 -- boats are "well behaved" over this period.
 close_pairs AS (
     SELECT *,
-            (lon2 - lon1) * cos(0.5 * (lat1 + lat2) * 3.14159 / 180) * 60 AS dx,
+            (lon2 - lon1) * COS(0.5 * (lat1 + lat2) * 3.14159 / 180) * 60 AS dx,
             (lat2 - lat1) * 60 AS dy,
-            SUM(IF(rn = 1, 1, 0)) over(partition by receiver1, receiver2) AS pair_count
+            SUM(IF(rn = 1, 1, 0)) OVER (PARTITION BY receiver1, receiver2) AS pair_count
     FROM pairs
-    WHERE abs(dt) < 600 
+    WHERE ABS(dt) < 600 
         AND rn = 1  -- use one ping per hour for each (ssvid, receiver1, receiver2) combo
 ),
     
@@ -136,11 +142,13 @@ _distances_1 AS (
     FROM close_pairs
     WHERE pair_count >= 10
 ),
+
 _distances_2 AS (
     SELECT *, 
             COS(course  * 3.14159 / 180 - implied_course_rads) AS cos_delta
     FROM _distances_1
 ),
+
 distances AS (
     SELECT * except(distance),
             -- `sign` here takes care of case where boats implied course 
@@ -150,48 +158,55 @@ distances AS (
     -- only use cases where implied course ~agree or are ~opposite 
     WHERE ABS(cos_delta) > 0.8
 ),
+
 -- Compute the expected dts
 delta_ts AS (
     SELECT *, signed_distance / speed * 60 * 60 AS expected_dt,
     FROM distances
 ),
+
 grouped AS (
     SELECT *
     FROM (
     SELECT hour,
-            percentile_cont(dt - expected_dt, 0.5) over 
-                (partition by receiver1, receiver2, hour) AS dt,
+            PERCENTILE_CONT(dt - expected_dt, 0.5) OVER 
+                (PARTITION BY receiver1, receiver2, hour) AS dt,
             receiver1,
             receiver2
     FROM delta_ts
     )
 GROUP BY receiver1, receiver2, dt, hour
 ), 
+
 time_offset_by_hour_by_satellite AS (
     SELECT * 
     FROM (
-    SELECT receiver1 AS receiver,
-            hour,
-            percentile_cont(dt, 0.5) over (partition by receiver1, hour) AS dt
-    FROM grouped
+        SELECT receiver1 AS receiver,
+                hour,
+                PERCENTILE_CONT(dt, 0.5) over (PARTITION BY receiver1, hour) AS dt
+        FROM grouped
     )
     GROUP BY receiver, hour, dt
 ),
+
 safe_time_offset_by_hour_by_satellite AS (
-    SELECT receiver, hour,
-            GREATEST(dt, 
-                    IFNULL(LAG(dt) OVER(PARTITION BY receiver, EXTRACT(DAY FROM hour)
-                        ORDER BY hour), 0),
-                    IFNULL(LEAD(dt) OVER(PARTITION BY receiver, EXTRACT(DAY FROM hour)
-                        ORDER BY hour), 0)), dt
+    SELECT 
+        receiver, 
+        hour,
+        GREATEST(dt, 
+                IFNULL(LAG(dt) OVER(PARTITION BY receiver, EXTRACT(DAY FROM hour)
+                    ORDER BY hour), 0),
+                IFNULL(LEAD(dt) OVER(PARTITION BY receiver, EXTRACT(DAY FROM hour)
+                    ORDER BY hour), 0)), dt
     FROM time_offset_by_hour_by_satellite
 )
 
-
-SELECT * except (hour), CAST(UNIX_MILLIS(hour) AS FLOAT64) / 1000  AS hour
+SELECT 
+    * except (hour), 
+    CAST(UNIX_MILLIS(hour) AS FLOAT64) / 1000  AS hour
 FROM time_offset_by_hour_by_satellite
 LEFT JOIN hours 
 USING (hour, receiver)
-left join median_dist_from_sat
-using(hour, receiver)
+LEFT JOIN median_dist_from_sat
+USING(hour, receiver)
 ORDER BY receiver, hour
