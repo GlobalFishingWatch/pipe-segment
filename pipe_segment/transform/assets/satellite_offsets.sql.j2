@@ -36,7 +36,7 @@ distance_from_satellite_table as (
         norad_id,
         receiver
         FROM
-        `world-fishing-827.gfw_research_precursors.norad_to_receiver_v20200127` ) b
+        `{{norad_to_receiver_tbl}}` ) b
     ON a.receiver = b.receiver
     LEFT JOIN (
         SELECT
@@ -46,7 +46,7 @@ distance_from_satellite_table as (
         timestamp,
         norad_id
         FROM
-        `satellite_positions_v20190208.satellite_positions_one_second_resolution_*`
+        `{{sat_positions_tbl}}*`
         WHERE _table_suffix BETWEEN "{{start_window:%Y%m%d}}" AND "{{end_window:%Y%m%d}}" 
         GROUP BY
         norad_id, timestamp) c

@@ -39,8 +39,11 @@ class SatelliteOffsets(PTransform):
 
     schema = make_schema()
 
-    def __init__(self, source_table, start_date, end_date):
+    def __init__(self, source_table, norad_to_receiver_tbl, sat_positions_tbl, 
+                start_date, end_date):
         self.source_table = source_table
+        self.norad_to_receiver_tbl = norad_to_receiver_tbl
+        self.sat_positions_tbl = sat_positions_tbl
         self.start_date = start_date
         self.end_date = end_date
 
@@ -57,6 +60,8 @@ class SatelliteOffsets(PTransform):
         for start_window, end_window in self._get_query_windows():
             query = template.render(
                 source=self.source_table,
+                source=self.norad_to_receiver_tbl,
+                source=self.sat_positions_tbl,
                 start_window=start_window,
                 end_window=end_window
             )

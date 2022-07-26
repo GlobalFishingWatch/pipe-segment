@@ -22,6 +22,17 @@ class SegmentOptions(PipelineOptions):
             "must be a subset of `source`",
         )
         optional.add_argument(
+            "--norad_to_receiver_tbl",
+            required=False,
+            help="Bigquery table that links NORAD IDs and receivers",
+        )
+        optional.add_argument(
+            "--sat_positions_tbl",
+            required=False,
+            help="Bigquery table with the distance to satellite by receiver"
+            "at a one second resolution",
+        )
+        optional.add_argument(
             "--sat_offset_dest",
             required=False,
             help="Bigquery table to write satellite offsets to.`",
