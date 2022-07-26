@@ -203,7 +203,7 @@ safe_time_offset_by_hour_by_satellite AS (
 
 SELECT 
     * except (hour), 
-    CAST(UNIX_MILLIS(hour) AS FLOAT64) / 1000  AS hour
+    CAST(UNIX_MICROS(hour) AS FLOAT64) / 1e6  AS hour
 FROM time_offset_by_hour_by_satellite
 LEFT JOIN hours 
 USING (hour, receiver)
