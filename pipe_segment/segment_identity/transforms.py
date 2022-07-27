@@ -107,13 +107,16 @@ BQ_PARAMS = {
     },
 }
 
-def write_sink(sink_table, schema, from_dt, description):
+def write_sink(sink_table, schema, from_dt, to_dt, description):
     sink_table = sink_table.replace('bq://','')
     bq_params_cp = dict(BQ_PARAMS)
     bq_params_cp['destinationTableProperties']['description'] = description
 
     def compute_table(message):
-        table_suffix = from_dt.strftime("%Y%m%d")
+        # due this is for counting identity data
+        # if no last_timestamp, save in at the end of the boundary to_dt if has first_timestamp, if not at the start.
+        separator_ts=(message['last_timestamp'] if message['last_timestamp'] else (to_dt if message['first_timestamp'] else from_dt))
+        table_suffix = separator_ts.strftime("%Y%m%d")
         return "{}{}".format(sink_table, table_suffix)
 
     return beam.io.WriteToBigQuery(
