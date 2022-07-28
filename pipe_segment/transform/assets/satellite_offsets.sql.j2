@@ -3,7 +3,7 @@ WITH
 raw_position_messages AS (
     SELECT *
     FROM `{{source}}*`
-    WHERE _TABLE_SUFFIX BETWEEN "{{start_window:%Y%m%d}}" AND "{{end_window:%Y%m%d}}"
+    WHERE _TABLE_SUFFIX BETWEEN "{{start_window.strftime('%Y%m%d')}}" AND "{{end_window.strftime('%Y%m%d')}}"
         AND lat IS NOT NULL AND lon IS NOT NULL
         AND receiver IS NOT NULL
         AND ABS(lat) <= 90 AND ABS(lon) <= 180
@@ -47,7 +47,7 @@ distance_from_satellite_table as (
         norad_id
         FROM
         `{{sat_positions_tbl}}*`
-        WHERE _table_suffix BETWEEN "{{start_window:%Y%m%d}}" AND "{{end_window:%Y%m%d}}" 
+        WHERE _table_suffix BETWEEN "{{start_window.strftime('%Y%m%d')}}" AND "{{end_window.strftime('%Y%m%d')}}" 
         GROUP BY
         norad_id, timestamp) c
     ON a.timestamp = c.timestamp

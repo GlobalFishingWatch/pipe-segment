@@ -1,4 +1,5 @@
 from datetime import timedelta
+from importlib import resources
 from jinja2 import Template
 
 import apache_beam as beam
@@ -54,8 +55,9 @@ class SatelliteOffsets(PTransform):
         ] | "MergeSatOffsets" >> beam.Flatten()
 
     def _sat_offset_iter(self):
-        with open("assets/satellite_offsets.sql.j2") as f:
-            template = Template(f.read())
+        with resources.path('pipe_segment.transform.assets', 'satellite_offsets.sql.j2') as template_filepath:
+            with open(template_filepath) as f:
+                template = Template(f.read())
 
         for start_window, end_window in self._get_query_windows():
             query = template.render(
