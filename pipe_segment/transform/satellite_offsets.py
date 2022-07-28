@@ -60,8 +60,8 @@ class SatelliteOffsets(PTransform):
         for start_window, end_window in self._get_query_windows():
             query = template.render(
                 source=self.source_table,
-                source=self.norad_to_receiver_tbl,
-                source=self.sat_positions_tbl,
+                norad_to_receiver_tbl=self.norad_to_receiver_tbl,
+                sat_positions_tbl=self.sat_positions_tbl,
                 start_window=start_window,
                 end_window=end_window
             )
