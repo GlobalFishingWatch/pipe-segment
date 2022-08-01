@@ -110,6 +110,9 @@ class Fragment(PTransform):
                 none_to_inf(x["speed"]),
                 none_to_inf(x["course"]),
                 none_to_inf(x["heading"]),
+                none_to_inf(x["destination"]),
+                none_to_inf(x["length"]),
+                none_to_inf(x["width"]),
             )
         )
         for key, value in self._fragmenter.fragment(messages):
