@@ -8,6 +8,15 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [UNRELEASED]
 
+## v3.2.3 - 2022-08-02
+
+### Changed
+
+* [PIPELINE-946](https://globalfishingwatch.atlassian.net/browse/PIPELINE-946): Changes
+  how the `segment_identity_daily_` table was being saved. Issue detected when
+  running in back-fill mode, only saves one shard per backfill. Fix implies
+  saving one shard per day, priorities `last_timestamp` > `to_ts` > `from_ts`.
+
 ## v3.2.2 - 2022-07-21
 
 ### Changed
