@@ -268,12 +268,11 @@ class SegmentIdentityPipeline:
 
     @property
     def dest_segment_identity(self):
-        from_ts, _ = self.date_range
+        from_ts, to_ts = self.date_range
         return write_sink(
             self.options.dest_segment_identity,
             self.dest_segment_identity_schema,
-            timezoneToDatetime(from_ts),
-            "Daily segments identity processed in segment step.",
+            "Daily segments identity processed in segment step."
         )
 
     def pipeline(self):
