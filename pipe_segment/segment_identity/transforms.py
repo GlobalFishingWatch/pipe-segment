@@ -1,13 +1,10 @@
 from collections import defaultdict
 
-from apache_beam.transforms.window import TimestampedValue
-from ..tools import as_timestamp
-
-from shipdataprocess.normalize import normalize_callsign
-from shipdataprocess.normalize import normalize_shipname
+import apache_beam as beam
+from shipdataprocess.normalize import normalize_callsign, normalize_shipname
 from stdnum import imo as imo_validator
 
-import apache_beam as beam
+from ..tools import as_timestamp
 
 
 def normalize_imo(value):
@@ -80,11 +77,10 @@ def summarize_identifiers(segment):
     }
 
 
-def to_timestamped_value(record):
+def rename_timestamp(record):
     result = record.copy()
-    timestamp = as_timestamp(result.pop("timestamp"))
-
-    return TimestampedValue(result, timestamp)
+    result["summary_timestamp"] = result.pop("timestamp")
+    return result
 
 
 SOURCE_QUERY_TEMPLATE = """
@@ -133,8 +129,8 @@ def write_sink(sink_table, schema, from_dt, description):
     bq_params_cp["destinationTableProperties"]["description"] = description
 
     def compute_table(message):
-        table_suffix = from_dt.strftime("%Y%m%d")
-        return "{}{}".format(sink_table, table_suffix)
+        timestamp = as_timestamp(message["summary_timestamp"])
+        return f"{sink_table}{timestamp:%Y%m%d}"
 
     return beam.io.WriteToBigQuery(
         compute_table,

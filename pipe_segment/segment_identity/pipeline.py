@@ -1,15 +1,14 @@
-import apache_beam as beam
 import datetime as dt
 
+import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
+from pipe_segment.segment_identity.options import SegmentIdentityOptions
+from pipe_segment.segment_identity.transforms import (ReadSource,
+                                                      rename_timestamp,
+                                                      summarize_identifiers,
+                                                      write_sink)
 
 from ..tools import as_timestamp
-
-from pipe_segment.segment_identity.transforms import summarize_identifiers
-from pipe_segment.segment_identity.transforms import to_timestamped_value
-from pipe_segment.segment_identity.transforms import ReadSource
-from pipe_segment.segment_identity.transforms import write_sink
-from pipe_segment.segment_identity.options import SegmentIdentityOptions
 
 
 def parse_date_range(s):
@@ -44,6 +43,12 @@ class SegmentIdentityPipeline:
                     "name": "ssvid",
                     "type": "STRING",
                     "description": "source specific vessel id.  This is the transponder id, and for AIS this is the MMSI",
+                },
+                {
+                    "mode": "NULLABLE",
+                    "name": "summary_timestamp",
+                    "type": "TIMESTAMP",
+                    "description": "Timestamp this summary was created",
                 },
                 {
                     "mode": "NULLABLE",
@@ -285,8 +290,8 @@ class SegmentIdentityPipeline:
         return beam.Map(summarize_identifiers)
 
     @property
-    def timestamp_records(self):
-        return beam.Map(to_timestamped_value)
+    def rename_timestamp(self):
+        return beam.Map(rename_timestamp)
 
     @property
     def dest_segment_identity(self):
@@ -305,7 +310,7 @@ class SegmentIdentityPipeline:
             pipeline
             | "ReadDailySegments" >> self.source_segments()
             | "SummarizeIdentifiers" >> self.summarize_identifiers
-            | "TimestampMessages" >> self.timestamp_records
+            | "RenameTimestamp" >> self.rename_timestamp
             | "WriteSegmentIdentity" >> self.dest_segment_identity
         )
         return pipeline
