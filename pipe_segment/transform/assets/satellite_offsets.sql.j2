@@ -6,7 +6,6 @@ raw_position_messages AS (
     WHERE _TABLE_SUFFIX BETWEEN "{{start_window.strftime('%Y%m%d')}}" AND "{{end_window.strftime('%Y%m%d')}}"
         AND lat IS NOT NULL AND lon IS NOT NULL
         AND ABS(lat) <= 90 AND ABS(lon) <= 180
-        AND speed BETWEEN 5 AND 10
         AND course IS NOT NULL
         AND course != 360
         AND speed < 102.3
@@ -92,6 +91,7 @@ base AS (
         course
     FROM position_messages
     WHERE rn = 1 -- only 1 point per ssvid, receiver pair per minute
+        AND speed BETWEEN 5 AND 10
 ),
 
 hours as (
@@ -187,18 +187,6 @@ time_offset_by_hour_by_satellite AS (
         FROM grouped
     )
     GROUP BY receiver, hour, dt
-),
-
-safe_time_offset_by_hour_by_satellite AS (
-    SELECT 
-        receiver, 
-        hour,
-        GREATEST(dt, 
-                IFNULL(LAG(dt) OVER(PARTITION BY receiver, EXTRACT(DAY FROM hour)
-                    ORDER BY hour), 0),
-                IFNULL(LEAD(dt) OVER(PARTITION BY receiver, EXTRACT(DAY FROM hour)
-                    ORDER BY hour), 0)), dt
-    FROM time_offset_by_hour_by_satellite
 )
 
 SELECT 
