@@ -14,18 +14,6 @@ raw_position_messages AS (
         AND type != 'AIS.27'
 ),
 
-position_messages as (
-    SELECT 
-        *,
-        TIMESTAMP_TRUNC(timestamp, HOUR) hour,
-        ROW_NUMBER() OVER (PARTITION BY ssvid, receiver, TIMESTAMP_TRUNC(timestamp, MINUTE)
-            ORDER by ABS((EXTRACT(MICROSECOND FROM timestamp)/1e6) - 30), receiver, 
-                          lon, lat, speed, course, msgid, source, type, ssvid, timestamp, 
-                          heading, shipname, callsign, destination, imo, shiptype, 
-                          receiver_type, length, width, status) rn
-    FROM raw_position_messages
-),
-
 distance_from_satellite_table as (
     SELECT
         a.msgid,
@@ -37,7 +25,7 @@ distance_from_satellite_table as (
         c.lat as sat_lat,
         c.lon as sat_lon
     FROM
-        position_messages a
+        raw_position_messages a
     LEFT JOIN (
         SELECT
         norad_id,
@@ -78,7 +66,25 @@ median_dist_from_sat AS (
     )
     GROUP BY hour, receiver, med_dist_from_sat_km
 ),   
-    
+
+speed_limited_position_messages AS (
+    SELECT *
+    FROM raw_position_messages
+    WHERE speed BETWEEN 5 AND 10
+),
+
+position_messages as (
+    SELECT 
+        *,
+        TIMESTAMP_TRUNC(timestamp, HOUR) hour,
+        ROW_NUMBER() OVER (PARTITION BY ssvid, receiver, TIMESTAMP_TRUNC(timestamp, MINUTE)
+            ORDER by ABS((EXTRACT(MICROSECOND FROM timestamp)/1e6) - 30), receiver, 
+                          lon, lat, speed, course, msgid, source, type, ssvid, timestamp, 
+                          heading, shipname, callsign, destination, imo, shiptype, 
+                          receiver_type, length, width, status) rn
+    FROM speed_limited_position_messages
+),
+ 
 base AS (
     SELECT 
         ssvid,
@@ -91,7 +97,6 @@ base AS (
         course
     FROM position_messages
     WHERE rn = 1 -- only 1 point per ssvid, receiver pair per minute
-        AND speed BETWEEN 5 AND 10
 ),
 
 hours as (
