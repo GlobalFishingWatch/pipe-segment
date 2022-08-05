@@ -5,8 +5,14 @@ raw_position_messages AS (
     FROM `{{source}}*`
     WHERE _TABLE_SUFFIX BETWEEN "{{start_window.strftime('%Y%m%d')}}" AND "{{end_window.strftime('%Y%m%d')}}"
         AND lat IS NOT NULL AND lon IS NOT NULL
-        AND receiver IS NOT NULL
         AND ABS(lat) <= 90 AND ABS(lon) <= 180
+        AND speed BETWEEN 5 AND 10
+        AND course IS NOT NULL
+        AND course != 360
+        AND speed < 102.3
+        AND receiver_type = 'satellite'
+        AND receiver IS NOT NULL
+        AND type != 'AIS.27'
 ),
 
 position_messages as (
@@ -14,8 +20,10 @@ position_messages as (
         *,
         TIMESTAMP_TRUNC(timestamp, HOUR) hour,
         ROW_NUMBER() OVER (PARTITION BY ssvid, receiver, TIMESTAMP_TRUNC(timestamp, MINUTE)
-            ORDER by ABS((EXTRACT(MICROSECOND FROM timestamp)/1e6) - 30), 
-            receiver, lon, lat, speed, course, msgid) rn
+            ORDER by ABS((EXTRACT(MICROSECOND FROM timestamp)/1e6) - 30), receiver, 
+                          lon, lat, speed, course, msgid, source, type, ssvid, timestamp, 
+                          heading, shipname, callsign, destination, imo, shiptype, 
+                          receiver_type, length, width, status) rn
     FROM raw_position_messages
 ),
 
@@ -83,18 +91,9 @@ base AS (
         speed,
         course
     FROM position_messages
-    WHERE speed between 5 AND 10
-        AND lat is not null
-        AND lon is not null
-        AND course is not null
-        AND course != 360
-        AND speed  < 102.3
-        AND abs(lat) <= 90
-        AND abs(lon) <= 180
-        AND receiver_type = 'satellite'
-        AND type != 'AIS.27'
-        AND rn = 1 -- only 1 point per ssvid, receiver pair per minute
+    WHERE rn = 1 -- only 1 point per ssvid, receiver pair per minute
 ),
+
 hours as (
     SELECT receiver, hour, COUNT(*) pings
     FROM base
@@ -127,12 +126,13 @@ pairs AS (
 -- boats are "well behaved" over this period.
 close_pairs AS (
     SELECT *,
-            (lon2 - lon1) * COS(0.5 * (lat1 + lat2) * 3.14159 / 180) * 60 AS dx,
-            (lat2 - lat1) * 60 AS dy,
-            SUM(IF(rn = 1, 1, 0)) OVER (PARTITION BY receiver1, receiver2) AS pair_count
+        (lon2 - lon1) * COS(0.5 * (lat1 + lat2) * 3.14159 / 180) * 60 AS dx,
+        (lat2 - lat1) * 60 AS dy,
+        SUM(IF(rn = 1 AND ABS(dt) < 600 , 1, 0)) OVER 
+                (PARTITION BY receiver1, receiver2, TIMESTAMP_TRUNC(hour, DAY)) AS pair_count
     FROM pairs
     WHERE ABS(dt) < 600 
-        AND rn = 1  -- use one ping per hour for each (ssvid, receiver1, receiver2) combo
+        AND rn = 1  -- use one ping per hour for each (ssvid, receiver1, receiver2) combo as defined in `pairs`
 ),
     
 _distances_1 AS (
