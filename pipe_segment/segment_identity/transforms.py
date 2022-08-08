@@ -4,8 +4,6 @@ import apache_beam as beam
 from shipdataprocess.normalize import normalize_callsign, normalize_shipname
 from stdnum import imo as imo_validator
 
-from ..tools import as_timestamp
-
 
 def normalize_imo(value):
     if imo_validator.is_valid(str(value)):
@@ -129,7 +127,7 @@ def write_sink(sink_table, schema, from_dt, description):
     bq_params_cp["destinationTableProperties"]["description"] = description
 
     def compute_table(message):
-        timestamp = as_timestamp(message["summary_timestamp"])
+        timestamp = message["summary_timestamp"]
         return f"{sink_table}{timestamp:%Y%m%d}"
 
     return beam.io.WriteToBigQuery(
