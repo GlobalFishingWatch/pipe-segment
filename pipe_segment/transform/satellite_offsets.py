@@ -19,7 +19,7 @@ def make_schema():
             )
         )
 
-    add_field("hour", "timestamp")
+    add_field("hour", "TIMESTAMP")
     add_field("receiver", "STRING")
     add_field("dt", "FLOAT", "NULLABLE")
     add_field("pings", "INTEGER", "NULLABLE")

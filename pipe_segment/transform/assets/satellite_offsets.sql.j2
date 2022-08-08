@@ -1,7 +1,8 @@
 WITH
 
 raw_position_messages AS (
-    SELECT *
+    SELECT *,
+        TIMESTAMP_TRUNC(timestamp, HOUR) hour,
     FROM `{{source}}*`
     WHERE _TABLE_SUFFIX BETWEEN "{{start_window.strftime('%Y%m%d')}}" AND "{{end_window.strftime('%Y%m%d')}}"
         AND lat IS NOT NULL AND lon IS NOT NULL
@@ -76,7 +77,6 @@ speed_limited_position_messages AS (
 position_messages as (
     SELECT 
         *,
-        TIMESTAMP_TRUNC(timestamp, HOUR) hour,
         ROW_NUMBER() OVER (PARTITION BY ssvid, receiver, TIMESTAMP_TRUNC(timestamp, MINUTE)
             ORDER by ABS((EXTRACT(MICROSECOND FROM timestamp)/1e6) - 30), receiver, 
                           lon, lat, speed, course, msgid, source, type, ssvid, timestamp, 
@@ -195,8 +195,8 @@ time_offset_by_hour_by_satellite AS (
 )
 
 SELECT 
-    * except (hour), 
-    CAST(UNIX_MICROS(hour) AS FLOAT64) / 1e6  AS hour
+    * except (hour),
+    CAST(UNIX_MICROS(hour) AS FLOAT64) / 1000000  AS hour
 FROM time_offset_by_hour_by_satellite
 LEFT JOIN hours 
 USING (hour, receiver)
