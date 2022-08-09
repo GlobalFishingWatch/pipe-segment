@@ -51,10 +51,10 @@ def summarize_identifiers(segment):
         "seg_id": segment.get("seg_id"),
         "ssvid": segment.get("ssvid"),
         "timestamp": segment.get("timestamp"),
-        "first_timestamp": segment.get("first_msg_of_day_timestamp"),
-        "last_timestamp": segment.get("last_msg_of_day_timestamp"),
-        "first_pos_timestamp": segment.get("first_msg_of_day_timestamp"),
-        "last_pos_timestamp": segment.get("last_msg_of_day_timestamp"),
+        "first_timestamp": segment.get("first_msg_timestamp"),
+        "last_timestamp": segment.get("last_msg_timestamp"),
+        "first_pos_timestamp": segment.get("first_msg_timestamp"),
+        "last_pos_timestamp": segment.get("last_msg_timestamp"),
         "msg_count": segment.get("message_count"),
         # We approximate positional message counts by summing all the counts
         # from all the diferent transponder values we collected in the segment.

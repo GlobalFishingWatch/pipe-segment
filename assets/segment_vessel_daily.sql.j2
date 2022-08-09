@@ -42,7 +42,7 @@ WITH
   SELECT
     seg_id,
     ssvid,
-    DATE(MAX(last_timestamp)) as day,
+    DATE(MAX(summary_timestamp)) as day,
     MIN(first_timestamp) as first_timestamp,
     MAX(last_timestamp) as last_timestamp,
     MIN(first_pos_timestamp) as first_pos_timestamp,
