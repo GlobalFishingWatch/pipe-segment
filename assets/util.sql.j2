@@ -28,7 +28,7 @@ CREATE TEMP FUNCTION mostCommon(
    FROM (
      SELECT as struct r.value as value, sum(r.count) as count
      FROM unnest(arr) as r group by r.value
-     ORDER BY count DESC
+     ORDER BY count, value DESC
      LIMIT 1
      )
    )

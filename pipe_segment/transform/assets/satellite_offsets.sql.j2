@@ -78,7 +78,7 @@ position_messages as (
     SELECT 
         *,
         ROW_NUMBER() OVER (PARTITION BY ssvid, receiver, TIMESTAMP_TRUNC(timestamp, MINUTE)
-            ORDER by ABS((EXTRACT(MICROSECOND FROM timestamp)/1e6) - 30), receiver, 
+            ORDER by ABS((EXTRACT(MICROSECOND FROM timestamp)/1000000) - 30), receiver, 
                           lon, lat, speed, course, msgid, source, type, ssvid, timestamp, 
                           heading, shipname, callsign, destination, imo, shiptype, 
                           receiver_type, length, width, status) rn
@@ -110,7 +110,7 @@ pairs AS (
     ssvid,
     hour,
     -- dt is in seconds
-    TIMESTAMP_DIFF(b.timestamp, a.timestamp, MICROSECOND) / 1e6 AS dt, 
+    TIMESTAMP_DIFF(b.timestamp, a.timestamp, MICROSECOND) / 1000000 AS dt, 
     a.lat AS lat1, b.lat AS lat2,
     a.lon AS lon1, b.lon AS lon2,
     0.5 * (a.speed + b.speed) AS speed,
