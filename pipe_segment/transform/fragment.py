@@ -113,6 +113,15 @@ class Fragment(PTransform):
                 none_to_inf(x["destination"]),
                 none_to_inf(x["length"]),
                 none_to_inf(x["width"]),
+                none_to_inf(x["shiptype"]),
+                none_to_inf(x["status"]),
+                none_to_inf(x["source"]),
+                none_to_inf(x["type"]),
+                none_to_inf(x["shipname"]),
+                none_to_inf(x["callsign"]),
+                none_to_inf(x["imo"]),
+                none_to_inf(x["receiver_type"]),
+                none_to_inf(x["receiver"]),
             )
         )
         for key, value in self._fragmenter.fragment(messages):
