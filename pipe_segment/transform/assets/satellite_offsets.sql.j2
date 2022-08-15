@@ -78,10 +78,12 @@ position_messages as (
     SELECT 
         *,
         ROW_NUMBER() OVER (PARTITION BY ssvid, receiver, TIMESTAMP_TRUNC(timestamp, MINUTE)
-            ORDER by ABS((EXTRACT(MICROSECOND FROM timestamp)/1e6) - 30), receiver, 
+            ORDER by ABS((EXTRACT(MICROSECOND FROM timestamp)/1000000) - 30), receiver, 
                           lon, lat, speed, course, msgid, source, type, ssvid, timestamp, 
                           heading, shipname, callsign, destination, imo, shiptype, 
-                          receiver_type, length, width, status) rn
+                          receiver_type, length, width, status,
+                          (EXTRACT(MICROSECOND FROM timestamp)/1000000) - 30) rn
+                          -- centered time without ABS() is tiebreaker for edge cases
     FROM speed_limited_position_messages
 ),
  
@@ -110,15 +112,17 @@ pairs AS (
     ssvid,
     hour,
     -- dt is in seconds
-    TIMESTAMP_DIFF(b.timestamp, a.timestamp, MICROSECOND) / 1e6 AS dt, 
+    TIMESTAMP_DIFF(b.timestamp, a.timestamp, MICROSECOND) / 1000000 AS dt, 
     a.lat AS lat1, b.lat AS lat2,
     a.lon AS lon1, b.lon AS lon2,
     0.5 * (a.speed + b.speed) AS speed,
     0.5 * (a.course + b.course) AS course,
     a.receiver AS receiver1, b.receiver AS receiver2,
     ROW_NUMBER() OVER (PARTITION BY ssvid, a.receiver, b.receiver, hour 
-            ORDER BY ABS(timestamp_diff(b.timestamp, a.timestamp, MICROSECOND)),
-                a.lat, b.lat, a.lon, b.lon, a.speed, b.speed, a.course, b.course) rn
+            ORDER BY ABS(TIMESTAMP_DIFF(b.timestamp, a.timestamp, MICROSECOND)),
+                a.lat, b.lat, a.lon, b.lon, a.speed, b.speed, a.course, b.course,
+                TIMESTAMP_DIFF(b.timestamp, a.timestamp, MICROSECOND)) rn
+                -- diff without ABS() is needed as tie breaker in edge cases    
     FROM base AS a
     JOIN base AS b
     USING (hour, ssvid) -- Joining w/ hour limits the range, chops off some offsets at edges
