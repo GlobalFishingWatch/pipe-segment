@@ -2,24 +2,10 @@ import logging
 
 from apache_beam import FlatMap, PTransform
 
-from .util import by_day
+from .util import by_day, swap_null, idents2dict, convert_idents
 
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
-
-
-def idents2dict(key, cnt):
-    d = {}
-    for (id_key, id_val) in key:
-        if id_val == 'null':
-            id_val = None
-        d[id_key] = id_val
-    d["count"] = cnt
-    return d
-
-
-def convert_idents(d: dict):
-    return [idents2dict(key, cnt) for (key, cnt) in d.items()]
 
 
 class CreateSegments(PTransform):
@@ -30,11 +16,6 @@ class CreateSegments(PTransform):
         cumulative_msgs = 0
         cumulative_idents = {}
         cumulative_dests = {}
-
-        def swap_null(val):
-            if val is None:
-                val = 'null'
-            return val
 
         for _, daily_frags in by_day(frags):
             daily_msgs = 0
@@ -49,14 +30,14 @@ class CreateSegments(PTransform):
                 for ident in x["identities"]:
                     ident = ident.copy()
                     ident_cnt = ident.pop("count")
-                    key = tuple([(k, swap_null(v)) for (k, v) in ident.items()])
+                    key = tuple([(k, str(swap_null(v))) for (k, v) in ident.items()])
                     daily_idents[key] = daily_idents.get(key, 0) + ident_cnt
                     cumulative_idents[key] = cumulative_idents.get(key, 0) + ident_cnt
 
                 for dest in x["destinations"]:
                     dest = dest.copy()
                     dest_cnt = dest.pop("count")
-                    key = tuple([(k, swap_null(v)) for (k, v) in dest.items()])
+                    key = tuple([(k, str(swap_null(v))) for (k, v) in dest.items()])
                     daily_dests[key] = daily_dests.get(key, 0) + dest_cnt
                     cumulative_dests[key] = cumulative_dests.get(key, 0) + dest_cnt
 

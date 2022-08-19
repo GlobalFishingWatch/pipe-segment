@@ -21,6 +21,7 @@ from pipe_segment.transform.tag_with_fragid_and_date import \
     TagWithFragIdAndDate
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
 from pipe_segment.transform.write_date_sharded import WriteDateSharded
+from pipe_segment.transform.clean_segments import CleanSegments
 
 from .tools import as_timestamp, datetimeFromTimestamp
 
@@ -170,6 +171,7 @@ class SegmentPipeline:
             | "AddSegidKey" >> beam.Map(lambda x: (x["seg_id"], x))
             | "GroupBySegId" >> beam.GroupByKey()
             | "AddCumulativeData" >> CreateSegments()
+            | "AggregateCumulativeData" >> CleanSegments()
             | "FilterSegsToDateRange"
             >> beam.Filter(
                 lambda x: start_date <= timestamp_to_date(x["timestamp"]) <= end_date

@@ -15,3 +15,20 @@ def by_day(items, key="timestamp"):
         current.append(x)
     assert len(current) > 0
     yield day, current
+
+def swap_null(val):
+    if val is None:
+        val = 'null'
+    return val
+    
+def idents2dict(key, cnt):
+    d = {}
+    for (id_key, id_val) in key:
+        if id_val == 'null':
+            id_val = None
+        d[id_key] = id_val
+    d["count"] = cnt
+    return d
+
+def convert_idents(d: dict):
+    return [idents2dict(key, cnt) for (key, cnt) in d.items()]
