@@ -39,13 +39,15 @@ def extract(identities, key):
             mapping[value] += ident["count"]
     return [{"value": k, "count": v} for (k, v) in mapping.items()]
 
-
 def summarize_identifiers(segment):
     identities = segment["daily_identities"]
+    counts = [ident["count"] for ident in identities]
     transponders = extract(identities, "transponder_type")
     shipnames = extract(identities, "shipname")
     callsigns = extract(identities, "callsign")
     imos = extract(identities, "imo")
+    lengths = extract(identities, "length")
+    widths = extract(identities, "width")
 
     return {
         "seg_id": segment.get("seg_id"),
@@ -56,12 +58,10 @@ def summarize_identifiers(segment):
         "first_pos_timestamp": segment.get("first_msg_timestamp"),
         "last_pos_timestamp": segment.get("last_msg_timestamp"),
         "msg_count": segment.get("message_count"),
-        # We approximate positional message counts by summing all the counts
-        # from all the diferent transponder values we collected in the segment.
-        "pos_count": sum(map(extract_count, transponders)),
+        "pos_count": segment.get("daily_msg_count"),
         # We approximate identity message count by summing all the counts from
-        # all the different shipname values we collected.
-        "ident_count": sum(map(extract_count, shipnames)),
+        # the atomic identity messages we collected in the segment.
+        "ident_count": sum(counts),
         "shipname": shipnames or None,
         "callsign": callsigns or None,
         "imo": imos or None,
@@ -69,8 +69,8 @@ def summarize_identifiers(segment):
         "n_callsign": normalize_counted_array(normalize_callsign, callsigns) or None,
         "n_imo": normalize_counted_array(normalize_imo, imos) or None,
         "shiptype": None,
-        "length": None,
-        "width": None,
+        "length": lengths or None,
+        "width": widths or None,
         "noise": False,
     }
 
