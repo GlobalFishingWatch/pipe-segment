@@ -65,7 +65,7 @@ def summarize_identifiers(segment):
         "msg_count": segment.get("message_count"),
         # We approximate positional message counts by summing all the counts
         # from all the different transponder values we collected in the segment.
-        "pos_count": sum(map(extract_count, transponders)),
+        "pos_count": segment.get("daily_msg_count"),
         # We approximate identity message count by summing all the counts from
         # the atomic identity messages we collected in the segment.
         "ident_count": sum(counts),
