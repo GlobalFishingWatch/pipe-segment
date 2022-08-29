@@ -57,7 +57,7 @@ def summarize_identifiers(segment):
         "last_timestamp": segment.get("last_msg_timestamp"),
         "first_pos_timestamp": segment.get("first_msg_timestamp"),
         "last_pos_timestamp": segment.get("last_msg_timestamp"),
-        "msg_count": segment.get("message_count"),
+        "msg_count": segment.get("daily_msg_count") + sum(counts),
         "pos_count": segment.get("daily_msg_count"),
         # We approximate identity message count by summing all the counts from
         # the atomic identity messages we collected in the segment.
@@ -79,40 +79,7 @@ def rename_timestamp(record):
     result = record.copy()
     result["summary_timestamp"] = result.pop("timestamp")
     return result
-
-
-SOURCE_QUERY_TEMPLATE = """
-    SELECT
-      *
-    FROM
-      `{source_table}*`
-    WHERE
-      _TABLE_SUFFIX BETWEEN FORMAT_TIMESTAMP('%Y%m%d', TIMESTAMP_SECONDS({start_ts}))
-      AND FORMAT_TIMESTAMP('%Y%m%d', TIMESTAMP_SECONDS({end_ts}))
-      AND TRUE
-"""
-
-
-class ReadSource(beam.PTransform):
-    def __init__(self, source_table, start_ts, end_ts):
-        self.source_table = source_table.replace("bq://", "").replace(":", ".")
-        self.start_ts = int(start_ts)
-        self.end_ts = int(end_ts)
-
-    def read_source(self):
-        query = SOURCE_QUERY_TEMPLATE.format(
-            source_table=self.source_table,
-            start_ts=self.start_ts,
-            end_ts=self.end_ts,
-        )
-        return beam.io.ReadFromBigQuery(
-            query=query,
-            use_standard_sql=True,
-        )
-
-    def expand(self, pcoll):
-        return pcoll | self.read_source()
-
+    
 
 BQ_PARAMS = {
     "destinationTableProperties": {

@@ -3,8 +3,8 @@ import datetime as dt
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from pipe_segment.segment_identity.options import SegmentIdentityOptions
-from pipe_segment.segment_identity.transforms import (ReadSource,
-                                                      rename_timestamp,
+from pipe_segment.segment_identity.read_source import ReadSource
+from pipe_segment.segment_identity.transforms import (rename_timestamp,
                                                       summarize_identifiers,
                                                       write_sink)
 
