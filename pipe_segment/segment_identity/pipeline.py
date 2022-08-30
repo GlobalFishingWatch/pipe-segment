@@ -3,13 +3,12 @@ import datetime as dt
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from pipe_segment.segment_identity.options import SegmentIdentityOptions
-from pipe_segment.segment_identity.transforms import (ReadSource,
-                                                      rename_timestamp,
+from pipe_segment.segment_identity.read_source import ReadSource
+from pipe_segment.segment_identity.transforms import (rename_timestamp,
                                                       summarize_identifiers,
                                                       write_sink)
 
 from ..tools import as_timestamp
-
 
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
@@ -283,7 +282,7 @@ class SegmentIdentityPipeline:
 
     def source_segments(self):
         from_ts, to_ts = self.date_range
-        return ReadSource(self.options.source_segments, from_ts, to_ts)
+        return ReadSource(self.options.source_segments, self.options.source_fragments, from_ts, to_ts)
 
     @property
     def summarize_identifiers(self):
