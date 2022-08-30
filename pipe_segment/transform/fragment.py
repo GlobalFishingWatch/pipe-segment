@@ -42,7 +42,7 @@ def make_schema():
         add_field(prefix + "course", "FLOAT", mode="NULLABLE")
         add_field(prefix + "speed", "FLOAT")
 
-    def add_ident_field(name, value_type):
+    def add_ident_field(name, value_type, type_map):
         field = dict(
             name=name,
             type="RECORD",
@@ -50,11 +50,11 @@ def make_schema():
             fields=[dict(name="count", type="INTEGER", mode="NULLABLE")],
         )
         for fld_name in value_type._fields:
-            field["fields"].append(dict(name=fld_name, type="STRING", mode="NULLABLE"))
+            field["fields"].append(dict(name=fld_name, type=type_map.get(fld_name, "STRING"), mode="NULLABLE"))
         schema["fields"].append(field)
 
-    add_ident_field("identities", Identity)
-    add_ident_field("destinations", Destination)
+    add_ident_field("identities", Identity, type_map={"length" : "FLOAT", "width" : "FLOAT"})
+    add_ident_field("destinations", Destination, type_map={})
 
     return schema
 
