@@ -10,7 +10,6 @@ from pipe_segment.segment_identity.transforms import (rename_timestamp,
 
 from ..tools import as_timestamp
 
-
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
     return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
@@ -283,7 +282,7 @@ class SegmentIdentityPipeline:
 
     def source_segments(self):
         from_ts, to_ts = self.date_range
-        return ReadSource(self.options.source_segments, from_ts, to_ts)
+        return ReadSource(self.options.source_segments, self.options.source_fragments, from_ts, to_ts)
 
     @property
     def summarize_identifiers(self):

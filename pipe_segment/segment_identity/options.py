@@ -19,6 +19,13 @@ class SegmentIdentityOptions(PipelineOptions):
         )
 
         required.add_argument(
+            "--source_fragments",
+            required=True,
+            # action=ReadFileAction,
+            help="Bigquery table, query or file to read fragments from",
+        )
+
+        required.add_argument(
             "--dest_segment_identity",
             required=True,
             help="Bigquery table or file (prefix) to write daily segment identity records",

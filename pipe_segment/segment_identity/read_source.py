@@ -1,26 +1,33 @@
 import apache_beam as beam
-import logging
 
 SOURCE_QUERY_TEMPLATE = """
     SELECT
-      *
+      seg.* EXCEPT(cumulative_identities, cumulative_destinations),
+      frag.first_msg_timestamp, frag.last_msg_timestamp,
     FROM
-      `{source_table}*`
+      `{source_segments}*` seg
+    JOIN
+      `{source_fragments}*` frag
+    USING (frag_id)
     WHERE
-      _TABLE_SUFFIX BETWEEN FORMAT_TIMESTAMP('%Y%m%d', TIMESTAMP_SECONDS({start_ts}))
-      AND FORMAT_TIMESTAMP('%Y%m%d', TIMESTAMP_SECONDS({end_ts}))
+      (seg._TABLE_SUFFIX BETWEEN FORMAT_TIMESTAMP('%Y%m%d', TIMESTAMP_SECONDS({start_ts}))
+      AND FORMAT_TIMESTAMP('%Y%m%d', TIMESTAMP_SECONDS({end_ts})))
+      AND (frag._TABLE_SUFFIX BETWEEN FORMAT_TIMESTAMP('%Y%m%d', TIMESTAMP_SECONDS({start_ts}))
+      AND FORMAT_TIMESTAMP('%Y%m%d', TIMESTAMP_SECONDS({end_ts})))
       AND TRUE
 """
 
 class ReadSource(beam.PTransform):
-    def __init__(self, source_table, start_ts, end_ts):
-        self.source_table = source_table.replace("bq://", "").replace(":", ".")
+    def __init__(self, source_segments, source_fragments, start_ts, end_ts):
+        self.source_segments = source_segments.replace("bq://", "").replace(":", ".")
+        self.source_fragments = source_fragments.replace("bq://", "").replace(":", ".")
         self.start_ts = int(start_ts)
         self.end_ts = int(end_ts)
 
     def read_source(self):
         query = SOURCE_QUERY_TEMPLATE.format(
-            source_table=self.source_table,
+            source_segments=self.source_segments,
+            source_fragments=self.source_fragments,
             start_ts=self.start_ts,
             end_ts=self.end_ts,
         )
