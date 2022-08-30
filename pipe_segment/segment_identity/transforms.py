@@ -42,12 +42,14 @@ def extract(identities, key):
 def summarize_identifiers(segment):
     identities = segment["daily_identities"]
     counts = [ident["count"] for ident in identities]
-    transponders = extract(identities, "transponder_type")
     shipnames = extract(identities, "shipname")
     callsigns = extract(identities, "callsign")
     imos = extract(identities, "imo")
     lengths = extract(identities, "length")
     widths = extract(identities, "width")
+    pos_count = segment.get("daily_msg_count")
+    ident_count = sum(counts)
+    msg_count = pos_count + ident_count
 
     return {
         "seg_id": segment.get("seg_id"),
@@ -57,11 +59,11 @@ def summarize_identifiers(segment):
         "last_timestamp": segment.get("last_msg_timestamp"),
         "first_pos_timestamp": segment.get("first_msg_timestamp"),
         "last_pos_timestamp": segment.get("last_msg_timestamp"),
-        "msg_count": segment.get("daily_msg_count") + sum(counts),
-        "pos_count": segment.get("daily_msg_count"),
+        "msg_count": msg_count,
+        "pos_count": pos_count,
         # We approximate identity message count by summing all the counts from
         # the atomic identity messages we collected in the segment.
-        "ident_count": sum(counts),
+        "ident_count": ident_count,
         "shipname": shipnames or None,
         "callsign": callsigns or None,
         "imo": imos or None,
