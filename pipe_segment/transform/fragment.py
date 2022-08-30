@@ -42,7 +42,7 @@ def make_schema():
         add_field(prefix + "course", "FLOAT", mode="NULLABLE")
         add_field(prefix + "speed", "FLOAT")
 
-    def add_ident_field(name, value_type):
+    def add_ident_field(name, value_type, type_map):
         field = dict(
             name=name,
             type="RECORD",
@@ -50,11 +50,11 @@ def make_schema():
             fields=[dict(name="count", type="INTEGER", mode="NULLABLE")],
         )
         for fld_name in value_type._fields:
-            field["fields"].append(dict(name=fld_name, type="STRING", mode="NULLABLE"))
+            field["fields"].append(dict(name=fld_name, type=type_map.get(fld_name, "STRING"), mode="NULLABLE"))
         schema["fields"].append(field)
 
-    add_ident_field("identities", Identity)
-    add_ident_field("destinations", Destination)
+    add_ident_field("identities", Identity, type_map={"length" : "FLOAT", "width" : "FLOAT"})
+    add_ident_field("destinations", Destination, type_map={})
 
     return schema
 
@@ -110,6 +110,18 @@ class Fragment(PTransform):
                 none_to_inf(x["speed"]),
                 none_to_inf(x["course"]),
                 none_to_inf(x["heading"]),
+                none_to_inf(x["destination"]),
+                none_to_inf(x["length"]),
+                none_to_inf(x["width"]),
+                none_to_inf(x["shiptype"]),
+                none_to_inf(x["status"]),
+                none_to_inf(x["source"]),
+                none_to_inf(x["type"]),
+                none_to_inf(x["shipname"]),
+                none_to_inf(x["callsign"]),
+                none_to_inf(x["imo"]),
+                none_to_inf(x["receiver_type"]),
+                none_to_inf(x["receiver"]),
             )
         )
         for key, value in self._fragmenter.fragment(messages):

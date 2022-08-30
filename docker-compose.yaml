@@ -8,6 +8,14 @@ services:
     volumes:
       - ".:/opt/project"
       - "gcp:/root/.config/"
+  gcloud:
+    image: gfw/pipe-segment
+    build:
+      context: .
+      dockerfile: Dockerfile-scheduler
+    entrypoint: gcloud
+    volumes:
+      - "gcp:/root/.config/"
 
 # Use an external named volume so that we can share gcp auth across containers
 # Before first use, this volume must be manually created with
