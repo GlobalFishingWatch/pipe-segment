@@ -76,9 +76,10 @@ class SegmentPipeline:
             | "FilterInvalidValues" >> beam.Map(filter_invalid_values)
         )
 
-        if self.options.sat_source:
+        if self.options.sat_source and self.options.norad_to_receiver_tbl and self.options.sat_positions_tbl:
             satellite_offsets = pipeline | SatelliteOffsets(
-                self.options.sat_source, start_date, end_date
+                self.options.sat_source, self.options.norad_to_receiver_tbl, self.options.sat_positions_tbl, \
+                start_date, end_date
             )
 
             if self.options.sat_offset_dest:
