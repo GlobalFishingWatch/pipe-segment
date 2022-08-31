@@ -62,6 +62,32 @@ ORDER BY shard_date
 
 shard_dates_segments = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
+# %%
+q = f'''
+SELECT DISTINCT _table_suffix as shard_date
+FROM `{messages_segmented_table_new}*`
+ORDER BY shard_date
+'''
+
+shard_dates_messages_segmented = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+
+
+# %%
+q = f'''
+SELECT DISTINCT _table_suffix as shard_date
+FROM `{fragments_table_new}*`
+ORDER BY shard_date
+'''
+
+shard_dates_fragments = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+
+
+# %%
+try:
+    assert(shard_dates_segments.shard_date.to_list() == shard_dates_messages_segmented.shard_date.to_list() == shard_dates_fragments.shard_date.to_list())
+except:
+    print("ERROR: Shard dates do not match between tables. DO NOT CONTINUE QA BEFORE RECONCILING!")
+
 
 # %% [markdown]
 # ## Check num_segs against 30-day rolling average for a given day
@@ -90,13 +116,21 @@ def check_rolling_average(shard_date):
     try:
         for col in num_segs_check.columns:
             assert(num_segs_check.iloc[0][col] == 1)
+        return True
     except:
         print(f"FAILED: {shard_date}")
+        return False
 
 # %%
 # Cannot perform the check for the first 30 days reliably.
+all_passed = True
 for date in shard_dates_segments.shard_date[30:]:
-    check_rolling_average(date)
+    outcome = check_rolling_average(date)
+    if all_passed and not outcome:
+        all_passed = False
+
+if all_passed:
+    print("ALL PASSED")
 
 # %% [markdown]
 # ## Sanity checks
@@ -117,68 +151,42 @@ for date in shard_dates_segments.shard_date[30:]:
 
 # %%
 def check_segments_validity(shard_date):
-  q = f'''
-  CREATE TEMP FUNCTION timestamp_from_id(frag_id STRING) AS
-  ((
-    SELECT 
-    TIMESTAMP(STRING_AGG(arr, '-'))
-    FROM UNNEST(SPLIT(frag_id, '-')) AS arr WITH OFFSET as offset
-    WHERE offset BETWEEN 1 and 3
-  ));
-
-  SELECT 
-  IF(SUM(IF(daily_msg_count > 0, 1, 0)) = COUNT(*), 1, 0) as valid_daily_msg_ct,
-  IF(SUM(IF(cumulative_msg_count > 0, 1, 0)) = COUNT(*), 1, 0) as valid_cumul_msg_ct,
-  IF(SUM(IF(LEFT(frag_id, STRPOS(frag_id, "-")-1) = ssvid, 1, 0)) = COUNT(*), 1, 0) as valid_frag_id_ssvid,
-  IF(SUM(IF(timestamp_from_id(frag_id) >= timestamp_from_id(seg_id), 1, 0)) = COUNT(*), 1, 0) as valid_frag_seg_pair,
-  FROM `{segments_table_new}{shard_date}`
-  '''
-  # print(q)
-  segments_check_1 = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
-
-  try:
-    for col in segments_check_1.columns:
-        assert(segments_check_1.iloc[0][col] == 1)
-  except:
-    print(f"FAILED {shard_date}")
-
-# %%
-for date in shard_dates_segments.shard_date[30:]:
-    check_segments_validity(date)
-
-# %% [markdown]
-# ##### Duplicate seg_id check
-# *Cost: ~6KB depending on size of day*
-
-# %%
-def check_duplicate_segids(shard_date):
     q = f'''
-    WITH
+    CREATE TEMP FUNCTION timestamp_from_id(frag_id STRING) AS
+    ((
+        SELECT 
+        TIMESTAMP(STRING_AGG(arr, '-'))
+        FROM UNNEST(SPLIT(frag_id, '-')) AS arr WITH OFFSET as offset
+        WHERE offset BETWEEN 1 and 3
+    ));
 
-    duplicate_seg_ids AS (
-    SELECT
-    seg_id, COUNT(*)
+    SELECT 
+    IF(SUM(IF(daily_msg_count > 0, 1, 0)) = COUNT(*), 1, 0) as valid_daily_msg_ct,
+    IF(SUM(IF(cumulative_msg_count > 0, 1, 0)) = COUNT(*), 1, 0) as valid_cumul_msg_ct,
+    IF(SUM(IF(LEFT(frag_id, STRPOS(frag_id, "-")-1) = ssvid, 1, 0)) = COUNT(*), 1, 0) as valid_frag_id_ssvid,
+    IF(SUM(IF(timestamp_from_id(frag_id) >= timestamp_from_id(seg_id), 1, 0)) = COUNT(*), 1, 0) as valid_frag_seg_pair,
     FROM `{segments_table_new}{shard_date}`
-    GROUP BY seg_id
-    HAVING COUNT(*) > 1
-    )
-
-    SELECT
-    IF(COUNT(*) = 0, 1, 0)
-    FROM duplicate_seg_ids
     '''
     # print(q)
-    segments_check_2 = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+    segment_validity_check = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
     try:
-        for col in segments_check_2.columns:
-            assert(segments_check_2.iloc[0][col] == 1)
+        for col in segment_validity_check.columns:
+            assert(segment_validity_check.iloc[0][col] == 1)
+        return True
     except:
-        print(f"FAILED: {shard_date}")
+        print(f"FAILED {shard_date}")
+        return False
 
 # %%
-for date in shard_dates_segments.shard_date[30:]:
-    check_duplicate_segids(date)
+all_passed = True
+for date in shard_dates_segments.shard_date:
+    outcome = check_segments_validity(date)
+    if all_passed and not outcome:
+        all_passed = False
+
+if all_passed:
+    print("ALL PASSED")
 
 # %% [markdown]
 # ### `messages_segmented_`
@@ -193,52 +201,50 @@ for date in shard_dates_segments.shard_date[30:]:
 
 # %%
 def check_messages_segmented_validity(shard_date):
-  q = f'''
-  CREATE TEMP FUNCTION time_from_segid_array(arr ARRAY<STRING>) AS
-  ((
-    SELECT TIMESTAMP(CONCAT(arr[OFFSET(1)], '-', arr[OFFSET(2)], '-', arr[OFFSET(3)]))
-  ));
+    q = f'''
+    CREATE TEMP FUNCTION time_from_segid_array(arr ARRAY<STRING>) AS
+    ((
+        SELECT TIMESTAMP(CONCAT(arr[OFFSET(1)], '-', arr[OFFSET(2)], '-', arr[OFFSET(3)]))
+    ));
 
-  SELECT
-  IF(SUM(IF(DATE(time_from_segid_array(SPLIT(frag_id, '-'))) = DATE(timestamp), 1, 0)) = COUNTIF(frag_id IS NOT NULL), 1, 0) as valid_frag_id_timestamp,
-  IF(SUM(IF(LEFT(frag_id, STRPOS(frag_id, "-")-1) = ssvid, 1, 0)) = COUNTIF(frag_id IS NOT NULL), 1, 0) as valid_frag_id_ssvid,
-  IF(SUM(IF(TIMESTAMP(time_from_segid_array(SPLIT(frag_id, '-'))) >= TIMESTAMP(time_from_segid_array(SPLIT(seg_id, '-'))), 1, 0)) = COUNTIF((frag_id IS NOT NULL) AND (seg_id IS NOT NULL)), 1, 0) as valid_frag_seg_pair,
-  IF(SUM(IF(source IN ("spire", "orbcomm"), 1, 0)) = COUNT(*), 1, 0) as valid_source,
-  IF(SUM(IF(STARTS_WITH(type, "AIS"), 1, 0)) = COUNT(*), 1, 0) as valid_type,
-  IF(SUM(IF(receiver_type IN ("satellite", "terrestrial"), 1, 0)) = COUNT(*), 1, 0) as valid_receiver_type,
-  IF(COUNTIF((lon IS NOT NULL) AND (lon <= -181 OR lon >= 181)) = 0, 1, 0) AS valid_lon,
-  IF(COUNTIF((lat IS NOT NULL) AND (lat <= -91 OR lat >= 91)) = 0, 1, 0) AS valid_lat,
-  IF(COUNTIF((course IS NOT NULL) AND (course < 0 OR course >= 360)) = 0, 1, 0) AS valid_course,
-  IF(COUNTIF((heading IS NOT NULL) AND (heading < 0 OR heading >= 360)) = 0, 1, 0) AS valid_heading,
-  IF(COUNTIF((speed IS NOT NULL) AND (speed < 0 OR speed >= 102.3)) = 0, 1, 0) AS valid_speed_most,
-  IF(COUNTIF((type = 'AIS.27') AND (speed IS NOT NULL) AND (speed < 0 OR speed >= 63)) = 0, 1, 0) AS valid_speed_AIS27,
-  IF(COUNTIF((type IN ('AIS.5', 'AIS.19', 'AIS.21', 'AIS.24')) AND (shipname = '@@@@@@@@@@@@@@@@@@@@')) = 0, 1, 0) AS valid_shipname,
-  IF(COUNTIF((type IN ('AIS.5', 'AIS.24')) AND (shipname = '@@@@@@@')) = 0, 1, 0) AS valid_callsign,
-  IF(COUNTIF((type = 'AIS.5') AND (destination = '@@@@@@@@@@@@@@@@@@@@')) = 0, 1, 0) AS valid_destination,
-  FROM `{messages_segmented_table_new}{shard_date}`
-  '''
+    SELECT
+    IF(SUM(IF(DATE(time_from_segid_array(SPLIT(frag_id, '-'))) = DATE(timestamp), 1, 0)) = COUNTIF(frag_id IS NOT NULL), 1, 0) as valid_frag_id_timestamp,
+    IF(SUM(IF(LEFT(frag_id, STRPOS(frag_id, "-")-1) = ssvid, 1, 0)) = COUNTIF(frag_id IS NOT NULL), 1, 0) as valid_frag_id_ssvid,
+    IF(SUM(IF(TIMESTAMP(time_from_segid_array(SPLIT(frag_id, '-'))) >= TIMESTAMP(time_from_segid_array(SPLIT(seg_id, '-'))), 1, 0)) = COUNTIF((frag_id IS NOT NULL) AND (seg_id IS NOT NULL)), 1, 0) as valid_frag_seg_pair,
+    IF(SUM(IF(source IN ("spire", "orbcomm"), 1, 0)) = COUNT(*), 1, 0) as valid_source,
+    IF(SUM(IF(STARTS_WITH(type, "AIS"), 1, 0)) = COUNT(*), 1, 0) as valid_type,
+    IF(SUM(IF(receiver_type IN ("satellite", "terrestrial"), 1, 0)) = COUNT(*), 1, 0) as valid_receiver_type,
+    IF(COUNTIF((lon IS NOT NULL) AND (lon <= -181 OR lon >= 181)) = 0, 1, 0) AS valid_lon,
+    IF(COUNTIF((lat IS NOT NULL) AND (lat <= -91 OR lat >= 91)) = 0, 1, 0) AS valid_lat,
+    IF(COUNTIF((course IS NOT NULL) AND (course < 0 OR course >= 360)) = 0, 1, 0) AS valid_course,
+    IF(COUNTIF((heading IS NOT NULL) AND (heading < 0 OR heading >= 360)) = 0, 1, 0) AS valid_heading,
+    IF(COUNTIF((speed IS NOT NULL) AND (speed < 0 OR speed >= 102.3)) = 0, 1, 0) AS valid_speed_most,
+    IF(COUNTIF((type = 'AIS.27') AND (speed IS NOT NULL) AND (speed < 0 OR speed >= 63)) = 0, 1, 0) AS valid_speed_AIS27,
+    IF(COUNTIF((type IN ('AIS.5', 'AIS.19', 'AIS.21', 'AIS.24')) AND (shipname = '@@@@@@@@@@@@@@@@@@@@')) = 0, 1, 0) AS valid_shipname,
+    IF(COUNTIF((type IN ('AIS.5', 'AIS.24')) AND (shipname = '@@@@@@@')) = 0, 1, 0) AS valid_callsign,
+    IF(COUNTIF((type = 'AIS.5') AND (destination = '@@@@@@@@@@@@@@@@@@@@')) = 0, 1, 0) AS valid_destination,
+    FROM `{messages_segmented_table_new}{shard_date}`
+    '''
 
-  messages_segmented_check_1 = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+    messages_segmented_check_1 = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
-  try:
-    for col in messages_segmented_check_1.columns:
-        assert(messages_segmented_check_1.iloc[0][col] == 1)
-  except:
-    print(f"FAILED: {shard_date}")
-
-# %%
-q = f'''
-SELECT DISTINCT _table_suffix as shard_date
-FROM `{messages_segmented_table_new}*`
-ORDER BY shard_date
-'''
-
-shard_dates_messages_segmented = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
-
+    try:
+        for col in messages_segmented_check_1.columns:
+            assert(messages_segmented_check_1.iloc[0][col] == 1)
+        return True
+    except:
+        print(f"FAILED: {shard_date}")
+        return False
 
 # %%
-for date in shard_dates_messages_segmented.shard_date[30:]:
-    check_messages_segmented_validity(date)
+all_passed = True
+for date in shard_dates_messages_segmented.shard_date:
+    outcome = check_messages_segmented_validity(date)
+    if all_passed and not outcome:
+        all_passed = False
+
+if all_passed:
+    print("ALL PASSED")
 
 # %% [markdown]
 # ### `fragments_`
@@ -250,50 +256,134 @@ for date in shard_dates_messages_segmented.shard_date[30:]:
 
 # %%
 def check_fragments_validity(shard_date):
-  q = f'''
-  CREATE TEMP FUNCTION timestamp_from_id(frag_id STRING) AS
-  ((
+    q = f'''
+    CREATE TEMP FUNCTION timestamp_from_id(frag_id STRING) AS
+    ((
+        SELECT 
+        TIMESTAMP(STRING_AGG(arr, '-'))
+        FROM UNNEST(SPLIT(frag_id, '-')) AS arr WITH OFFSET as offset
+        WHERE offset BETWEEN 1 and 3
+    ));
+
     SELECT 
-    TIMESTAMP(STRING_AGG(arr, '-'))
-    FROM UNNEST(SPLIT(frag_id, '-')) AS arr WITH OFFSET as offset
-    WHERE offset BETWEEN 1 and 3
-  ));
+    IF(SUM(IF(msg_count > 0, 1, 0)) = COUNT(*), 1, 0) as valid_msg_count,
+    IF(SUM(IF(timestamp_from_id(frag_id) = first_msg_timestamp, 1, 0)) = COUNT(*), 1, 0) as valid_first_msg_timestamp,
+    IF(SUM(IF(DATE(timestamp_from_id(frag_id)) = DATE(timestamp), 1, 0)) = COUNT(*), 1, 0) as valid_timestamp,
+    IF(SUM(IF(DATE(timestamp_from_id(frag_id)) = DATE(last_msg_timestamp), 1, 0)) = COUNT(*), 1, 0) as valid_last_msg_timestamp,
+    IF(SUM(IF(LEFT(frag_id, STRPOS(frag_id, "-")-1) = ssvid, 1, 0)) = COUNT(*), 1, 0) as valid_frag_id_ssvid,
+    FROM `{fragments_table_new}{shard_date}`
+    '''
+    # print(q)
+    fragment_validity_check = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
-  SELECT 
-  IF(SUM(IF(msg_count > 0, 1, 0)) = COUNT(*), 1, 0) as valid_msg_count,
-  IF(SUM(IF(timestamp_from_id(frag_id) = first_msg_timestamp, 1, 0)) = COUNT(*), 1, 0) as valid_first_msg_timestamp,
-  IF(SUM(IF(DATE(timestamp_from_id(frag_id)) = DATE(timestamp), 1, 0)) = COUNT(*), 1, 0) as valid_timestamp,
-  IF(SUM(IF(DATE(timestamp_from_id(frag_id)) = DATE(last_msg_timestamp), 1, 0)) = COUNT(*), 1, 0) as valid_last_msg_timestamp,
-  IF(SUM(IF(LEFT(frag_id, STRPOS(frag_id, "-")-1) = ssvid, 1, 0)) = COUNT(*), 1, 0) as valid_frag_id_ssvid,
-  FROM `{fragments_table_new}{shard_date}`
-  '''
-  # print(q)
-  fragments_check_1 = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
-
-  try:
-    for col in fragments_check_1.columns:
-        assert(fragments_check_1.iloc[0][col] == 1)
-  except:
-    print(f"FAILED {shard_date}")
+    try:
+        for col in fragment_validity_check.columns:
+            assert(fragment_validity_check.iloc[0][col] == 1)
+        return True
+    except:
+        print(f"FAILED {shard_date}")
+        return False
 
 # %%
-q = f'''
-SELECT DISTINCT _table_suffix as shard_date
-FROM `{fragments_table_new}*`
-ORDER BY shard_date
-'''
+all_passed = True
+for date in shard_dates_fragments.shard_date:
+    outcome = check_fragments_validity(date)
+    if all_passed and not outcome:
+        all_passed = False
 
-shard_dates_fragments = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+if all_passed:
+    print("ALL PASSED")
+
+
+# %% [markdown]
+# ### Duplicates check for `segments_` and `fragments_`
+# *Cost: ~6KB depending on size of day*
+
+# %%
+def check_duplicate_ids(table, id_col, shard_date):
+    q = f'''
+    WITH
+
+    duplicate_ids AS (
+    SELECT
+    {id_col}, COUNT(*)
+    FROM `{table}{shard_date}`
+    GROUP BY {id_col}
+    HAVING COUNT(*) > 1
+    )
+
+    SELECT
+    IF(COUNT(*) = 0, 1, 0) as dupe_check
+    FROM duplicate_ids
+    '''
+    # print(q)
+    duplicate_ids_check = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+
+    try:
+        for col in duplicate_ids_check.columns:
+            assert(duplicate_ids_check.iloc[0][col] == 1)
+        return True
+    except:
+        print(f"FAILED: {shard_date}")
+        return False
+
+# %%
+all_passed = True
+for date in shard_dates_segments.shard_date:
+    outcome = check_duplicate_ids(segments_table_new, "seg_id", date)
+    if all_passed and not outcome:
+        all_passed = False
+
+if all_passed:
+    print("ALL PASSED")
+
+# %%
+all_passed = True
+for date in shard_dates_segments.shard_date:
+    outcome = check_duplicate_ids(fragments_table_new, "frag_id", date)
+    if all_passed and not outcome:
+        all_passed = False
+
+if all_passed:
+    print("ALL PASSED")
+
+# %% [markdown]
+# ### Fragment/segment join checks
+#
+# Make sure there is a one-to-one relationship between `segments_` and `framents_` on `frag_id` on every shard date. There should be a one-to-one relationship across all dates as well, but this is designed to be run on a daily basis. The construction of the `frag_id` should keep `frag_id` from having a duplicate on any other shard date by definition, but that is still an assumption we make here to keep checks at the daily level.
+
+# %%
+def check_seg_frag_relationship(seg_table, frag_table, shard_date):
+    q = f'''
+    SELECT
+        IF(COUNTIF((seg.frag_id IS NULL) OR (frag.frag_id IS NULL)) = 0, 1, 0) as count_bad,
+    FROM `{seg_table}{shard_date}` seg
+    FULL OUTER JOIN `{frag_table}{shard_date}` frag
+    USING (frag_id)
+    '''
+    # print(q)
+    seg_frag_relationship_check = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+
+    try:
+        for col in seg_frag_relationship_check.columns:
+            assert(seg_frag_relationship_check.iloc[0][col] == 1)
+        return True
+    except:
+        print(f"FAILED: {shard_date}")
+        return False
 
 
 # %%
-for date in shard_dates_fragments.shard_date[30:]:
-    check_fragments_validity(date)
+all_passed = True
+for date in shard_dates_segments.shard_date:
+    outcome = check_seg_frag_relationship(segments_table_new, fragments_table_new, date)
+    if all_passed and not outcome:
+        all_passed = False
+
+if all_passed:
+    print("ALL PASSED")
 
 # %%
-
-
-
 
 # %% [markdown]
 # # EXPLORATORY ANALYSIS FOR `num_segs` METRIC
@@ -331,6 +421,8 @@ ORDER BY date
 
 # print(q)
 df_segs_old_daily = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+
+# %%
 
 # %%
 df_segs_old_daily_aug1 = df_segs_old_daily[df_segs_old_daily.date >= '2020-08-01'].reset_index(drop=True).copy()
