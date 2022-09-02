@@ -35,15 +35,26 @@ pd.set_option("max_rows", 20)
 data_folder = 'data'
 
 dataset_old = 'pipe_production_v20201001'
-dataset_new = 'pipe_ais_test_20220821_monthly_internal'
+dataset_new = 'pipe_ais_test_20220830193000_monthly_internal'
 
 fragments_table = 'fragments_'
 segments_table = 'segments_'
 messages_segmented_table = 'messages_segmented_'
+segment_info_table = 'segment_info'
 
 
 # %% [markdown]
 # ## Data generation
+
+# %%
+def make_daily(df):
+    df_daily = df.copy().groupby(['date', 'year']).sum().reset_index()
+    df_daily['avg_seg_length_h_new'] = df_daily.sum_seg_length_h_new / df_daily.num_segs_distinct_new
+    df_daily['avg_seg_length_h_old'] = df_daily.sum_seg_length_h_old / df_daily.num_segs_distinct_old
+    df_daily['avg_seg_length_h_diff'] = df_daily.avg_seg_length_h_new - df_daily.avg_seg_length_h_old
+    return df_daily
+
+
 
 # %%
 q = f'''
@@ -117,7 +128,7 @@ FROM segment_join
 # print(q)
 df_segs_daily_by_ssvid = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
-df_segs_daily = df_segs_daily_by_ssvid.copy().groupby(['date', 'year']).sum().reset_index()
+df_segs_daily = make_daily(df_segs_daily_by_ssvid)
 
 # Quick checks for duplicate seg_id
 assert(df_segs_daily_by_ssvid[df_segs_daily_by_ssvid.num_segs_new != df_segs_daily_by_ssvid.num_segs_distinct_new].shape[0] == 0)
@@ -125,7 +136,7 @@ assert(df_segs_daily[df_segs_daily.num_segs_new != df_segs_daily.num_segs_distin
 
 
 # %%
-def plot_new_vs_old(df, col_prefix, title, ylabel="Number of segments"):
+def plot_new_vs_old(df, col_prefix, title, ylabel=""):
     fig = plt.figure()
     ax = df[[f'{col_prefix}old']].plot(label='old')
     df[[f'{col_prefix}new']].plot(label='new', ax=ax)
@@ -141,7 +152,7 @@ def plot_new_vs_old(df, col_prefix, title, ylabel="Number of segments"):
 
 
 # %%
-def plot_diff(df, col_prefix, title, ylabel="Total segment hours"):
+def plot_diff(df, col_prefix, title, ylabel=""):
     fig = plt.figure()
     ax = df[[f'{col_prefix}diff']].plot(c='green', label='diff')
     years = list(df.year.sort_values().unique())
@@ -160,23 +171,130 @@ def plot_diff(df, col_prefix, title, ylabel="Total segment hours"):
 
 # %%
 fig = plot_new_vs_old(df_segs_daily, col_prefix='num_segs_distinct_', 
-                      title="Number of segments per day\nAll baby pipe MMSI")
+                      title="Number of segments per day\nAll baby pipe MMSI",
+                      ylabel="Number of active segments")
 
 
 # %%
 fig = plot_diff(df_segs_daily, col_prefix='num_segs_distinct_', 
-                title="Difference between segmenters (new - old)\nAll baby pipe MMSI")
+                title="Difference between segmenters (new - old)\nAll baby pipe MMSI",
+                ylabel="Number of active segments")
 
 # %%
 fig = plot_new_vs_old(df_segs_daily, col_prefix='sum_seg_length_h_', 
-                      title="Total length of segments per day (hours)\nAll baby pipe MMSI")
+                      title="Total length of segments per day (hours)\nAll baby pipe MMSI",
+                      ylabel="Total active segment hours")
 
 # %%
 fig = plot_diff(df_segs_daily, col_prefix='sum_seg_length_h_', 
-                title="Difference between segmenters (new - old)\nAll baby pipe MMSI")
+                title="Difference between segmenters (new - old)\nAll baby pipe MMSI",
+                ylabel="Total active segment hours")
+
+# %%
+fig = plot_new_vs_old(df_segs_daily, col_prefix='avg_seg_length_h_', 
+                      title="Average length of active segments per day (hours)\nAll baby pipe MMSI",
+                      ylabel="Avg. length of active segments (hour)")
+
+# %%
+fig = plot_diff(df_segs_daily, col_prefix='avg_seg_length_h_', 
+                title="Difference between segmenters (new - old)\nAll baby pipe MMSI",
+                ylabel="Avg. length of active segments (hour)")
 
 # %% [markdown]
-# ## Daily stats without 413000000
+# ## MMSI with biggest changes
+
+# %%
+q = f'''
+WITH
+
+seg_hours_new AS (
+  SELECT 
+    ssvid,
+    seg_id,
+    TIMESTAMP_DIFF(last_timestamp, first_timestamp, MINUTE)/60.0 as hours
+  FROM `{dataset_new}.{segment_info_table}`
+),
+
+seg_hours_old AS (
+  SELECT
+    ssvid, 
+    seg_id,
+    TIMESTAMP_DIFF(last_timestamp, IF(first_timestamp >= '2020-01-01', first_timestamp, TIMESTAMP('2020-01-01')), MINUTE)/60.0 as hours
+  FROM `{dataset_old}.{segment_info_table}`
+  WHERE (DATE(first_timestamp) <= '2020-12-31' AND DATE(last_timestamp) >= '2020-01-01')
+  AND (ssvid IN (SELECT DISTINCT ssvid FROM `{dataset_new}.{segment_info_table}`))
+),
+
+ssvid_stats_new AS (
+  SELECT 
+    ssvid,
+    COUNT(*) as num_segs_new,
+    COUNT(DISTINCT seg_id) as num_segs_distinct_new,
+    SUM(hours) as sum_seg_length_h_new,
+    SUM(hours) / COUNT(*) as avg_seg_length_h_new
+  FROM seg_hours_new
+  GROUP BY ssvid
+),
+
+ssvid_stats_old AS (
+  SELECT 
+    ssvid,
+    COUNT(*) as num_segs_old,
+    COUNT(DISTINCT seg_id) as num_segs_distinct_old,
+    SUM(hours) as sum_seg_length_h_old,
+    SUM(hours) / COUNT(*) as avg_seg_length_h_old
+  FROM seg_hours_old
+  GROUP BY ssvid
+)
+
+SELECT *,
+num_segs_new - num_segs_old AS num_segs_diff,
+num_segs_distinct_new - num_segs_distinct_old AS num_segs_distinct_diff,
+sum_seg_length_h_new - sum_seg_length_h_old AS sum_seg_length_h_diff,
+avg_seg_length_h_new - avg_seg_length_h_old AS avg_seg_length_h_diff,
+ABS(num_segs_new - num_segs_old) AS num_segs_diff_abs,
+ABS(num_segs_distinct_new - num_segs_distinct_old) AS num_segs_distinct_diff_abs,
+ABS(sum_seg_length_h_new - sum_seg_length_h_old) AS sum_seg_length_h_diff_abs,
+ABS(avg_seg_length_h_new - avg_seg_length_h_old) AS avg_seg_length_h_diff_abs,
+FROM ssvid_stats_new
+FULL OUTER JOIN ssvid_stats_old
+USING(ssvid)
+'''
+# print(q)
+df_ssvid_stats = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+
+
+# %% [markdown]
+# #### Number of segments
+#
+# The overwhelming majority of the drop of segments occurs for `413000000`. The baby pipe does not include `412000000` but this is likely similar along with other very, very highly spoofed MMSI.
+
+# %%
+df_ssvid_stats.sort_values("num_segs_distinct_diff_abs", ascending=False)[:10][['ssvid', 'num_segs_distinct_new', 'num_segs_distinct_old', 'num_segs_distinct_diff', 'num_segs_distinct_diff_abs']].reset_index(drop=True)
+
+# %% [markdown]
+# #### Total segment hours
+
+# %%
+df_ssvid_stats.sort_values("sum_seg_length_h_diff_abs", ascending=False)[:20][['ssvid', 'sum_seg_length_h_new', 'sum_seg_length_h_old', 'sum_seg_length_h_diff', 'sum_seg_length_h_diff_abs']].reset_index(drop=True)
+
+# %% [markdown]
+# #### Average segment length (hours)
+
+# %%
+df_ssvid_stats.sort_values("avg_seg_length_h_diff_abs", ascending=False)[:20][['ssvid', 'avg_seg_length_h_new', 'avg_seg_length_h_old', 'avg_seg_length_h_diff', 'avg_seg_length_h_diff_abs']].reset_index(drop=True)
+
+# %%
+
+# %% [markdown]
+# #### Segment length (hours)
+
+# %%
+
+# %%
+
+# %% [markdown]
+# ## Daily patterns of 413000000
 #
 # `413000000` generally dominates the overall pattern so it is interesting to see that and to see what the pattern looks like without `413000000`
 
@@ -187,7 +305,8 @@ fig = plot_diff(df_segs_daily, col_prefix='sum_seg_length_h_',
 
 # %%
 fig, ax = plot_diff(df_segs_daily, col_prefix='num_segs_distinct_', 
-                title="Difference between segmenters (new - old)\nAll baby pipe MMSI")
+                title="Difference between segmenters (new - old)\nAll baby pipe MMSI",
+                ylabel="Number of active segments")
 df_temp = df_segs_daily_by_ssvid[df_segs_daily_by_ssvid.ssvid == '413000000'].copy().reset_index(drop=True)
 df_temp.num_segs_distinct_diff.plot(c='orange', ax=ax, label='413000000 only')
 plt.legend()
@@ -195,7 +314,8 @@ plt.show()
 
 # %%
 fig, ax = plot_diff(df_segs_daily, col_prefix='sum_seg_length_h_', 
-                title="Difference between segmenters (new - old)\nAll baby pipe MMSI")
+                title="Difference between segmenters (new - old)\nAll baby pipe MMSI",
+                ylabel="Total active segment hours")
 df_temp = df_segs_daily_by_ssvid[df_segs_daily_by_ssvid.ssvid == '413000000'].copy().reset_index(drop=True)
 df_temp.sum_seg_length_h_diff.plot(c='orange', ax=ax, label='413000000 only')
 plt.legend()
@@ -205,57 +325,184 @@ plt.show()
 # ## Daily Stats WITHOUT `413000000`
 
 # %%
-df_segs_daily_no_413000000 = df_segs_daily_by_ssvid[df_segs_daily_by_ssvid.ssvid != '413000000'].copy().groupby(['date', 'year']).sum().reset_index()
+df_segs_daily_no_413000000 = make_daily(df_segs_daily_by_ssvid[df_segs_daily_by_ssvid.ssvid != '413000000'])
+
 
 
 # %%
 fig = plot_new_vs_old(df_segs_daily_no_413000000, col_prefix='num_segs_distinct_', 
-                      title="Number of segments per day\nExcluding 413000000")
+                      title="Number of segments per day\nExcluding 413000000",
+                      ylabel="Number of active segments")
+
 
 # %%
 fig = plot_diff(df_segs_daily_no_413000000, col_prefix='num_segs_distinct_', 
-                title="Difference between segmenters (new - old)\nExcluding 413000000")
+                title="Difference between segmenters (new - old)\nExcluding 413000000",
+                ylabel="Number of active segments")
+
 
 # %%
 fig = plot_new_vs_old(df_segs_daily_no_413000000, col_prefix='sum_seg_length_h_', 
-                      title="Total length of segments per day (hours)\nExcluding 413000000")
+                      title="Total length of segments per day (hours)\nExcluding 413000000",
+                      ylabel="Total active segment hours")
 
 # %%
 fig = plot_diff(df_segs_daily_no_413000000, col_prefix='sum_seg_length_h_', 
-                title="Difference between segmenters (new - old)\nExcluding 413000000")
+                title="Difference between segmenters (new - old)\nExcluding 413000000",
+                ylabel="Total active segment hours")
+
+
+# %%
+fig = plot_new_vs_old(df_segs_daily_no_413000000, col_prefix='avg_seg_length_h_', 
+                      title="Average length of active segments per day\nExcluding 413000000",
+                      ylabel="Avg. length of active segments (hour)")
+
+# %%
+fig = plot_diff(df_segs_daily_no_413000000, col_prefix='avg_seg_length_h_', 
+                title="Difference between segmenters (new - old)\nExcluding 413000000",
+                ylabel="Avg. length of active segments (hour)")
 
 # %% [markdown]
-# ## Overall Segment Stats
+# ## Overall segment Stats
+#
+# Calculated at the segment level for the set of final segments in 2020. Segment lengths for the old dataset are truncated as starting on '2020-01-01' for comparability.
 
-# %% [markdown]
-# ##### All MMSI
+# %%
+q = f'''
+WITH
+
+seg_hours_new AS (
+  SELECT 
+    seg_id,
+    TIMESTAMP_DIFF(last_timestamp, first_timestamp, MINUTE)/60.0 as hours
+  FROM `{dataset_new}.{segment_info_table}`
+),
+
+seg_hours_no_413000000_new AS (
+  SELECT 
+    seg_id,
+    TIMESTAMP_DIFF(last_timestamp, first_timestamp, MINUTE)/60.0 as hours
+  FROM `{dataset_new}.{segment_info_table}`
+  WHERE ssvid != '413000000'
+),
+
+seg_hours_old AS (
+  SELECT 
+    seg_id,
+    TIMESTAMP_DIFF(last_timestamp, IF(first_timestamp >= '2020-01-01', first_timestamp, TIMESTAMP('2020-01-01')), MINUTE)/60.0 as hours
+  FROM `{dataset_old}.{segment_info_table}`
+  WHERE (DATE(first_timestamp) <= '2020-12-31' AND DATE(last_timestamp) >= '2020-01-01')
+  AND (ssvid IN (SELECT DISTINCT ssvid FROM `{dataset_new}.{segment_info_table}`))
+),
+
+seg_hours_no_413000000_old AS (
+  SELECT 
+    seg_id,
+    TIMESTAMP_DIFF(last_timestamp, IF(first_timestamp >= '2020-01-01', first_timestamp, TIMESTAMP('2020-01-01')), MINUTE)/60.0 as hours
+  FROM `{dataset_old}.{segment_info_table}`
+  WHERE (DATE(first_timestamp) <= '2020-12-31' AND DATE(last_timestamp) >= '2020-01-01')
+  AND (ssvid IN (SELECT DISTINCT ssvid FROM `{dataset_new}.{segment_info_table}`))
+  AND ssvid != '413000000'
+),
+
+all_mmsi_stats AS (
+SELECT 'all mmsi' as description, * EXCEPT (jn)
+FROM
+(
+  SELECT 
+    1 as jn,   
+    COUNT(*) as num_segs_new,
+    COUNT(DISTINCT seg_id) as num_segs_distinct_new,
+    SUM(hours) as sum_seg_length_h_new,
+    SUM(hours)/COUNT(*) as avg_hours_new
+  FROM seg_hours_new
+) 
+JOIN
+(
+  SELECT 
+    1 as jn,   
+    COUNT(*) as num_segs_old,
+    COUNT(DISTINCT seg_id) as num_segs_distinct_old,
+    SUM(hours) as sum_seg_length_h_old,
+    SUM(hours)/COUNT(*) as avg_hours_old
+  FROM seg_hours_old
+) 
+USING (jn)
+),
+
+no_413000000_stats AS (
+  SELECT 'no 413000000' as description, * EXCEPT (jn)
+FROM
+(
+  SELECT 
+    1 as jn,   
+    COUNT(*) as num_segs_new,
+    COUNT(DISTINCT seg_id) as num_segs_distinct_new,
+    SUM(hours) as sum_seg_length_h_new,
+    SUM(hours)/COUNT(*) as avg_hours_new
+  FROM seg_hours_no_413000000_new
+) 
+JOIN
+(
+  SELECT 
+    1 as jn,   
+    COUNT(*) as num_segs_old,
+    COUNT(DISTINCT seg_id) as num_segs_distinct_old,
+    SUM(hours) as sum_seg_length_h_old,
+    SUM(hours)/COUNT(*) as avg_hours_old
+  FROM seg_hours_no_413000000_old
+) 
+USING (jn)
+)
+
+(SELECT * FROM all_mmsi_stats)
+UNION ALL
+(SELECT * FROM no_413000000_stats)
+ORDER BY description
+'''
+
+# print(q)
+df_seg_stats = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+
+# %%
+df_seg_stats_all_mmsi = df_seg_stats[df_seg_stats.description == 'all mmsi'].copy().iloc[0]
+df_seg_stats_no_413000000 = df_seg_stats[df_seg_stats.description == 'no 413000000'].copy().iloc[0]
 
 # %%
 print("STATS FOR ALL MMSI")
 print("--------------------")
-print(f"Num distinct segs (NEW):  {df_segs_daily_by_ssvid.num_segs_distinct_new.sum()}")
-print(f"Num distinct segs (OLD):  {df_segs_daily_by_ssvid.num_segs_distinct_old.sum()}")
-print(f"Num distinct segs (DIFF): {df_segs_daily_by_ssvid.num_segs_distinct_diff.sum()}")
+print(f"Num distinct segs (NEW):  {df_seg_stats_all_mmsi.num_segs_distinct_new}")
+print(f"Num distinct segs (OLD):  {df_seg_stats_all_mmsi.num_segs_distinct_old}")
+print(f"Num distinct segs (DIFF): {df_seg_stats_all_mmsi.num_segs_distinct_new - df_seg_stats_all_mmsi.num_segs_distinct_old}")
 print()
-print(f"Sum seg hours (NEW):  {round(df_segs_daily_by_ssvid.sum_seg_length_h_new.sum()):,d}")
-print(f"Sum seg hours (OLD):  {round(df_segs_daily_by_ssvid.sum_seg_length_h_old.sum()):,d}")
-print(f"Sum seg hours (DIFF): {round(df_segs_daily_by_ssvid.sum_seg_length_h_diff.sum()):,d}")
+print(f"Sum seg hours (NEW):  {round(df_seg_stats_all_mmsi.sum_seg_length_h_new):,d}")
+print(f"Sum seg hours (OLD):  {round(df_seg_stats_all_mmsi.sum_seg_length_h_old):,d}")
+print(f"Sum seg hours (DIFF): {round(df_seg_stats_all_mmsi.sum_seg_length_h_new - df_seg_stats_all_mmsi.sum_seg_length_h_old):,d}")
+print()
+print(f"Avg seg length (NEW): {df_seg_stats_all_mmsi.avg_hours_new:0.2f}")
+print(f"Avg seg length (OLD): {df_seg_stats_all_mmsi.avg_hours_old:0.2f}")
+print(f"Avg seg length (DIFF): {df_seg_stats_all_mmsi.avg_hours_new - df_seg_stats_all_mmsi.avg_hours_old:0.2f}")
 
 
-# %% [markdown]
-# ##### Without `413000000`
 
 # %%
 print("STATS WITHOUT 413000000")
 print("--------------------")
-print(f"Num distinct segs (NEW):  {df_segs_daily_no_413000000.num_segs_distinct_new.sum()}")
-print(f"Num distinct segs (OLD):  {df_segs_daily_no_413000000.num_segs_distinct_old.sum()}")
-print(f"Num distinct segs (DIFF): {df_segs_daily_no_413000000.num_segs_distinct_diff.sum()}")
+print(f"Num distinct segs (NEW):  {df_seg_stats_no_413000000.num_segs_distinct_new}")
+print(f"Num distinct segs (OLD):  {df_seg_stats_no_413000000.num_segs_distinct_old}")
+print(f"Num distinct segs (DIFF): {df_seg_stats_no_413000000.num_segs_distinct_new - df_seg_stats_no_413000000.num_segs_distinct_old}")
 print()
-print(f"Sum seg hours (NEW):  {round(df_segs_daily_no_413000000.sum_seg_length_h_new.sum()):,d}")
-print(f"Sum seg hours (OLD):  {round(df_segs_daily_no_413000000.sum_seg_length_h_old.sum()):,d}")
-print(f"Sum seg hours (DIFF): {round(df_segs_daily_no_413000000.sum_seg_length_h_diff.sum()):,d}")
+print(f"Sum seg hours (NEW):  {round(df_seg_stats_no_413000000.sum_seg_length_h_new):,d}")
+print(f"Sum seg hours (OLD):  {round(df_seg_stats_no_413000000.sum_seg_length_h_old):,d}")
+print(f"Sum seg hours (DIFF): {round(df_seg_stats_no_413000000.sum_seg_length_h_new - df_seg_stats_no_413000000.sum_seg_length_h_old):,d}")
+print()
+print(f"Avg seg length (NEW): {df_seg_stats_no_413000000.avg_hours_new:0.2f}")
+print(f"Avg seg length (OLD): {df_seg_stats_no_413000000.avg_hours_old:0.2f}")
+print(f"Avg seg length (DIFF): {df_seg_stats_no_413000000.avg_hours_new - df_seg_stats_no_413000000.avg_hours_old:0.2f}")
 
+
+
+# %%
 
 # %%
 
