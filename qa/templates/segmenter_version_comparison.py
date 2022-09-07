@@ -26,25 +26,15 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
+from config import DATASET_OLD, DATASET_NEW_MONTHLY_INT, FRAGMENTS_TABLE, SEGMENTS_TABLE, MESSAGES_SEGMENTED_TABLE, SEGMENT_INFO_TABLE
+
 pd.set_option("max_rows", 20)
-
-# %% [markdown]
-# ##### Table Names
-
-# %%
-data_folder = 'data'
-
-dataset_old = 'pipe_production_v20201001'
-dataset_new = 'pipe_ais_test_20220830193000_monthly_internal'
-
-fragments_table = 'fragments_'
-segments_table = 'segments_'
-messages_segmented_table = 'messages_segmented_'
-segment_info_table = 'segment_info'
 
 
 # %% [markdown]
 # ## Data generation
+#
+# *NOTE: this query is not fully flexible on dates and still assumes all data is within 2020 as hardcoding "2020" into the table suffix decreased query costs by ~95%. You may need to modify the query and check costs if running a period outside of 2020.*
 
 # %%
 def make_daily(df):
@@ -58,6 +48,15 @@ def make_daily(df):
 
 # %%
 q = f'''
+CREATE TEMP FUNCTION start_date() AS (
+  (SELECT DATE(PARSE_TIMESTAMP("%Y%m%d", MIN(_TABLE_SUFFIX)))
+  FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}*`)
+);
+
+CREATE TEMP FUNCTION end_date() AS (
+  (SELECT DATE(PARSE_TIMESTAMP("%Y%m%d", MAX(_TABLE_SUFFIX)))
+  FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}*`)
+);
 
 WITH 
 
@@ -69,8 +68,8 @@ segment_data_new AS (
     COUNT(*) AS num_segs,
     COUNT(DISTINCT seg_id) AS num_segs_distinct,
     SUM(TIMESTAMP_DIFF(frag.last_msg_timestamp, seg.first_timestamp, MINUTE)/60.0) as sum_seg_length_h
-    FROM `{dataset_new}.{segments_table}2020*` seg
-    JOIN `{dataset_new}.{fragments_table}2020*` frag
+    FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}*` seg
+    JOIN `{DATASET_NEW_MONTHLY_INT}.{FRAGMENTS_TABLE}*` frag
     USING(frag_id)
     GROUP BY date, year, ssvid
 ),
@@ -82,9 +81,10 @@ segment_data_old AS (
     ssvid,
     COUNT(*) AS num_segs,
     COUNT(DISTINCT seg_id) AS num_segs_distinct,
-    SUM(TIMESTAMP_DIFF(last_msg_of_day_timestamp, IF(first_msg_timestamp >= '2020-01-01', first_msg_timestamp, TIMESTAMP('2020-01-01')), MINUTE)/60.0) as sum_seg_length_h
-    FROM `{dataset_old}.{segments_table}2020*`
-    WHERE ssvid IN (SELECT DISTINCT ssvid FROM `{dataset_new}.{segments_table}2020*`)
+    SUM(TIMESTAMP_DIFF(last_msg_of_day_timestamp, IF(DATE(first_msg_timestamp) >= start_date(), first_msg_timestamp, TIMESTAMP(start_date())), MINUTE)/60.0) as sum_seg_length_h
+    FROM `{DATASET_OLD}.{SEGMENTS_TABLE}2020*`
+    WHERE ssvid IN (SELECT DISTINCT ssvid FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}*`)
+    AND _TABLE_SUFFIX BETWEEN FORMAT_TIMESTAMP("%m%d", start_date()) AND FORMAT_TIMESTAMP("%m%d", end_date())
     -- Necessary to filter out segments that have had no positions in 2020
     -- but have not yet closed because a new position isn't reported for
     -- that MMSI for days/weeks/months.
@@ -212,17 +212,20 @@ seg_hours_new AS (
     ssvid,
     seg_id,
     TIMESTAMP_DIFF(last_timestamp, first_timestamp, MINUTE)/60.0 as hours
-  FROM `{dataset_new}.{segment_info_table}`
+  FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENT_INFO_TABLE}`
 ),
 
 seg_hours_old AS (
   SELECT
     ssvid, 
     seg_id,
-    TIMESTAMP_DIFF(last_timestamp, IF(first_timestamp >= '2020-01-01', first_timestamp, TIMESTAMP('2020-01-01')), MINUTE)/60.0 as hours
-  FROM `{dataset_old}.{segment_info_table}`
+    TIMESTAMP_DIFF(
+        IF(last_timestamp <= '2020-12-31 23:59:59', last_timestamp, TIMESTAMP('2020-12-31 23:59:59')),
+        IF(first_timestamp >= '2020-01-01', first_timestamp, TIMESTAMP('2020-01-01'))
+        , MINUTE)/60.0 as hours
+  FROM `{DATASET_OLD}.{SEGMENT_INFO_TABLE}`
   WHERE (DATE(first_timestamp) <= '2020-12-31' AND DATE(last_timestamp) >= '2020-01-01')
-  AND (ssvid IN (SELECT DISTINCT ssvid FROM `{dataset_new}.{segment_info_table}`))
+  AND (ssvid IN (SELECT DISTINCT ssvid FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENT_INFO_TABLE}`))
 ),
 
 ssvid_stats_new AS (
@@ -267,7 +270,25 @@ df_ssvid_stats = pd.read_gbq(q, project_id='world-fishing-827', dialect='standar
 # %% [markdown]
 # #### Number of segments
 #
-# The overwhelming majority of the drop of segments occurs for `413000000`. The baby pipe does not include `412000000` but this is likely similar along with other very, very highly spoofed MMSI.
+# The overwhelming majority of the drop in the number of segments occurs for `413000000`. The decrease in the number of segments is smaller for the rest of the MMSI but the majority of MMSI have a decrease in segments.
+#
+# The decrease in the segment hours is more evenly spread over the MMSI with more larger decreases in hours coming from more frequently spoofed MMSI. The difference in total segment hours for an MMSI is well correlated to its difference in number of segments but not to the change in the average segment length. This means that some segments are impacted more than others by the changes to the segmenter.
+
+# %%
+df_ssvid_stats[df_ssvid_stats.ssvid != '413000000'].plot.scatter(
+        x="sum_seg_length_h_diff",
+        y="num_segs_distinct_diff")
+plt.xlabel("Total segment hours")
+plt.ylabel("Nubmer of segments")
+plt.show()
+
+# %%
+df_ssvid_stats[df_ssvid_stats.ssvid != '413000000'].plot.scatter(
+        x="sum_seg_length_h_diff",
+        y="avg_seg_length_h_diff")
+plt.xlabel("Total segment hours")
+plt.ylabel("Average segment length (hour)")
+plt.show()
 
 # %%
 df_ssvid_stats.sort_values("num_segs_distinct_diff_abs", ascending=False)[:10][['ssvid', 'num_segs_distinct_new', 'num_segs_distinct_old', 'num_segs_distinct_diff', 'num_segs_distinct_diff_abs']].reset_index(drop=True)
@@ -276,22 +297,13 @@ df_ssvid_stats.sort_values("num_segs_distinct_diff_abs", ascending=False)[:10][[
 # #### Total segment hours
 
 # %%
-df_ssvid_stats.sort_values("sum_seg_length_h_diff_abs", ascending=False)[:20][['ssvid', 'sum_seg_length_h_new', 'sum_seg_length_h_old', 'sum_seg_length_h_diff', 'sum_seg_length_h_diff_abs']].reset_index(drop=True)
+df_ssvid_stats.sort_values("sum_seg_length_h_diff_abs", ascending=False)[:20][['ssvid', 'sum_seg_length_h_new', 'sum_seg_length_h_old', 'sum_seg_length_h_diff', 'sum_seg_length_h_diff_abs', 'num_segs_distinct_new', 'num_segs_distinct_old', 'num_segs_distinct_diff', 'num_segs_distinct_diff_abs']].reset_index(drop=True)
 
 # %% [markdown]
 # #### Average segment length (hours)
 
 # %%
-df_ssvid_stats.sort_values("avg_seg_length_h_diff_abs", ascending=False)[:20][['ssvid', 'avg_seg_length_h_new', 'avg_seg_length_h_old', 'avg_seg_length_h_diff', 'avg_seg_length_h_diff_abs']].reset_index(drop=True)
-
-# %%
-
-# %% [markdown]
-# #### Segment length (hours)
-
-# %%
-
-# %%
+df_ssvid_stats.sort_values("avg_seg_length_h_diff_abs", ascending=False)[:10][['ssvid', 'avg_seg_length_h_new', 'avg_seg_length_h_old', 'avg_seg_length_h_diff', 'avg_seg_length_h_diff_abs']].reset_index(drop=True)
 
 # %% [markdown]
 # ## Daily patterns of 413000000
@@ -375,33 +387,39 @@ seg_hours_new AS (
   SELECT 
     seg_id,
     TIMESTAMP_DIFF(last_timestamp, first_timestamp, MINUTE)/60.0 as hours
-  FROM `{dataset_new}.{segment_info_table}`
+  FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENT_INFO_TABLE}`
 ),
 
 seg_hours_no_413000000_new AS (
   SELECT 
     seg_id,
     TIMESTAMP_DIFF(last_timestamp, first_timestamp, MINUTE)/60.0 as hours
-  FROM `{dataset_new}.{segment_info_table}`
+  FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENT_INFO_TABLE}`
   WHERE ssvid != '413000000'
 ),
 
 seg_hours_old AS (
   SELECT 
     seg_id,
-    TIMESTAMP_DIFF(last_timestamp, IF(first_timestamp >= '2020-01-01', first_timestamp, TIMESTAMP('2020-01-01')), MINUTE)/60.0 as hours
-  FROM `{dataset_old}.{segment_info_table}`
+    TIMESTAMP_DIFF(
+        IF(last_timestamp <= '2020-12-31 23:59:59', last_timestamp, TIMESTAMP('2020-12-31 23:59:59')),
+        IF(first_timestamp >= '2020-01-01', first_timestamp, TIMESTAMP('2020-01-01'))
+        , MINUTE)/60.0 as hours
+  FROM `{DATASET_OLD}.{SEGMENT_INFO_TABLE}`
   WHERE (DATE(first_timestamp) <= '2020-12-31' AND DATE(last_timestamp) >= '2020-01-01')
-  AND (ssvid IN (SELECT DISTINCT ssvid FROM `{dataset_new}.{segment_info_table}`))
+  AND (ssvid IN (SELECT DISTINCT ssvid FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENT_INFO_TABLE}`))
 ),
 
 seg_hours_no_413000000_old AS (
   SELECT 
     seg_id,
-    TIMESTAMP_DIFF(last_timestamp, IF(first_timestamp >= '2020-01-01', first_timestamp, TIMESTAMP('2020-01-01')), MINUTE)/60.0 as hours
-  FROM `{dataset_old}.{segment_info_table}`
+    TIMESTAMP_DIFF(
+        IF(last_timestamp <= '2020-12-31 23:59:59', last_timestamp, TIMESTAMP('2020-12-31 23:59:59')),
+        IF(first_timestamp >= '2020-01-01', first_timestamp, TIMESTAMP('2020-01-01'))
+        , MINUTE)/60.0 as hours
+  FROM `{DATASET_OLD}.{SEGMENT_INFO_TABLE}`
   WHERE (DATE(first_timestamp) <= '2020-12-31' AND DATE(last_timestamp) >= '2020-01-01')
-  AND (ssvid IN (SELECT DISTINCT ssvid FROM `{dataset_new}.{segment_info_table}`))
+  AND (ssvid IN (SELECT DISTINCT ssvid FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENT_INFO_TABLE}`))
   AND ssvid != '413000000'
 ),
 
@@ -527,12 +545,20 @@ print(f"Avg seg length (DIFF): {df_seg_stats_no_413000000.avg_hours_new - df_seg
 #
 
 # %%
-def get_tracks(table, ssvid, start_date, end_date):
+import os
+
+data_folder = 'data'
+if not os.path.exists(data_folder):
+    os.makedirs(data_folder)
+
+
+# %%
+def get_tracks(dataset, ssvid, start_date, end_date):
 
     q = f'''
     SELECT 
     ssvid, timestamp, lat, lon, seg_id
-    FROM `{table}*`
+    FROM `{dataset}.{MESSAGES_SEGMENTED_TABLE}*`
     WHERE ssvid = '{ssvid}'
     AND _TABLE_SUFFIX BETWEEN '{start_date}' AND '{end_date}'
     AND seg_id IS NOT NULL
@@ -543,34 +569,103 @@ def get_tracks(table, ssvid, start_date, end_date):
     return pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
 # %%
-tracks_412440222_new = get_tracks(f'{dataset_new}.{messages_segmented_table}', '412440222', '20200227', '20200302')
+def get_segments(dataset, ssvid, start_date, end_date):
+    q = f'''
+    SELECT 
+    *
+    FROM `{dataset}.{SEGMENT_INFO_TABLE}*`
+    WHERE ssvid = '{ssvid}'
+    AND (DATE(first_timestamp) <= '{end_date}' AND DATE(last_timestamp) >= '{start_date}')
+    ORDER BY seg_id
+    '''
+
+    # print(q)
+    return pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+
+
+# %%
+import pyseas.maps as psm
+import pyseas.contrib as psc
+
+def plot_segmented_tracks(df):
+    with psm.context(psm.styles.panel):
+        fig = plt.figure(figsize=(12, 12))
+        info = psc.multi_track_panel(
+            df.timestamp,
+            df.lon,
+            df.lat,
+            df.seg_id,
+            plots=[{"label": "lon", "values": df.lon}, {"label": "lat", "values": df.lat}],
+        )
+        plt.legend(
+            info.legend_handles.values(),
+            [x.split("-", 1)[1].rstrip(".000000000Z") for x in info.legend_handles.keys()],
+        )
+        return fig
+
+
+
+# %%
+df_ssvid_stats[df_ssvid_stats.ssvid == '237352400']
+
+# %%
+tracks_237352400_new = get_tracks(DATASET_NEW_MONTHLY_INT, '237352400', '20200101', '20201231')
+# tracks_237352400_new.to_csv(f'{data_folder}/tracks_237352400_new.csv')
+
+tracks_237352400_old = get_tracks(DATASET_OLD, '237352400', '20200101', '20201231')
+# tracks_237352400_old.to_csv(f'{data_folder}/tracks_237352400_old.csv')
+
+# %%
+fig = plot_segmented_tracks(tracks_237352400_old)
+
+# %%
+fig = plot_segmented_tracks(tracks_237352400_new)
+
+# %%
+df_237352400_segs_old = get_segments(DATASET_OLD,'237352400', '2020-01-01', '2020-12-31')
+df_237352400_segs_new = get_segments(DATASET_NEW_MONTHLY_INT,'237352400', '2020-01-01', '2020-12-31')
+
+# %%
+df_237352400_segs_old
+
+# %%
+df_237352400_segs_new
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+tracks_412440222_new = get_tracks(f'{DATASET_NEW_MONTHLY_INT}.{MESSAGES_SEGMENTED_TABLE}', '412440222', '20200227', '20200302')
 tracks_412440222_new.to_csv(f'{data_folder}/tracks_412440222_new.csv')
 
-tracks_412440222_old = get_tracks(f'{dataset_old}.{messages_segmented_table}', '412440222', '20200227', '20200302')
+tracks_412440222_old = get_tracks(f'{DATASET_OLD}.{MESSAGES_SEGMENTED_TABLE}', '412440222', '20200227', '20200302')
 tracks_412440222_old.to_csv(f'{data_folder}/tracks_412440222_old.csv')
 
 
 # %%
-tracks_244453043_new = get_tracks(f'{dataset_new}.{messages_segmented_table}', '244453043', '20200804', '20200806')
+tracks_244453043_new = get_tracks(f'{DATASET_NEW_MONTHLY_INT}.{MESSAGES_SEGMENTED_TABLE}', '244453043', '20200804', '20200806')
 tracks_244453043_new.to_csv(f'{data_folder}/tracks_244453043_new.csv')
 
-tracks_244453043_old = get_tracks(f'{dataset_old}.{messages_segmented_table}', '244453043', '20200804', '20200806')
+tracks_244453043_old = get_tracks(f'{DATASET_OLD}.{MESSAGES_SEGMENTED_TABLE}', '244453043', '20200804', '20200806')
 tracks_244453043_old.to_csv(f'{data_folder}/tracks_244453043_old.csv')
 
 
 # %%
-tracks_100900000_new = get_tracks(f'{dataset_new}.{messages_segmented_table}', '100900000', '20200120', '20200122')
+tracks_100900000_new = get_tracks(f'{DATASET_NEW_MONTHLY_INT}.{MESSAGES_SEGMENTED_TABLE}', '100900000', '20200120', '20200122')
 tracks_100900000_new.to_csv(f'{data_folder}/tracks_100900000_new.csv')
 
-tracks_100900000_old = get_tracks(f'{dataset_old}.{messages_segmented_table}', '100900000', '20200120', '20200122')
+tracks_100900000_old = get_tracks(f'{DATASET_OLD}.{MESSAGES_SEGMENTED_TABLE}', '100900000', '20200120', '20200122')
 tracks_100900000_old.to_csv(f'{data_folder}/tracks_100900000_old.csv')
 
 
 # %%
-tracks_413000000_new = get_tracks(f'{dataset_new}.{messages_segmented_table}', '413000000', '20200427', '20200427')
+tracks_413000000_new = get_tracks(f'{DATASET_NEW_MONTHLY_INT}.{MESSAGES_SEGMENTED_TABLE}', '413000000', '20200427', '20200427')
 tracks_413000000_new.to_csv(f'{data_folder}/tracks_413000000_new.csv')
 
-tracks_413000000_old = get_tracks(f'{dataset_old}.{messages_segmented_table}', '413000000', '20200427', '20200427')
+tracks_413000000_old = get_tracks(f'{DATASET_OLD}.{MESSAGES_SEGMENTED_TABLE}', '413000000', '20200427', '20200427')
 tracks_413000000_old.to_csv(f'{data_folder}/tracks_413000000_old.csv')
 
 

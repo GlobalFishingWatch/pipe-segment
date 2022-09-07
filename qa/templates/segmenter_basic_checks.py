@@ -29,21 +29,11 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+
+from config import DATASET_OLD, DATASET_NEW_MONTHLY_INT, FRAGMENTS_TABLE, SEGMENTS_TABLE, MESSAGES_SEGMENTED_TABLE
+
 mpl.rcParams['figure.facecolor'] = 'white'
-
 pd.set_option("max_rows", 40)
-
-# %% [markdown]
-# ## Tables
-# Update before running, if necessary
-
-# %%
-segments_table_old = 'world-fishing-827.pipe_production_v20201001.segments_'
-
-fragments_table_new = 'world-fishing-827.pipe_ais_test_20220821_monthly_internal.fragments_'
-segments_table_new = 'world-fishing-827.pipe_ais_test_20220821_monthly_internal.segments_'
-messages_segmented_table_new = 'pipe_ais_test_20220821_monthly_internal.messages_segmented_'
-
 
 # %% [markdown]
 # # FINAL QUERIES FOR AUTOMATED QA
@@ -56,7 +46,7 @@ num_segs_threshold = 0.2
 # %%
 q = f'''
 SELECT DISTINCT _table_suffix as shard_date
-FROM `{segments_table_new}*`
+FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}*`
 ORDER BY shard_date
 '''
 
@@ -65,7 +55,7 @@ shard_dates_segments = pd.read_gbq(q, project_id='world-fishing-827', dialect='s
 # %%
 q = f'''
 SELECT DISTINCT _table_suffix as shard_date
-FROM `{messages_segmented_table_new}*`
+FROM `{DATASET_NEW_MONTHLY_INT}.{MESSAGES_SEGMENTED_TABLE}*`
 ORDER BY shard_date
 '''
 
@@ -75,7 +65,7 @@ shard_dates_messages_segmented = pd.read_gbq(q, project_id='world-fishing-827', 
 # %%
 q = f'''
 SELECT DISTINCT _table_suffix as shard_date
-FROM `{fragments_table_new}*`
+FROM `{DATASET_NEW_MONTHLY_INT}.{FRAGMENTS_TABLE}*`
 ORDER BY shard_date
 '''
 
@@ -102,13 +92,13 @@ def check_rolling_average(shard_date):
 
     calc AS (
     SELECT COUNT(*)/30 rolling_average
-    FROM `{segments_table_new}*`
+    FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}*`
     WHERE _TABLE_SUFFIX BETWEEN FORMAT_TIMESTAMP('%Y%m%d', DATE_SUB(PARSE_DATE("%Y%m%d", "{shard_date}"), INTERVAL 30 DAY)) AND FORMAT_TIMESTAMP('%Y%m%d', DATE_SUB(PARSE_DATE("%Y%m%d", "{shard_date}"), INTERVAL 1 DAY))
     )
 
     SELECT 
     IF(ABS((SELECT rolling_average FROM calc) - COUNT(*))/(SELECT rolling_average FROM calc) < {num_segs_threshold}, 1, 0) as good_num_segs,
-    FROM `{segments_table_new}{shard_date}`
+    FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}{shard_date}`
     '''
 
     num_segs_check = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
@@ -165,7 +155,7 @@ def check_segments_validity(shard_date):
     IF(SUM(IF(cumulative_msg_count > 0, 1, 0)) = COUNT(*), 1, 0) as valid_cumul_msg_ct,
     IF(SUM(IF(LEFT(frag_id, STRPOS(frag_id, "-")-1) = ssvid, 1, 0)) = COUNT(*), 1, 0) as valid_frag_id_ssvid,
     IF(SUM(IF(timestamp_from_id(frag_id) >= timestamp_from_id(seg_id), 1, 0)) = COUNT(*), 1, 0) as valid_frag_seg_pair,
-    FROM `{segments_table_new}{shard_date}`
+    FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}{shard_date}`
     '''
     # print(q)
     segment_validity_check = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
@@ -223,7 +213,7 @@ def check_messages_segmented_validity(shard_date):
     IF(COUNTIF((type IN ('AIS.5', 'AIS.19', 'AIS.21', 'AIS.24')) AND (shipname = '@@@@@@@@@@@@@@@@@@@@')) = 0, 1, 0) AS valid_shipname,
     IF(COUNTIF((type IN ('AIS.5', 'AIS.24')) AND (shipname = '@@@@@@@')) = 0, 1, 0) AS valid_callsign,
     IF(COUNTIF((type = 'AIS.5') AND (destination = '@@@@@@@@@@@@@@@@@@@@')) = 0, 1, 0) AS valid_destination,
-    FROM `{messages_segmented_table_new}{shard_date}`
+    FROM `{DATASET_NEW_MONTHLY_INT}.{MESSAGES_SEGMENTED_TABLE}{shard_date}`
     '''
 
     messages_segmented_check_1 = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
@@ -271,7 +261,7 @@ def check_fragments_validity(shard_date):
     IF(SUM(IF(DATE(timestamp_from_id(frag_id)) = DATE(timestamp), 1, 0)) = COUNT(*), 1, 0) as valid_timestamp,
     IF(SUM(IF(DATE(timestamp_from_id(frag_id)) = DATE(last_msg_timestamp), 1, 0)) = COUNT(*), 1, 0) as valid_last_msg_timestamp,
     IF(SUM(IF(LEFT(frag_id, STRPOS(frag_id, "-")-1) = ssvid, 1, 0)) = COUNT(*), 1, 0) as valid_frag_id_ssvid,
-    FROM `{fragments_table_new}{shard_date}`
+    FROM `{DATASET_NEW_MONTHLY_INT}.{FRAGMENTS_TABLE}{shard_date}`
     '''
     # print(q)
     fragment_validity_check = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
@@ -330,7 +320,7 @@ def check_duplicate_ids(table, id_col, shard_date):
 # %%
 all_passed = True
 for date in shard_dates_segments.shard_date:
-    outcome = check_duplicate_ids(segments_table_new, "seg_id", date)
+    outcome = check_duplicate_ids(f"{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}", "seg_id", date)
     if all_passed and not outcome:
         all_passed = False
 
@@ -340,7 +330,7 @@ if all_passed:
 # %%
 all_passed = True
 for date in shard_dates_segments.shard_date:
-    outcome = check_duplicate_ids(fragments_table_new, "frag_id", date)
+    outcome = check_duplicate_ids(f"{DATASET_NEW_MONTHLY_INT}.{FRAGMENTS_TABLE}", "frag_id", date)
     if all_passed and not outcome:
         all_passed = False
 
@@ -376,7 +366,7 @@ def check_seg_frag_relationship(seg_table, frag_table, shard_date):
 # %%
 all_passed = True
 for date in shard_dates_segments.shard_date:
-    outcome = check_seg_frag_relationship(segments_table_new, fragments_table_new, date)
+    outcome = check_seg_frag_relationship(f"{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}", f"{DATASET_NEW_MONTHLY_INT}.{FRAGMENTS_TABLE}", date)
     if all_passed and not outcome:
         all_passed = False
 
@@ -399,7 +389,7 @@ segment_data AS (
     SELECT DATE(timestamp) as date, seg_id, ssvid, closed, message_count,
     TIMESTAMP_DIFF(last_msg_timestamp, first_msg_timestamp, SECOND)/3600 as seg_hours,
     (SELECT COUNT(*) FROM UNNEST(shipnames) WHERE value IS NOT NULL) > 0 AS valid_shipname
-    FROM `{segments_table_old}*`
+    FROM `{DATASET_OLD}.{SEGMENTS_TABLE}*`
 )
 
 SELECT 

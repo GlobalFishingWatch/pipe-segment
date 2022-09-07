@@ -26,18 +26,7 @@
 import pandas as pd
 pd.set_option("max_rows", 20)
 
-# %%
-dataset_backfill = 'pipe_ais_test_20220821_backfill_internal'
-dataset_monthly = 'pipe_ais_test_20220821_monthly_internal'
-
-sat_offsets_table = 'sat_time_offsets_'
-messages_segmented_table = 'messages_segmented_'
-fragments_table = 'fragments_'
-segments_table = 'segments_'
-segment_identity_daily_table = 'segment_identity_daily_'
-segment_vessel_daily_table = 'segment_vessel_daily_'
-segment_info_table = 'segment_info'
-segment_vessel_table = 'segment_vessel'
+from config import DATASET_NEW_BACKFILL_INT, DATASET_NEW_MONTHLY_INT, SAT_OFFSETS_TABLE, FRAGMENTS_TABLE, SEGMENTS_TABLE, MESSAGES_SEGMENTED_TABLE, SEGMENT_IDENTITY_DAILY_TABLE, SEGMENT_VESSEL_DAILY_TABLE, SEGMENT_INFO_TABLE, SEGMENT_VESSEL_TABLE
 
 
 # %%
@@ -49,7 +38,7 @@ def unnest_checks(dataset_backfill, dataset_monthly, table_name, unnest_columns)
             FROM `{dataset_backfill}.{table_name}*`, UNNEST({col})
             EXCEPT DISTINCT
             SELECT * EXCEPT ({', '.join(unnest_columns)})
-            FROM `{dataset_monthly}.{table_name}*`, UNNEST({col})
+            FROM `{DATASET_NEW_MONTHLY_INT}.{table_name}*`, UNNEST({col})
             '''
     
         df = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
@@ -80,16 +69,16 @@ def struct_checks(dataset_backfill, dataset_monthly, table_name, struct_columns)
 # %%
 q = f'''
 SELECT * EXCEPT (avg_distance_from_sat_km), TRUNC(CAST(avg_distance_from_sat_km AS NUMERIC), 5) AS avg_distance_from_sat_km
-FROM `{dataset_backfill}.{sat_offsets_table}*`
+FROM `{DATASET_NEW_BACKFILL_INT}.{SAT_OFFSETS_TABLE}*`
 EXCEPT DISTINCT
 SELECT * EXCEPT (avg_distance_from_sat_km), TRUNC(CAST(avg_distance_from_sat_km AS NUMERIC), 5) AS avg_distance_from_sat_km
-FROM `{dataset_monthly}.{sat_offsets_table}*`
+FROM `{DATASET_NEW_MONTHLY_INT}.{SAT_OFFSETS_TABLE}*`
 '''
 
 df_sat_time_offsets_check = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
 assert(df_sat_time_offsets_check.shape[0] == 0)
-print(f"PASS: {sat_offsets_table}")
+print(f"PASS: {SAT_OFFSETS_TABLE}")
 
 # %% [markdown]
 # ### `messages_segmented`
@@ -97,16 +86,16 @@ print(f"PASS: {sat_offsets_table}")
 # %%
 q = f'''
 SELECT *
-FROM `{dataset_backfill}.{messages_segmented_table}*`
+FROM `{DATASET_NEW_BACKFILL_INT}.{MESSAGES_SEGMENTED_TABLE}*`
 EXCEPT DISTINCT
 SELECT *
-FROM `{dataset_monthly}.{messages_segmented_table}*`
+FROM `{DATASET_NEW_MONTHLY_INT}.{MESSAGES_SEGMENTED_TABLE}*`
 '''
 
 df_messages_segmented_check = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
 assert(df_messages_segmented_check.shape[0] == 0)
-print(f"PASS: {messages_segmented_table}")
+print(f"PASS: {MESSAGES_SEGMENTED_TABLE}")
 
 
 # %% [markdown]
@@ -115,27 +104,27 @@ print(f"PASS: {messages_segmented_table}")
 # %%
 q = f'''
 SELECT * EXCEPT (identities, destinations)
-FROM `{dataset_backfill}.{fragments_table}*`
+FROM `{DATASET_NEW_BACKFILL_INT}.{FRAGMENTS_TABLE}*`
 EXCEPT DISTINCT
 SELECT * EXCEPT (identities, destinations)
-FROM `{dataset_monthly}.{fragments_table}*`
+FROM `{DATASET_NEW_MONTHLY_INT}.{FRAGMENTS_TABLE}*`
 '''
 
 df_fragments_check_basic = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
 assert(df_fragments_check_basic.shape[0] == 0)
-print(f"PASS: {fragments_table} basic check")
+print(f"PASS: {FRAGMENTS_TABLE} basic check")
 
 
 # %%
-fragments_advanced_checks = unnest_checks(dataset_backfill, dataset_monthly, fragments_table, ['identities', 'destinations'])
+fragments_advanced_checks = unnest_checks(DATASET_NEW_BACKFILL_INT, DATASET_NEW_MONTHLY_INT, FRAGMENTS_TABLE, ['identities', 'destinations'])
 
 for (col, df) in fragments_advanced_checks:
     try:
         assert(df.shape[0] == 0)
-        print(f"PASS: {fragments_table} advanced check - {col}")
+        print(f"PASS: {FRAGMENTS_TABLE} advanced check - {col}")
     except:
-        print(f"FAIL: {fragments_table} advanced check - {col}")
+        print(f"FAIL: {FRAGMENTS_TABLE} advanced check - {col}")
 
 # %% [markdown]
 # ### `segments`
@@ -143,27 +132,27 @@ for (col, df) in fragments_advanced_checks:
 # %%
 q = f'''
 SELECT * EXCEPT (daily_identities, daily_destinations, cumulative_identities, cumulative_destinations)
-FROM `{dataset_backfill}.{segments_table}*`
+FROM `{DATASET_NEW_BACKFILL_INT}.{SEGMENTS_TABLE}*`
 EXCEPT DISTINCT
 SELECT * EXCEPT (daily_identities, daily_destinations, cumulative_identities, cumulative_destinations)
-FROM `{dataset_monthly}.{segments_table}*`
+FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}*`
 '''
 
 df_segments_check_basic = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
 assert(df_segments_check_basic.shape[0] == 0)
-print(f"PASS: {segments_table} basic check")
+print(f"PASS: {SEGMENTS_TABLE} basic check")
 
 
 # %%
-segments_advanced_checks = unnest_checks(dataset_backfill, dataset_monthly, segments_table, ['daily_identities', 'daily_destinations', 'cumulative_identities', 'cumulative_destinations'])
+segments_advanced_checks = unnest_checks(DATASET_NEW_BACKFILL_INT, DATASET_NEW_MONTHLY_INT, SEGMENT_TABLE, ['daily_identities', 'daily_destinations', 'cumulative_identities', 'cumulative_destinations'])
 
 for (col, df) in segments_advanced_checks:
     try:
         assert(df.shape[0] == 0)
-        print(f"PASS: {segments_table} advanced check - {col}")
+        print(f"PASS: {SEGMENTS_TABLE} advanced check - {col}")
     except:
-        print(f"FAIL: {segments_table} advanced check - {col}")
+        print(f"FAIL: {SEGMENTS_TABLE} advanced check - {col}")
 
 
 
@@ -173,27 +162,27 @@ for (col, df) in segments_advanced_checks:
 # %%
 q = f'''
 SELECT * EXCEPT (shipname, callsign, imo, n_shipname, n_callsign, n_imo, shiptype, length, width)
-FROM `{dataset_backfill}.{segment_identity_daily_table}*`
+FROM `{DATASET_NEW_BACKFILL_INT}.{SEGMENT_IDENTITY_DAILY_TABLE}*`
 EXCEPT DISTINCT
 SELECT * EXCEPT (shipname, callsign, imo, n_shipname, n_callsign, n_imo, shiptype, length, width)
-FROM `{dataset_monthly}.{segment_identity_daily_table}*`
+FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENT_IDENTITY_DAILY_TABLE}*`
 '''
 
 df_segment_identity_daily_check_basic = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
 assert(df_segment_identity_daily_check_basic.shape[0] == 0)
-print(f"PASS: {segment_identity_daily_table} basic check")
+print(f"PASS: {SEGMENT_IDENTITY_DAILY_TABLE} basic check")
 
 
 # %%
-segment_identity_daily_advanced_checks = unnest_checks(dataset_backfill, dataset_monthly, segment_identity_daily_table, ['shipname', 'callsign', 'imo', 'n_shipname', 'n_callsign', 'n_imo', 'shiptype', 'length', 'width'])
+segment_identity_daily_advanced_checks = unnest_checks(DATASET_NEW_BACKFILL_INT, DATASET_NEW_MONTHLY_INT, SEGMENT_IDENTITY_DAILY_TABLE, ['shipname', 'callsign', 'imo', 'n_shipname', 'n_callsign', 'n_imo', 'shiptype', 'length', 'width'])
 
 for (col, df) in segment_identity_daily_advanced_checks:
     try:
         assert(df.shape[0] == 0)
-        print(f"PASS: {segment_identity_daily_table} advanced check - {col}")
+        print(f"PASS: {SEGMENT_IDENTITY_DAILY_TABLE} advanced check - {col}")
     except:
-        print(f"FAIL: {segment_identity_daily_table} advanced check - {col}")
+        print(f"FAIL: {SEGMENT_IDENTITY_DAILY_TABLE} advanced check - {col}")
 
 
 
@@ -203,27 +192,27 @@ for (col, df) in segment_identity_daily_advanced_checks:
 # %%
 q = f'''
 SELECT * EXCEPT (shipname, callsign, imo, n_shipname, n_callsign, n_imo, shiptype, length, width)
-FROM `{dataset_backfill}.{segment_vessel_daily_table}*`
+FROM `{DATASET_NEW_BACKFILL_INT}.{SEGMENT_VESSEL_DAILY_TABLE}*`
 EXCEPT DISTINCT
 SELECT * EXCEPT (shipname, callsign, imo, n_shipname, n_callsign, n_imo, shiptype, length, width)
-FROM `{dataset_monthly}.{segment_vessel_daily_table}*`
+FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENT_VESSEL_DAILY_TABLE}*`
 '''
 
 df_segment_vessel_daily_check_basic = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
 assert(df_segment_vessel_daily_check_basic.shape[0] == 0)
-print(f"PASS: {segment_vessel_daily_table} basic check")
+print(f"PASS: {SEGMENT_VESSEL_DAILY_TABLE} basic check")
 
 
 # %%
-segment_vessel_daily_advanced_checks = struct_checks(dataset_backfill, dataset_monthly, segment_vessel_daily_table, ['shipname', 'callsign', 'imo', 'n_shipname', 'n_callsign', 'n_imo', 'shiptype', 'length', 'width'])
+segment_vessel_daily_advanced_checks = struct_checks(DATASET_NEW_BACKFILL_INT, DATASET_NEW_MONTHLY_INT, SEGMENT_VESSEL_DAILY_TABLE, ['shipname', 'callsign', 'imo', 'n_shipname', 'n_callsign', 'n_imo', 'shiptype', 'length', 'width'])
 
 for (col, df) in segment_vessel_daily_advanced_checks:
     try:
         assert(df.shape[0] == 0)
-        print(f"PASS: {segment_vessel_daily_table} advanced check - {col}")
+        print(f"PASS: {SEGMENT_VESSEL_DAILY_TABLE} advanced check - {col}")
     except:
-        print(f"FAIL: {segment_vessel_daily_table} advanced check - {col}")
+        print(f"FAIL: {SEGMENT_VESSEL_DAILY_TABLE} advanced check - {col}")
 
 
 
@@ -233,27 +222,27 @@ for (col, df) in segment_vessel_daily_advanced_checks:
 # %%
 q = f'''
 SELECT * EXCEPT (shipname, callsign, imo, n_shipname, n_callsign, n_imo, shiptype, length, width)
-FROM `{dataset_backfill}.{segment_info_table}`
+FROM `{DATASET_NEW_BACKFILL_INT}.{SEGMENT_INFO_TABLE}`
 EXCEPT DISTINCT
 SELECT * EXCEPT (shipname, callsign, imo, n_shipname, n_callsign, n_imo, shiptype, length, width)
-FROM `{dataset_monthly}.{segment_info_table}`
+FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENT_INFO_TABLE}`
 '''
 
 df_segment_info_check_basic = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
 assert(df_segment_info_check_basic.shape[0] == 0)
-print(f"PASS: {segment_info_table} basic check")
+print(f"PASS: {SEGMENT_INFO_TABLE} basic check")
 
 
 # %%
-segment_info_advanced_checks = struct_checks(dataset_backfill, dataset_monthly, segment_info_table, ['shipname', 'callsign', 'imo', 'n_shipname', 'n_callsign', 'n_imo', 'shiptype', 'length', 'width'])
+segment_info_advanced_checks = struct_checks(DATASET_NEW_BACKFILL_INT, DATASET_NEW_MONTHLY_INT, SEGMENT_INFO_TABLE, ['shipname', 'callsign', 'imo', 'n_shipname', 'n_callsign', 'n_imo', 'shiptype', 'length', 'width'])
 
 for (col, df) in segment_info_advanced_checks:
     try:
         assert(df.shape[0] == 0)
-        print(f"PASS: {segment_info_table} advanced check - {col}")
+        print(f"PASS: {SEGMENT_INFO_TABLE} advanced check - {col}")
     except:
-        print(f"FAIL: {segment_info_table} advanced check - {col}")
+        print(f"FAIL: {SEGMENT_INFO_TABLE} advanced check - {col}")
 
 
 
@@ -263,16 +252,16 @@ for (col, df) in segment_info_advanced_checks:
 # %%
 q = f'''
 SELECT * 
-FROM `{dataset_backfill}.{segment_vessel_table}`
+FROM `{DATASET_NEW_BACKFILL_INT}.{SEGMENT_VESSEL_TABLE}`
 EXCEPT DISTINCT
 SELECT * 
-FROM `{dataset_monthly}.{segment_vessel_table}`
+FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENT_VESSEL_TABLE}`
 '''
 
 df_segment_vessel_check_basic = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
 assert(df_segment_vessel_check_basic.shape[0] == 0)
-print(f"PASS: {segment_vessel_table} basic check")
+print(f"PASS: {SEGMENT_VESSEL_TABLE} basic check")
 
 
 # %%
