@@ -29,8 +29,9 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from datetime import datetime
 
-from config import DATASET_OLD, DATASET_NEW_MONTHLY_INT, FRAGMENTS_TABLE, SEGMENTS_TABLE, MESSAGES_SEGMENTED_TABLE
+from config import DATASET_OLD, DATASET_NEW_MONTHLY_INT, FRAGMENTS_TABLE, SEGMENTS_TABLE, MESSAGES_SEGMENTED_TABLE, NUM_SEGS_DIFF_THRESHOLD
 
 mpl.rcParams['figure.facecolor'] = 'white'
 pd.set_option("max_rows", 40)
@@ -39,9 +40,6 @@ pd.set_option("max_rows", 40)
 # # FINAL QUERIES FOR AUTOMATED QA
 #
 # This notebook runs the queries on every date shard in the table, but these queries can be used directly in Airflow for a given day instead.
-
-# %%
-num_segs_threshold = 0.2
 
 # %%
 q = f'''
@@ -61,7 +59,6 @@ ORDER BY shard_date
 
 shard_dates_messages_segmented = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
-
 # %%
 q = f'''
 SELECT DISTINCT _table_suffix as shard_date
@@ -71,13 +68,11 @@ ORDER BY shard_date
 
 shard_dates_fragments = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
-
 # %%
 try:
     assert(shard_dates_segments.shard_date.to_list() == shard_dates_messages_segmented.shard_date.to_list() == shard_dates_fragments.shard_date.to_list())
 except:
     print("ERROR: Shard dates do not match between tables. DO NOT CONTINUE QA BEFORE RECONCILING!")
-
 
 # %% [markdown]
 # ## Check num_segs against 30-day rolling average for a given day
@@ -97,7 +92,7 @@ def check_rolling_average(shard_date):
     )
 
     SELECT 
-    IF(ABS((SELECT rolling_average FROM calc) - COUNT(*))/(SELECT rolling_average FROM calc) < {num_segs_threshold}, 1, 0) as good_num_segs,
+    IF(ABS((SELECT rolling_average FROM calc) - COUNT(*))/(SELECT rolling_average FROM calc) < {NUM_SEGS_DIFF_THRESHOLD}, 1, 0) as good_num_segs,
     FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}{shard_date}`
     '''
 
@@ -114,13 +109,60 @@ def check_rolling_average(shard_date):
 # %%
 # Cannot perform the check for the first 30 days reliably.
 all_passed = True
+failed_dates = []
 for date in shard_dates_segments.shard_date[30:]:
     outcome = check_rolling_average(date)
-    if all_passed and not outcome:
+    if not outcome:
         all_passed = False
+        failed_dates.append(date)
+
+failed_dates = [datetime.strptime(date, "%Y%m%d").strftime('%Y-%m-%d') for date in failed_dates]
 
 if all_passed:
     print("ALL PASSED")
+
+# %%
+if not all_passed:
+    q = f'''
+    WITH 
+
+    segment_data AS (
+        SELECT DATE(timestamp) as date, seg_id
+        FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}*`
+    )
+
+    SELECT 
+    date,
+    EXTRACT(YEAR from date) as year,
+    COUNT(*) AS num_segs,
+    COUNT(DISTINCT seg_id) AS num_segs_distinct,
+    FROM segment_data
+    GROUP BY date
+    ORDER BY date
+    '''
+
+    # print(q)
+    df_segs_daily = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+
+    assert(df_segs_daily[df_segs_daily.num_segs != df_segs_daily.num_segs_distinct].shape[0] == 0)
+
+    df_segs_daily['num_segs_30day_avg'] = df_segs_daily.rolling(window=30, closed='left').num_segs.mean()
+    df_segs_daily['num_segs_30day_avg_diff'] = df_segs_daily.num_segs - df_segs_daily.num_segs_30day_avg
+    df_segs_daily['num_segs_30day_avg_diff_perc'] = (df_segs_daily.num_segs - df_segs_daily.num_segs_30day_avg)/df_segs_daily.num_segs_30day_avg
+    df_segs_daily = df_segs_daily.set_index(pd.to_datetime(df_segs_daily.date))
+
+
+# %%
+if not all_passed:
+    fig = plt.figure(figsize=(10, 5))
+    ax = df_segs_daily.num_segs.plot(label="Number of segments")
+    df_segs_daily.num_segs_30day_avg.plot(label="Rolling 30-day avg.")
+    (df_segs_daily.num_segs_30day_avg * 1.2).plot(label="Threshold - upper/lower bound", c="orange", ls="--", lw=1)
+    (df_segs_daily.num_segs_30day_avg * 0.8).plot(label="_nolegend_", c="orange", ls="--", lw=1)
+    for date in failed_dates:
+        plt.axvline(date, c="red", ls='--', lw=0.7)
+    plt.legend()
+    plt.show()
 
 # %% [markdown]
 # ## Sanity checks
@@ -284,7 +326,6 @@ for date in shard_dates_fragments.shard_date:
 if all_passed:
     print("ALL PASSED")
 
-
 # %% [markdown]
 # ### Duplicates check for `segments_` and `fragments_`
 # *Cost: ~6KB depending on size of day*
@@ -362,7 +403,6 @@ def check_seg_frag_relationship(seg_table, frag_table, shard_date):
         print(f"FAILED: {shard_date}")
         return False
 
-
 # %%
 all_passed = True
 for date in shard_dates_segments.shard_date:
@@ -375,91 +415,93 @@ if all_passed:
 
 # %%
 
+
 # %% [markdown]
+# ---
 # # EXPLORATORY ANALYSIS FOR `num_segs` METRIC
 #
 # ### !!! YOU CAN IGNORE THIS IF YOU JUST WANT TO DO THE QA QUERIES !!!
 # Finding a metric that flags when the number of segments in a day deviates far enough from the norm to cause concern. This query will not stop the pipeline but instead raise a flag that the day's data should be inspected against historical segment numbers.
+#
+# *NOTE: If you would like to run, you will need to uncomment the cells below.*
 
 # %%
-q = f'''
-WITH 
+# q = f'''
+# WITH 
 
-segment_data AS (
-    SELECT DATE(timestamp) as date, seg_id, ssvid, closed, message_count,
-    TIMESTAMP_DIFF(last_msg_timestamp, first_msg_timestamp, SECOND)/3600 as seg_hours,
-    (SELECT COUNT(*) FROM UNNEST(shipnames) WHERE value IS NOT NULL) > 0 AS valid_shipname
-    FROM `{DATASET_OLD}.{SEGMENTS_TABLE}*`
-)
+# segment_data AS (
+#     SELECT DATE(timestamp) as date, seg_id, ssvid, closed, message_count,
+#     TIMESTAMP_DIFF(last_msg_timestamp, first_msg_timestamp, SECOND)/3600 as seg_hours,
+#     (SELECT COUNT(*) FROM UNNEST(shipnames) WHERE value IS NOT NULL) > 0 AS valid_shipname
+#     FROM `{DATASET_OLD}.{SEGMENTS_TABLE}*`
+# )
 
-SELECT 
-date,
-EXTRACT(YEAR from date) as year,
-COUNT(*) AS num_segs,
-COUNT(DISTINCT seg_id) AS num_segs_distinct,
-COUNTIF(closed) AS num_closed,
-COUNTIF(closed)/COUNT(*) AS ratio_closed,
-COUNTIF(valid_shipname) AS num_valid_shipname,
-COUNTIF(valid_shipname)/COUNT(*) AS ratio_valid_shipname,
-AVG(IF(seg_hours = 0, NULL, LOG10(seg_hours))) AS avg_log_length,
-COUNTIF(seg_hours = 0) AS num_zero_length,
-COUNTIF(seg_hours = 0)/COUNT(*) as ratio_zero_length
-FROM segment_data
-GROUP BY date
-ORDER BY date
-'''
+# SELECT 
+# date,
+# EXTRACT(YEAR from date) as year,
+# COUNT(*) AS num_segs,
+# COUNT(DISTINCT seg_id) AS num_segs_distinct,
+# COUNTIF(closed) AS num_closed,
+# COUNTIF(closed)/COUNT(*) AS ratio_closed,
+# COUNTIF(valid_shipname) AS num_valid_shipname,
+# COUNTIF(valid_shipname)/COUNT(*) AS ratio_valid_shipname,
+# AVG(IF(seg_hours = 0, NULL, LOG10(seg_hours))) AS avg_log_length,
+# COUNTIF(seg_hours = 0) AS num_zero_length,
+# COUNTIF(seg_hours = 0)/COUNT(*) as ratio_zero_length
+# FROM segment_data
+# GROUP BY date
+# ORDER BY date
+# '''
 
-# print(q)
-df_segs_old_daily = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
-
-# %%
+# # print(q)
+# df_segs_old_daily = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
 
 # %%
-df_segs_old_daily_aug1 = df_segs_old_daily[df_segs_old_daily.date >= '2020-08-01'].reset_index(drop=True).copy()
-df_segs_old_daily_aug1['num_segs_7day_avg'] = df_segs_old_daily_aug1.rolling(window=7, closed='left').num_segs.mean()
-df_segs_old_daily_aug1['num_segs_7day_avg_diff'] = df_segs_old_daily_aug1.num_segs - df_segs_old_daily_aug1.num_segs_7day_avg
-df_segs_old_daily_aug1['num_segs_7day_avg_diff_perc'] = (df_segs_old_daily_aug1.num_segs - df_segs_old_daily_aug1.num_segs_7day_avg)/df_segs_old_daily_aug1.num_segs_7day_avg
-df_segs_old_daily_aug1['num_segs_30day_avg'] = df_segs_old_daily_aug1.rolling(window=30, closed='left').num_segs.mean()
-df_segs_old_daily_aug1['num_segs_30day_avg_diff'] = df_segs_old_daily_aug1.num_segs - df_segs_old_daily_aug1.num_segs_30day_avg
-df_segs_old_daily_aug1['num_segs_30day_avg_diff_perc'] = (df_segs_old_daily_aug1.num_segs - df_segs_old_daily_aug1.num_segs_30day_avg)/df_segs_old_daily_aug1.num_segs_30day_avg
-df_segs_old_daily_aug1
+# df_segs_old_daily_aug1 = df_segs_old_daily[df_segs_old_daily.date >= '2020-08-01'].reset_index(drop=True).copy()
+# df_segs_old_daily_aug1['num_segs_7day_avg'] = df_segs_old_daily_aug1.rolling(window=7, closed='left').num_segs.mean()
+# df_segs_old_daily_aug1['num_segs_7day_avg_diff'] = df_segs_old_daily_aug1.num_segs - df_segs_old_daily_aug1.num_segs_7day_avg
+# df_segs_old_daily_aug1['num_segs_7day_avg_diff_perc'] = (df_segs_old_daily_aug1.num_segs - df_segs_old_daily_aug1.num_segs_7day_avg)/df_segs_old_daily_aug1.num_segs_7day_avg
+# df_segs_old_daily_aug1['num_segs_30day_avg'] = df_segs_old_daily_aug1.rolling(window=30, closed='left').num_segs.mean()
+# df_segs_old_daily_aug1['num_segs_30day_avg_diff'] = df_segs_old_daily_aug1.num_segs - df_segs_old_daily_aug1.num_segs_30day_avg
+# df_segs_old_daily_aug1['num_segs_30day_avg_diff_perc'] = (df_segs_old_daily_aug1.num_segs - df_segs_old_daily_aug1.num_segs_30day_avg)/df_segs_old_daily_aug1.num_segs_30day_avg
+# df_segs_old_daily_aug1
 
 # %%
-ax = df_segs_old_daily_aug1.plot(x='date', y='num_segs', ylim=(125000, 400000))
-df_segs_old_daily_aug1.plot(ax=ax, x='date', y='num_segs_7day_avg', ylim=(125000, 400000))
-df_segs_old_daily_aug1.plot(ax=ax, x='date', y='num_segs_30day_avg', ylim=(125000, 400000))
+# ax = df_segs_old_daily_aug1.plot(x='date', y='num_segs', ylim=(125000, 400000))
+# df_segs_old_daily_aug1.plot(ax=ax, x='date', y='num_segs_7day_avg', ylim=(125000, 400000))
+# df_segs_old_daily_aug1.plot(ax=ax, x='date', y='num_segs_30day_avg', ylim=(125000, 400000))
 
-plt.title("Number of segments per day")
-plt.show()
-
-# %%
-fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2, figsize=(15,5))
-df_segs_old_daily_aug1.num_segs_7day_avg_diff_perc.hist(ax=ax0, bins=100)
-df_segs_old_daily_aug1.num_segs_30day_avg_diff_perc.hist(ax=ax1, bins=100)
-ax0.set_title("Percent difference\nfrom 7-day rolling average")
-ax1.set_title("Percent difference\nfrom 30-day rolling average")
-plt.show()
+# plt.title("Number of segments per day")
+# plt.show()
 
 # %%
-ax = df_segs_old_daily_aug1.plot(x='date', y='num_segs_7day_avg_diff_perc', label="7-day")#, ylim=(0, 400000))
-df_segs_old_daily_aug1.plot(ax=ax, x='date', y='num_segs_30day_avg_diff_perc', label="30-day")#, ylim=(0, 400000))
+# fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2, figsize=(15,5))
+# df_segs_old_daily_aug1.num_segs_7day_avg_diff_perc.hist(ax=ax0, bins=100)
+# df_segs_old_daily_aug1.num_segs_30day_avg_diff_perc.hist(ax=ax1, bins=100)
+# ax0.set_title("Percent difference\nfrom 7-day rolling average")
+# ax1.set_title("Percent difference\nfrom 30-day rolling average")
+# plt.show()
 
-diff_10perc_7day = df_segs_old_daily_aug1[df_segs_old_daily_aug1.num_segs_7day_avg_diff_perc.abs() > 0.1].copy().reset_index(drop=True)
-diff_10perc_30day = df_segs_old_daily_aug1[df_segs_old_daily_aug1.num_segs_30day_avg_diff_perc.abs() > 0.1].copy().reset_index(drop=True)
-diff_20perc_7day = df_segs_old_daily_aug1[df_segs_old_daily_aug1.num_segs_7day_avg_diff_perc.abs() > 0.2].copy().reset_index(drop=True)
-diff_20perc_30day = df_segs_old_daily_aug1[df_segs_old_daily_aug1.num_segs_30day_avg_diff_perc.abs() > 0.2].copy().reset_index(drop=True)
-diff_30perc_7day = df_segs_old_daily_aug1[df_segs_old_daily_aug1.num_segs_7day_avg_diff_perc.abs() > 0.3].copy().reset_index(drop=True)
-diff_30perc_30day = df_segs_old_daily_aug1[df_segs_old_daily_aug1.num_segs_30day_avg_diff_perc.abs() > 0.3].copy().reset_index(drop=True)
+# %%
+# ax = df_segs_old_daily_aug1.plot(x='date', y='num_segs_7day_avg_diff_perc', label="7-day")#, ylim=(0, 400000))
+# df_segs_old_daily_aug1.plot(ax=ax, x='date', y='num_segs_30day_avg_diff_perc', label="30-day")#, ylim=(0, 400000))
 
-plt.axhline(0.1, color='gray', ls='--')
-plt.axhline(-0.1, color='gray', ls='--')
-plt.axhline(0.2, color='black', ls='--')
-plt.axhline(-0.2, color='black', ls='--')
-plt.axhline(0.3, color='red', ls='--')
-plt.axhline(-0.3, color='red', ls='--')
+# diff_10perc_7day = df_segs_old_daily_aug1[df_segs_old_daily_aug1.num_segs_7day_avg_diff_perc.abs() > 0.1].copy().reset_index(drop=True)
+# diff_10perc_30day = df_segs_old_daily_aug1[df_segs_old_daily_aug1.num_segs_30day_avg_diff_perc.abs() > 0.1].copy().reset_index(drop=True)
+# diff_20perc_7day = df_segs_old_daily_aug1[df_segs_old_daily_aug1.num_segs_7day_avg_diff_perc.abs() > 0.2].copy().reset_index(drop=True)
+# diff_20perc_30day = df_segs_old_daily_aug1[df_segs_old_daily_aug1.num_segs_30day_avg_diff_perc.abs() > 0.2].copy().reset_index(drop=True)
+# diff_30perc_7day = df_segs_old_daily_aug1[df_segs_old_daily_aug1.num_segs_7day_avg_diff_perc.abs() > 0.3].copy().reset_index(drop=True)
+# diff_30perc_30day = df_segs_old_daily_aug1[df_segs_old_daily_aug1.num_segs_30day_avg_diff_perc.abs() > 0.3].copy().reset_index(drop=True)
 
-plt.title("Percent change in segments\nwith respect to 7 or 30 day rolling average")
-plt.show()
+# plt.axhline(0.1, color='gray', ls='--')
+# plt.axhline(-0.1, color='gray', ls='--')
+# plt.axhline(0.2, color='black', ls='--')
+# plt.axhline(-0.2, color='black', ls='--')
+# plt.axhline(0.3, color='red', ls='--')
+# plt.axhline(-0.3, color='red', ls='--')
+
+# plt.title("Percent change in segments\nwith respect to 7 or 30 day rolling average")
+# plt.show()
 
 # %% [markdown]
 #
@@ -470,51 +512,51 @@ plt.show()
 # **I suggest using the 30-day rolling average methodology with a threshold of 0.2 as a first pass at this QA.**
 
 # %%
-fig, ((ax0, ax1), (ax2, ax3), (ax4, ax5)) = plt.subplots(nrows=3, ncols=2, figsize=(15,10))
+# fig, ((ax0, ax1), (ax2, ax3), (ax4, ax5)) = plt.subplots(nrows=3, ncols=2, figsize=(15,10))
 
-# 10% from 7-day rolling average
-df_segs_old_daily_aug1.plot(ax=ax0, x='date', y='num_segs', ylim=(125000, 400000), legend=False)
-for date in diff_10perc_7day.date.to_list():
-    ax0.scatter(x=date, y=df_segs_old_daily_aug1[df_segs_old_daily_aug1.date == date].num_segs,
-                color='black', s=15, zorder=10)
+# # 10% from 7-day rolling average
+# df_segs_old_daily_aug1.plot(ax=ax0, x='date', y='num_segs', ylim=(125000, 400000), legend=False)
+# for date in diff_10perc_7day.date.to_list():
+#     ax0.scatter(x=date, y=df_segs_old_daily_aug1[df_segs_old_daily_aug1.date == date].num_segs,
+#                 color='black', s=15, zorder=10)
 
-# 10% from 30-day rolling average
-df_segs_old_daily_aug1.plot(ax=ax1, x='date', y='num_segs', ylim=(125000, 400000), legend=False)
-for date in diff_10perc_30day.date.to_list():
-    ax1.scatter(x=date, y=df_segs_old_daily_aug1[df_segs_old_daily_aug1.date == date].num_segs,
-                color='black', s=15, zorder=10)
+# # 10% from 30-day rolling average
+# df_segs_old_daily_aug1.plot(ax=ax1, x='date', y='num_segs', ylim=(125000, 400000), legend=False)
+# for date in diff_10perc_30day.date.to_list():
+#     ax1.scatter(x=date, y=df_segs_old_daily_aug1[df_segs_old_daily_aug1.date == date].num_segs,
+#                 color='black', s=15, zorder=10)
 
-# 20% from 7-day rolling average
-df_segs_old_daily_aug1.plot(ax=ax2, x='date', y='num_segs', ylim=(125000, 400000), legend=False)
-for date in diff_20perc_7day.date.to_list():
-    ax2.scatter(x=date, y=df_segs_old_daily_aug1[df_segs_old_daily_aug1.date == date].num_segs,
-                color='black', s=15, zorder=10)
+# # 20% from 7-day rolling average
+# df_segs_old_daily_aug1.plot(ax=ax2, x='date', y='num_segs', ylim=(125000, 400000), legend=False)
+# for date in diff_20perc_7day.date.to_list():
+#     ax2.scatter(x=date, y=df_segs_old_daily_aug1[df_segs_old_daily_aug1.date == date].num_segs,
+#                 color='black', s=15, zorder=10)
 
-# 20% from 30-day rolling average
-df_segs_old_daily_aug1.plot(ax=ax3, x='date', y='num_segs', ylim=(125000, 400000), legend=False)
-for date in diff_20perc_30day.date.to_list():
-    ax3.scatter(x=date, y=df_segs_old_daily_aug1[df_segs_old_daily_aug1.date == date].num_segs,
-                color='black', s=15, zorder=10)
+# # 20% from 30-day rolling average
+# df_segs_old_daily_aug1.plot(ax=ax3, x='date', y='num_segs', ylim=(125000, 400000), legend=False)
+# for date in diff_20perc_30day.date.to_list():
+#     ax3.scatter(x=date, y=df_segs_old_daily_aug1[df_segs_old_daily_aug1.date == date].num_segs,
+#                 color='black', s=15, zorder=10)
 
-# 30% from 7-day rolling average
-df_segs_old_daily_aug1.plot(ax=ax4, x='date', y='num_segs', ylim=(125000, 400000), legend=False)
-for date in diff_30perc_7day.date.to_list():
-    ax4.scatter(x=date, y=df_segs_old_daily_aug1[df_segs_old_daily_aug1.date == date].num_segs,
-                color='black', s=15, zorder=10)
+# # 30% from 7-day rolling average
+# df_segs_old_daily_aug1.plot(ax=ax4, x='date', y='num_segs', ylim=(125000, 400000), legend=False)
+# for date in diff_30perc_7day.date.to_list():
+#     ax4.scatter(x=date, y=df_segs_old_daily_aug1[df_segs_old_daily_aug1.date == date].num_segs,
+#                 color='black', s=15, zorder=10)
 
-# 30% from 30-day rolling average
-df_segs_old_daily_aug1.plot(ax=ax5, x='date', y='num_segs', ylim=(125000, 400000), legend=False)
-for date in diff_30perc_30day.date.to_list():
-    ax5.scatter(x=date, y=df_segs_old_daily_aug1[df_segs_old_daily_aug1.date == date].num_segs,
-                color='black', s=15, zorder=10)
+# # 30% from 30-day rolling average
+# df_segs_old_daily_aug1.plot(ax=ax5, x='date', y='num_segs', ylim=(125000, 400000), legend=False)
+# for date in diff_30perc_30day.date.to_list():
+#     ax5.scatter(x=date, y=df_segs_old_daily_aug1[df_segs_old_daily_aug1.date == date].num_segs,
+#                 color='black', s=15, zorder=10)
 
-ax0.set_ylabel("10% cutoff")
-ax2.set_ylabel("20% cutoff")
-ax4.set_ylabel("30% cutoff")
-ax0.set_title("7-day rolling average")
-ax1.set_title("30-day rolling average")
+# ax0.set_ylabel("10% cutoff")
+# ax2.set_ylabel("20% cutoff")
+# ax4.set_ylabel("30% cutoff")
+# ax0.set_title("7-day rolling average")
+# ax1.set_title("30-day rolling average")
 
-plt.show()
+# plt.show()
 
 # %% [markdown]
 # #### Could also consider using the stdev for this clean time period as the bar for the future
@@ -522,10 +564,10 @@ plt.show()
 # This also somewhat justifies the use of 0.2 or 0.3 depending on if we want to flag 2 or 3 standard deviations.
 
 # %%
-print("2 stdev\n--------")
-print(f"7-day: {df_segs_old_daily_aug1[df_segs_old_daily_aug1.date >= '2020-08-01'].num_segs_7day_avg_diff_perc.std() * 2:0.3f}")
-print(f"30-day: {df_segs_old_daily_aug1[df_segs_old_daily_aug1.date >= '2020-08-01'].num_segs_30day_avg_diff_perc.std() * 2:0.3f}")
-print()
-print("3 stdev\n--------")
-print(f"7-day: {df_segs_old_daily_aug1[df_segs_old_daily_aug1.date >= '2020-08-01'].num_segs_7day_avg_diff_perc.std() * 3:0.3f}")
-print(f"30-day: {df_segs_old_daily_aug1[df_segs_old_daily_aug1.date >= '2020-08-01'].num_segs_30day_avg_diff_perc.std() * 3:0.3f}")
+# print("2 stdev\n--------")
+# print(f"7-day: {df_segs_old_daily_aug1[df_segs_old_daily_aug1.date >= '2020-08-01'].num_segs_7day_avg_diff_perc.std() * 2:0.3f}")
+# print(f"30-day: {df_segs_old_daily_aug1[df_segs_old_daily_aug1.date >= '2020-08-01'].num_segs_30day_avg_diff_perc.std() * 2:0.3f}")
+# print()
+# print("3 stdev\n--------")
+# print(f"7-day: {df_segs_old_daily_aug1[df_segs_old_daily_aug1.date >= '2020-08-01'].num_segs_7day_avg_diff_perc.std() * 3:0.3f}")
+# print(f"30-day: {df_segs_old_daily_aug1[df_segs_old_daily_aug1.date >= '2020-08-01'].num_segs_30day_avg_diff_perc.std() * 3:0.3f}")

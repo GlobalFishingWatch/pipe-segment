@@ -145,7 +145,7 @@ print(f"PASS: {SEGMENTS_TABLE} basic check")
 
 
 # %%
-segments_advanced_checks = unnest_checks(DATASET_NEW_BACKFILL_INT, DATASET_NEW_MONTHLY_INT, SEGMENT_TABLE, ['daily_identities', 'daily_destinations', 'cumulative_identities', 'cumulative_destinations'])
+segments_advanced_checks = unnest_checks(DATASET_NEW_BACKFILL_INT, DATASET_NEW_MONTHLY_INT, SEGMENTS_TABLE, ['daily_identities', 'daily_destinations', 'cumulative_identities', 'cumulative_destinations'])
 
 for (col, df) in segments_advanced_checks:
     try:
