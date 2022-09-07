@@ -26,7 +26,7 @@
 import pandas as pd
 pd.set_option("max_rows", 20)
 
-from config import DATASET_NEW_BACKFILL_INT, DATASET_NEW_MONTHLY_INT, SAT_OFFSETS_TABLE, FRAGMENTS_TABLE, SEGMENTS_TABLE, MESSAGES_SEGMENTED_TABLE, SEGMENT_IDENTITY_DAILY_TABLE, SEGMENT_VESSEL_DAILY_TABLE, SEGMENT_INFO_TABLE, SEGMENT_VESSEL_TABLE
+from config import DATASET_NEW_BACKFILL_INT, DATASET_NEW_MONTHLY_INT, DATASET_NEW_BACKFILL_PUB, DATASET_NEW_MONTHLY_PUB, SAT_OFFSETS_TABLE, FRAGMENTS_TABLE, SEGMENTS_TABLE, MESSAGES_SEGMENTED_TABLE, SEGMENT_IDENTITY_DAILY_TABLE, SEGMENT_VESSEL_DAILY_TABLE, SEGMENT_INFO_TABLE, SEGMENT_VESSEL_TABLE, VESSEL_INFO_TABLE
 
 
 # %%
@@ -262,6 +262,36 @@ df_segment_vessel_check_basic = pd.read_gbq(q, project_id='world-fishing-827', d
 
 assert(df_segment_vessel_check_basic.shape[0] == 0)
 print(f"PASS: {SEGMENT_VESSEL_TABLE} basic check")
+
+
+# %% [markdown]
+# ### `vessel_info`
+
+# %%
+q = f'''
+SELECT * EXCEPT (shipname, callsign, imo, n_shipname, n_callsign, n_imo, shiptype, length, width)
+FROM `{DATASET_NEW_BACKFILL_PUB}.{VESSEL_INFO_TABLE}`
+EXCEPT DISTINCT
+SELECT * EXCEPT (shipname, callsign, imo, n_shipname, n_callsign, n_imo, shiptype, length, width)
+FROM `{DATASET_NEW_MONTHLY_PUB}.{VESSEL_INFO_TABLE}`
+'''
+
+df_vessel_info_check_basic = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+
+assert(df_vessel_info_check_basic.shape[0] == 0)
+print(f"PASS: {VESSEL_INFO_TABLE} basic check")
+
+
+# %%
+vessel_info_advanced_checks = struct_checks(DATASET_NEW_BACKFILL_PUB, DATASET_NEW_MONTHLY_PUB, VESSEL_INFO_TABLE, ['shipname', 'callsign', 'imo', 'n_shipname', 'n_callsign', 'n_imo', 'shiptype', 'length', 'width'])
+
+for (col, df) in vessel_info_advanced_checks:
+    try:
+        assert(df.shape[0] == 0)
+        print(f"PASS: {VESSEL_INFO_TABLE} advanced check - {col}")
+    except:
+        print(f"FAIL: {VESSEL_INFO_TABLE} advanced check - {col}")
+
 
 
 # %%

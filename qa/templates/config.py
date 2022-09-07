@@ -12,6 +12,7 @@ SEGMENT_IDENTITY_DAILY_TABLE = 'segment_identity_daily_'
 SEGMENT_VESSEL_DAILY_TABLE = 'segment_vessel_daily_'
 SEGMENT_INFO_TABLE = 'segment_info'
 SEGMENT_VESSEL_TABLE = 'segment_vessel'
+VESSEL_INFO_TABLE = 'vessel_info'
 
 # Threshold used for the difference between the
 # number of segments in a given day compared to
