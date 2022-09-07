@@ -62,12 +62,13 @@ WITH
 
 segment_data_new AS (
     SELECT 
-    DATE(seg.timestamp) as date,
-    EXTRACT(YEAR from DATE(seg.timestamp)) as year,
-    seg.ssvid as ssvid,
+    DATE(seg.timestamp) AS date,
+    EXTRACT(YEAR from DATE(seg.timestamp)) AS year,
+    seg.ssvid AS ssvid,
     COUNT(*) AS num_segs,
     COUNT(DISTINCT seg_id) AS num_segs_distinct,
-    SUM(TIMESTAMP_DIFF(frag.last_msg_timestamp, seg.first_timestamp, MINUTE)/60.0) as sum_seg_length_h
+    SUM(TIMESTAMP_DIFF(frag.last_msg_timestamp, seg.first_timestamp, MINUTE)/60.0) AS sum_seg_length_h,
+    SUM(TIMESTAMP_DIFF(frag.last_msg_timestamp, frag.first_msg_timestamp, MINUTE)/60.0) AS sum_seg_day_length_h,
     FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}*` seg
     JOIN `{DATASET_NEW_MONTHLY_INT}.{FRAGMENTS_TABLE}*` frag
     USING(frag_id)
@@ -81,7 +82,8 @@ segment_data_old AS (
     ssvid,
     COUNT(*) AS num_segs,
     COUNT(DISTINCT seg_id) AS num_segs_distinct,
-    SUM(TIMESTAMP_DIFF(last_msg_of_day_timestamp, IF(DATE(first_msg_timestamp) >= start_date(), first_msg_timestamp, TIMESTAMP(start_date())), MINUTE)/60.0) as sum_seg_length_h
+    SUM(TIMESTAMP_DIFF(last_msg_of_day_timestamp, IF(DATE(first_msg_timestamp) >= start_date(), first_msg_timestamp, TIMESTAMP(start_date())), MINUTE)/60.0) as sum_seg_length_h,
+    SUM(TIMESTAMP_DIFF(last_msg_of_day_timestamp, first_msg_of_day_timestamp, MINUTE)/60.0) AS sum_seg_day_length_h,
     FROM `{DATASET_OLD}.{SEGMENTS_TABLE}2020*`
     WHERE ssvid IN (SELECT DISTINCT ssvid FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}*`)
     AND _TABLE_SUFFIX BETWEEN FORMAT_TIMESTAMP("%m%d", start_date()) AND FORMAT_TIMESTAMP("%m%d", end_date())
@@ -100,9 +102,11 @@ segment_join AS (
     IFNULL(segs_new.num_segs, 0) AS num_segs_new,
     IFNULL(segs_new.num_segs_distinct, 0) AS num_segs_distinct_new,
     IFNULL(segs_new.sum_seg_length_h, 0) AS sum_seg_length_h_new,
+    IFNULL(segs_new.sum_seg_day_length_h, 0) AS sum_seg_day_length_h_new,
     IFNULL(segs_old.num_segs, 0) AS num_segs_old,
     IFNULL(segs_old.num_segs_distinct, 0) AS num_segs_distinct_old,
     IFNULL(segs_old.sum_seg_length_h, 0) AS sum_seg_length_h_old,
+    IFNULL(segs_old.sum_seg_day_length_h, 0) AS sum_seg_day_length_h_old,
     FROM segment_data_new segs_new
     FULL OUTER JOIN segment_data_old segs_old
     USING(date, year, ssvid)
@@ -116,12 +120,15 @@ ssvid,
 num_segs_new,
 num_segs_distinct_new,
 sum_seg_length_h_new,
+sum_seg_day_length_h_new,
 num_segs_old,
 num_segs_distinct_old,
 sum_seg_length_h_old,
+sum_seg_day_length_h_old,
 (num_segs_new - num_segs_old) as num_segs_diff,
 (num_segs_distinct_new - num_segs_distinct_old) as num_segs_distinct_diff,
 (sum_seg_length_h_new - sum_seg_length_h_old) as sum_seg_length_h_diff,
+(sum_seg_day_length_h_new - sum_seg_day_length_h_old) as sum_seg_day_length_h_diff,
 FROM segment_join
 '''
 
@@ -199,6 +206,17 @@ fig = plot_new_vs_old(df_segs_daily, col_prefix='avg_seg_length_h_',
 fig = plot_diff(df_segs_daily, col_prefix='avg_seg_length_h_', 
                 title="Difference between segmenters (new - old)\nAll baby pipe MMSI",
                 ylabel="Avg. length of active segments (hour)")
+
+# %%
+fig = plot_new_vs_old(df_segs_daily, col_prefix='sum_seg_day_length_h_', 
+                      title="Total length of segments in each day only (hours)\nAll baby pipe MMSI",
+                      ylabel="Total segment hours for day only")
+
+
+# %%
+fig = plot_diff(df_segs_daily, col_prefix='sum_seg_day_length_h_', 
+                title="Difference between segmenters (new - old)\nAll baby pipe MMSI",
+                ylabel="Total segment hours for day only")
 
 # %% [markdown]
 # ## MMSI with biggest changes
@@ -297,7 +315,7 @@ df_ssvid_stats.sort_values("num_segs_distinct_diff_abs", ascending=False)[:10][[
 # #### Total segment hours
 
 # %%
-df_ssvid_stats.sort_values("sum_seg_length_h_diff_abs", ascending=False)[:20][['ssvid', 'sum_seg_length_h_new', 'sum_seg_length_h_old', 'sum_seg_length_h_diff', 'sum_seg_length_h_diff_abs', 'num_segs_distinct_new', 'num_segs_distinct_old', 'num_segs_distinct_diff', 'num_segs_distinct_diff_abs']].reset_index(drop=True)
+df_ssvid_stats.sort_values("sum_seg_length_h_diff_abs", ascending=False)[:10][['ssvid', 'sum_seg_length_h_new', 'sum_seg_length_h_old', 'sum_seg_length_h_diff', 'sum_seg_length_h_diff_abs', 'num_segs_distinct_new', 'num_segs_distinct_old', 'num_segs_distinct_diff', 'num_segs_distinct_diff_abs']].reset_index(drop=True)
 
 # %% [markdown]
 # #### Average segment length (hours)
@@ -373,6 +391,17 @@ fig = plot_new_vs_old(df_segs_daily_no_413000000, col_prefix='avg_seg_length_h_'
 fig = plot_diff(df_segs_daily_no_413000000, col_prefix='avg_seg_length_h_', 
                 title="Difference between segmenters (new - old)\nExcluding 413000000",
                 ylabel="Avg. length of active segments (hour)")
+
+# %%
+fig = plot_new_vs_old(df_segs_daily_no_413000000, col_prefix='sum_seg_day_length_h_', 
+                      title="Total length of segments in each day only (hours)\nAll baby pipe MMSI",
+                      ylabel="Total segment hours for day only")
+
+
+# %%
+fig = plot_diff(df_segs_daily_no_413000000, col_prefix='sum_seg_day_length_h_', 
+                title="Difference between segmenters (new - old)\nAll baby pipe MMSI",
+                ylabel="Total segment hours for day only")
 
 # %% [markdown]
 # ## Overall segment Stats
@@ -670,3 +699,9 @@ tracks_413000000_old.to_csv(f'{data_folder}/tracks_413000000_old.csv')
 
 
 
+
+# %%
+
+# %%
+
+# %%
