@@ -23,8 +23,11 @@
 # Last Updated: August 24, 2022
 
 # %%
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import pyseas.maps as psm
+import pyseas.contrib as psc
 
 from config import DATASET_OLD, DATASET_NEW_MONTHLY_INT, FRAGMENTS_TABLE, SEGMENTS_TABLE, MESSAGES_SEGMENTED_TABLE, SEGMENT_INFO_TABLE
 
@@ -286,7 +289,7 @@ df_ssvid_stats = pd.read_gbq(q, project_id='world-fishing-827', dialect='standar
 
 
 # %% [markdown]
-# #### Number of segments
+# #### Summary of changes
 #
 # The overwhelming majority of the drop in the number of segments occurs for `413000000`. The decrease in the number of segments is smaller for the rest of the MMSI but the majority of MMSI have a decrease in segments.
 #
@@ -307,6 +310,9 @@ df_ssvid_stats[df_ssvid_stats.ssvid != '413000000'].plot.scatter(
 plt.xlabel("Total segment hours")
 plt.ylabel("Average segment length (hour)")
 plt.show()
+
+# %% [markdown]
+# #### Number of segments
 
 # %%
 df_ssvid_stats.sort_values("num_segs_distinct_diff_abs", ascending=False)[:10][['ssvid', 'num_segs_distinct_new', 'num_segs_distinct_old', 'num_segs_distinct_diff', 'num_segs_distinct_diff_abs']].reset_index(drop=True)
@@ -556,34 +562,29 @@ print(f"Avg seg length (DIFF): {df_seg_stats_no_413000000.avg_hours_new - df_seg
 # %%
 
 # %% [markdown]
-# # OLD CODE for pulling tracks, if needed
+# # Code for pulling tracks, as needed
+#
+# If you need to investigate particular MMSI, you can plot in this notebook using pyseas and/or you can download a CSV of tracks to upload to the Global Fishing Watch online map. For very spoofy MMSI or for long periods of time, the map may be a better option as pyseas will struggle or fail to render too many segments. Also if there are a lot of segments, be sure to set `plot_legend` to False as rendering a long list of segment names will cause it to slow down significantly or fail.
 
 # %% [markdown]
-# ## Pull tracks for some sample MMSI and dates for both old and new segmenters to compare in GFW map
-#
-# **Negative change**
-# * 413000000 on 2020-04-27
-# * 100900000 from 2020-01-20 to 2020-01-22
-# * 244453043 from 2020-08-04 to 2020-08-06
-#
-#
-#
-# **Positive change**
-# * 412440222 from 2020-02-27 to 2020-03-02
-#
-#
-
-# %%
-import os
-
-data_folder = 'data'
-if not os.path.exists(data_folder):
-    os.makedirs(data_folder)
-
+# #### Plot with `pyseas`
 
 # %%
 def get_tracks(dataset, ssvid, start_date, end_date):
+    '''
+    Retrieve the tracks for a given MMSI over a given date range in
+    the form of AIS messages with lat, lon, timestamp, and seg_id to 
+    allow for plotting.
 
+    Args:
+        dataset: string representing BigQuery dataset containing messages_segmented table
+        ssvid: MMSI for the vessel of interest
+        start_date: first date to consider for tracks in format "YYYYMMDD"
+        end_date: last date to consider for tracks in format "YYYYMMDD"
+
+    Returns:
+        dataframe of tracks
+    '''
     q = f'''
     SELECT 
     ssvid, timestamp, lat, lon, seg_id
@@ -599,6 +600,18 @@ def get_tracks(dataset, ssvid, start_date, end_date):
 
 # %%
 def get_segments(dataset, ssvid, start_date, end_date):
+    '''
+    Retrieve the segments for a given MMSI betwee a given date range.
+
+    Args:
+        dataset: string representing BigQuery dataset containing segment_info table
+        ssvid: MMSI for the vessel of interest
+        start_date: first date to consider for tracks in format "YYYY-MM-DD"
+        end_date: last date to consider for tracks in format "YYYY-MM-DD"
+
+    Returns:
+        dataframe of segments
+    '''
     q = f'''
     SELECT 
     *
@@ -613,10 +626,17 @@ def get_segments(dataset, ssvid, start_date, end_date):
 
 
 # %%
-import pyseas.maps as psm
-import pyseas.contrib as psc
+def plot_segmented_tracks(df, plot_legend=True):
+    '''
+    Plot tracks on a map with different segments divided by color.
 
-def plot_segmented_tracks(df):
+    Args:
+        df: dataframe containing tracks to plot, requires lat, lon, timestamp, and seg_id
+        plot_legend: if legend should be added (default=True)
+
+    Returns:
+        matplotlib figure
+    '''
     with psm.context(psm.styles.panel):
         fig = plt.figure(figsize=(12, 12))
         info = psc.multi_track_panel(
@@ -626,82 +646,65 @@ def plot_segmented_tracks(df):
             df.seg_id,
             plots=[{"label": "lon", "values": df.lon}, {"label": "lat", "values": df.lat}],
         )
-        plt.legend(
-            info.legend_handles.values(),
-            [x.split("-", 1)[1].rstrip(".000000000Z") for x in info.legend_handles.keys()],
-        )
+        if plot_legend:
+            plt.legend(
+                info.legend_handles.values(),
+                [x.split("-", 1)[1].rstrip(".000000000Z") for x in info.legend_handles.keys()],
+            )
         return fig
 
 
 
-# %%
-df_ssvid_stats[df_ssvid_stats.ssvid == '237352400']
+# %% [markdown]
+# ##### Step 1: Explore segments to chose dates to pull tracks
 
 # %%
-tracks_237352400_new = get_tracks(DATASET_NEW_MONTHLY_INT, '237352400', '20200101', '20201231')
-# tracks_237352400_new.to_csv(f'{data_folder}/tracks_237352400_new.csv')
-
-tracks_237352400_old = get_tracks(DATASET_OLD, '237352400', '20200101', '20201231')
-# tracks_237352400_old.to_csv(f'{data_folder}/tracks_237352400_old.csv')
+ssvid_1 = '538004933'
+segs_1 = get_segments(DATASET_NEW_MONTHLY_INT, ssvid_1, '2020-01-01', '2020-12-31')
 
 # %%
-fig = plot_segmented_tracks(tracks_237352400_old)
+segs_1
+
+# %% [markdown]
+# ##### Pull and plot tracks
 
 # %%
-fig = plot_segmented_tracks(tracks_237352400_new)
-
-# %%
-df_237352400_segs_old = get_segments(DATASET_OLD,'237352400', '2020-01-01', '2020-12-31')
-df_237352400_segs_new = get_segments(DATASET_NEW_MONTHLY_INT,'237352400', '2020-01-01', '2020-12-31')
-
-# %%
-df_237352400_segs_old
-
-# %%
-df_237352400_segs_new
-
-# %%
-
-# %%
-
-# %%
-
-# %%
-tracks_412440222_new = get_tracks(f'{DATASET_NEW_MONTHLY_INT}.{MESSAGES_SEGMENTED_TABLE}', '412440222', '20200227', '20200302')
-tracks_412440222_new.to_csv(f'{data_folder}/tracks_412440222_new.csv')
-
-tracks_412440222_old = get_tracks(f'{DATASET_OLD}.{MESSAGES_SEGMENTED_TABLE}', '412440222', '20200227', '20200302')
-tracks_412440222_old.to_csv(f'{data_folder}/tracks_412440222_old.csv')
+start_date_1 = '20200101'
+end_date_1 = '2020112'
+tracks1_new = get_tracks(DATASET_NEW_MONTHLY_INT, ssvid_1, start_date_1, end_date_1)
+tracks1_old = get_tracks(DATASET_OLD, ssvid_1, start_date_1, end_date_1)
 
 
 # %%
-tracks_244453043_new = get_tracks(f'{DATASET_NEW_MONTHLY_INT}.{MESSAGES_SEGMENTED_TABLE}', '244453043', '20200804', '20200806')
-tracks_244453043_new.to_csv(f'{data_folder}/tracks_244453043_new.csv')
-
-tracks_244453043_old = get_tracks(f'{DATASET_OLD}.{MESSAGES_SEGMENTED_TABLE}', '244453043', '20200804', '20200806')
-tracks_244453043_old.to_csv(f'{data_folder}/tracks_244453043_old.csv')
-
+fig = plot_segmented_tracks(tracks1_new)
 
 # %%
-tracks_100900000_new = get_tracks(f'{DATASET_NEW_MONTHLY_INT}.{MESSAGES_SEGMENTED_TABLE}', '100900000', '20200120', '20200122')
-tracks_100900000_new.to_csv(f'{data_folder}/tracks_100900000_new.csv')
+fig = plot_segmented_tracks(tracks1_old)
 
-tracks_100900000_old = get_tracks(f'{DATASET_OLD}.{MESSAGES_SEGMENTED_TABLE}', '100900000', '20200120', '20200122')
-tracks_100900000_old.to_csv(f'{data_folder}/tracks_100900000_old.csv')
-
+# %% [markdown]
+# ##### `413000000` example of tracks
 
 # %%
-tracks_413000000_new = get_tracks(f'{DATASET_NEW_MONTHLY_INT}.{MESSAGES_SEGMENTED_TABLE}', '413000000', '20200427', '20200427')
-tracks_413000000_new.to_csv(f'{data_folder}/tracks_413000000_new.csv')
-
-tracks_413000000_old = get_tracks(f'{DATASET_OLD}.{MESSAGES_SEGMENTED_TABLE}', '413000000', '20200427', '20200427')
-tracks_413000000_old.to_csv(f'{data_folder}/tracks_413000000_old.csv')
-
-
-
+tracks_413000000_new = get_tracks(DATASET_NEW_MONTHLY_INT, '413000000', '20200102', '20200102')
+tracks_413000000_old = get_tracks(DATASET_OLD, '413000000', '20200102', '20200102')
 
 # %%
+fig = plot_segmented_tracks(tracks_413000000_new, plot_legend=False)
 
 # %%
+fig = plot_segmented_tracks(tracks_413000000_old, plot_legend=False)
+
+# %% [markdown]
+# #### Output CSV for use with GFW map
+#
+# These CSV can be uploaded in the GFW map (https://globalfishingwatch.org/map) in the `Environments` section.
 
 # %%
+data_folder = 'data'
+if not os.path.exists(data_folder):
+    os.makedirs(data_folder)
+
+# %%
+tracks1_new.to_csv(f'{data_folder}/tracks_{ssvid_1}_new.csv')
+tracks1_old.to_csv(f'{data_folder}/tracks_{ssvid_1}_old.csv')
+
