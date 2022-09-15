@@ -4,15 +4,14 @@
 2. Copy the notebooks in `templates/` into that new folder.
 3. Update the tables in each notebook to match what you are comparing/QAing.
 3. Modify your copy of the notebooks templates as needed.
-4. After final run, export your notebook to rendered HTML for permanent storage of the outputs that will exist even when the tables you are using no longer do.
+4. After final run, export your notebook to Markdown for permanent storage of the outputs that will exist even when the tables you are using no longer do. Make sure to commit any image folders that have been created as well.
 
-### Exporting to HTML
+### Exporting to Markdown
 
-1. [In VSCode](https://code.visualstudio.com/docs/datascience/jupyter-notebooks#:~:text=You%20can%20export%20a%20Jupyter,dropdown%20of%20file%20format%20options.)  
-*Note: you may need to install the `jupyter-contrib-nbextensions` if you haven't done so yet (see [link](https://jupyter-contrib-nbextensions.readthedocs.io/en/latest/install.html))*
+1. **Command line:** run `jupyter nbconvert --to markdown <notebook.ipynb>`
 
-2. [In Jupyter Notebook web interface](https://mljar.com/blog/jupyter-notebook-html/)
+2. **Web-based interface:** Navigate to *File > Download As* and select Markdown.
 
-3. [In Jupyter Lab web interface](https://jupyterlab.readthedocs.io/en/stable/user/export.html)
+See [this link](https://reproducible-science-curriculum.github.io/publication-RR-Jupyter/02-exporting_the_notebook/index.html) for more information.
 
-3. On the command line: run `jupyter nbconvert --to html yourNotebook.ipynb`
+*Note: you may need to install the `jupyter-contrib-nbextensions` if you haven't done so yet (see [instructions](https://jupyter-contrib-nbextensions.readthedocs.io/en/latest/install.html))*.

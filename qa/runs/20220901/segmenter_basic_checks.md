@@ -1,31 +1,14 @@
-# ---
-# jupyter:
-#   jupytext:
-#     cell_metadata_filter: -all
-#     custom_cell_magics: kql
-#     formats: ipynb,py:percent
-#     text_representation:
-#       extension: .py
-#       format_name: percent
-#       format_version: '1.3'
-#       jupytext_version: 1.11.2
-#   kernelspec:
-#     display_name: Python 3.9.6 ('rad')
-#     language: python
-#     name: python3
-# ---
+# Segmenter Basic Checks
 
-# %% [markdown]
-# # Segmenter Basic Checks
-#
-# Sanity checks for `segments_` and `messages_segmented_`.
-#
-# Will eventually be automated as part of the pipeline and may no longer be a necessary part of manual QA so long as the checks were run as part of the pipeline you will to check.
-#
-# Author: Jenn Van Osdel  
-# Last Updated: August 24, 2022
+Sanity checks for `segments_` and `messages_segmented_`.
 
-# %%
+Will eventually be automated as part of the pipeline and may no longer be a necessary part of manual QA so long as the checks were run as part of the pipeline you will to check.
+
+Author: Jenn Van Osdel  
+Last Updated: August 24, 2022
+
+
+```python
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -35,13 +18,14 @@ from config import DATASET_OLD, DATASET_NEW_MONTHLY_INT, FRAGMENTS_TABLE, SEGMEN
 
 mpl.rcParams['figure.facecolor'] = 'white'
 pd.set_option("max_rows", 40)
+```
 
-# %% [markdown]
-# # FINAL QUERIES FOR AUTOMATED QA
-#
-# This notebook runs the queries on every date shard in the table, but these queries can be used directly in Airflow for a given day instead.
+# FINAL QUERIES FOR AUTOMATED QA
 
-# %%
+This notebook runs the queries on every date shard in the table, but these queries can be used directly in Airflow for a given day instead.
+
+
+```python
 q = f'''
 SELECT DISTINCT _table_suffix as shard_date
 FROM `{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}*`
@@ -49,8 +33,14 @@ ORDER BY shard_date
 '''
 
 shard_dates_segments = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+```
 
-# %%
+    /Users/jennifervanosdel/miniconda3/envs/rad/lib/python3.9/site-packages/google/auth/_default.py:81: UserWarning: Your application has authenticated using end user credentials from Google Cloud SDK without a quota project. You might receive a "quota exceeded" or "API not enabled" error. We recommend you rerun `gcloud auth application-default login` and make sure a quota project is added. Or you can use service accounts instead. For more information about service accounts, see https://cloud.google.com/docs/authentication/
+      warnings.warn(_CLOUD_SDK_CREDENTIALS_WARNING)
+
+
+
+```python
 q = f'''
 SELECT DISTINCT _table_suffix as shard_date
 FROM `{DATASET_NEW_MONTHLY_INT}.{MESSAGES_SEGMENTED_TABLE}*`
@@ -58,8 +48,10 @@ ORDER BY shard_date
 '''
 
 shard_dates_messages_segmented = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+```
 
-# %%
+
+```python
 q = f'''
 SELECT DISTINCT _table_suffix as shard_date
 FROM `{DATASET_NEW_MONTHLY_INT}.{FRAGMENTS_TABLE}*`
@@ -67,19 +59,22 @@ ORDER BY shard_date
 '''
 
 shard_dates_fragments = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+```
 
-# %%
+
+```python
 try:
     assert(shard_dates_segments.shard_date.to_list() == shard_dates_messages_segmented.shard_date.to_list() == shard_dates_fragments.shard_date.to_list())
 except:
     print("ERROR: Shard dates do not match between tables. DO NOT CONTINUE QA BEFORE RECONCILING!")
+```
 
-# %% [markdown]
-# ## Check num_segs against 30-day rolling average for a given day
-#
-# Cost: 0MB
+## Check num_segs against 30-day rolling average for a given day
 
-# %%
+Cost: 0MB
+
+
+```python
 def check_rolling_average(shard_date):
     # Query to get the 30-day rolling average for a particular day
     q = f'''
@@ -105,8 +100,10 @@ def check_rolling_average(shard_date):
     except:
         print(f"FAILED: {shard_date}")
         return False
+```
 
-# %%
+
+```python
 # Cannot perform the check for the first 30 days reliably.
 all_passed = True
 failed_dates = []
@@ -120,8 +117,25 @@ failed_dates = [datetime.strptime(date, "%Y%m%d").strftime('%Y-%m-%d') for date 
 
 if all_passed:
     print("ALL PASSED")
+```
 
-# %%
+    FAILED: 20200221
+    FAILED: 20200225
+    FAILED: 20200301
+    FAILED: 20200311
+    FAILED: 20200316
+    FAILED: 20200502
+    FAILED: 20200503
+    FAILED: 20200504
+    FAILED: 20200506
+    FAILED: 20200512
+    FAILED: 20200903
+    FAILED: 20201023
+    FAILED: 20201027
+
+
+
+```python
 if not all_passed:
     q = f'''
     WITH 
@@ -150,8 +164,10 @@ if not all_passed:
     df_segs_daily['num_segs_30day_avg_diff'] = df_segs_daily.num_segs - df_segs_daily.num_segs_30day_avg
     df_segs_daily['num_segs_30day_avg_diff_perc'] = (df_segs_daily.num_segs - df_segs_daily.num_segs_30day_avg)/df_segs_daily.num_segs_30day_avg
     df_segs_daily = df_segs_daily.set_index(pd.to_datetime(df_segs_daily.date))
+```
 
-# %%
+
+```python
 if not all_passed:
     fig = plt.figure(figsize=(10, 5))
     ax = df_segs_daily.num_segs.plot(label="Number of segments")
@@ -162,25 +178,30 @@ if not all_passed:
         plt.axvline(date, c="red", ls='--', lw=0.7)
     plt.legend()
     plt.show()
+```
 
-# %% [markdown]
-# ## Sanity checks
 
-# %% [markdown]
-# ### `segments_`
-# * `daily_message_count` > 0
-# * `cumulative_msg_count` > 0
-# * ssvid portion of `frag_id` == `ssvid`
-# * DATE(`frag_id`) >= DATE(`seg_id`)
-# * No duplicate `seg_id` (still broken in `20220329` version)
-#
-# **NOTE: duplicate `seg_ids` have not been fixed yet so the below query fails the assertion**
+    
+![png](segmenter_basic_checks_files/segmenter_basic_checks_11_0.png)
+    
 
-# %% [markdown]
-# ##### Validity checks
-# *Cost: ~18KB depending on size of day*
 
-# %%
+## Sanity checks
+
+### `segments_`
+* `daily_message_count` > 0
+* `cumulative_msg_count` > 0
+* ssvid portion of `frag_id` == `ssvid`
+* DATE(`frag_id`) >= DATE(`seg_id`)
+* No duplicate `seg_id` (still broken in `20220329` version)
+
+**NOTE: duplicate `seg_ids` have not been fixed yet so the below query fails the assertion**
+
+##### Validity checks
+*Cost: ~18KB depending on size of day*
+
+
+```python
 def check_segments_validity(shard_date):
     q = f'''
     CREATE TEMP FUNCTION timestamp_from_id(frag_id STRING) AS
@@ -208,8 +229,10 @@ def check_segments_validity(shard_date):
     except:
         print(f"FAILED {shard_date}")
         return False
+```
 
-# %%
+
+```python
 all_passed = True
 for date in shard_dates_segments.shard_date:
     outcome = check_segments_validity(date)
@@ -218,19 +241,23 @@ for date in shard_dates_segments.shard_date:
 
 if all_passed:
     print("ALL PASSED")
+```
 
-# %% [markdown]
-# ### `messages_segmented_`
-# * DATE(`frag_id`) == DATE(`timestamp`)
-# * DATE(`frag_id`) >= DATE(`seg_id`)
-# * `source` is one of [`spire` , `orbcomm`]
-# * `type` starts with `AIS.`
-# * `receiver_type` is one of [`satellite` , `terrestrial`]
-# * Check that we never get invalid values for certain columns: `lon`, `lat`, `course`, `heading`, `speed`, `shipname`, `callsign`, `destination`
-#
-# *Cost: ~5-6MB depending on size of day*
+    ALL PASSED
 
-# %%
+
+### `messages_segmented_`
+* DATE(`frag_id`) == DATE(`timestamp`)
+* DATE(`frag_id`) >= DATE(`seg_id`)
+* `source` is one of [`spire` , `orbcomm`]
+* `type` starts with `AIS.`
+* `receiver_type` is one of [`satellite` , `terrestrial`]
+* Check that we never get invalid values for certain columns: `lon`, `lat`, `course`, `heading`, `speed`, `shipname`, `callsign`, `destination`
+
+*Cost: ~5-6MB depending on size of day*
+
+
+```python
 def check_messages_segmented_validity(shard_date):
     q = f'''
     CREATE TEMP FUNCTION time_from_segid_array(arr ARRAY<STRING>) AS
@@ -266,8 +293,10 @@ def check_messages_segmented_validity(shard_date):
     except:
         print(f"FAILED: {shard_date}")
         return False
+```
 
-# %%
+
+```python
 all_passed = True
 for date in shard_dates_messages_segmented.shard_date:
     outcome = check_messages_segmented_validity(date)
@@ -276,16 +305,20 @@ for date in shard_dates_messages_segmented.shard_date:
 
 if all_passed:
     print("ALL PASSED")
+```
 
-# %% [markdown]
-# ### `fragments_`
-# * `msg_count` > 0
-# * timestamp portion of `frag_id` == `first_msg_timestamp`
-# * date portion of `frag_id` == date portion of `timestamp` and `last_msg_timestamp`
-# * ssvid portion of `frag_id` == `ssvid`
-# * No duplicate `frag_id`
+    ALL PASSED
 
-# %%
+
+### `fragments_`
+* `msg_count` > 0
+* timestamp portion of `frag_id` == `first_msg_timestamp`
+* date portion of `frag_id` == date portion of `timestamp` and `last_msg_timestamp`
+* ssvid portion of `frag_id` == `ssvid`
+* No duplicate `frag_id`
+
+
+```python
 def check_fragments_validity(shard_date):
     q = f'''
     CREATE TEMP FUNCTION timestamp_from_id(frag_id STRING) AS
@@ -314,8 +347,10 @@ def check_fragments_validity(shard_date):
     except:
         print(f"FAILED {shard_date}")
         return False
+```
 
-# %%
+
+```python
 all_passed = True
 for date in shard_dates_fragments.shard_date:
     outcome = check_fragments_validity(date)
@@ -324,12 +359,16 @@ for date in shard_dates_fragments.shard_date:
 
 if all_passed:
     print("ALL PASSED")
+```
 
-# %% [markdown]
-# ### Duplicates check for `segments_` and `fragments_`
-# *Cost: ~6KB depending on size of day*
+    ALL PASSED
 
-# %%
+
+### Duplicates check for `segments_` and `fragments_`
+*Cost: ~6KB depending on size of day*
+
+
+```python
 def check_duplicate_ids(table, id_col, shard_date):
     q = f'''
     WITH
@@ -356,8 +395,10 @@ def check_duplicate_ids(table, id_col, shard_date):
     except:
         print(f"FAILED: {shard_date}")
         return False
+```
 
-# %%
+
+```python
 all_passed = True
 for date in shard_dates_segments.shard_date:
     outcome = check_duplicate_ids(f"{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}", "seg_id", date)
@@ -366,8 +407,13 @@ for date in shard_dates_segments.shard_date:
 
 if all_passed:
     print("ALL PASSED")
+```
 
-# %%
+    ALL PASSED
+
+
+
+```python
 all_passed = True
 for date in shard_dates_segments.shard_date:
     outcome = check_duplicate_ids(f"{DATASET_NEW_MONTHLY_INT}.{FRAGMENTS_TABLE}", "frag_id", date)
@@ -376,13 +422,17 @@ for date in shard_dates_segments.shard_date:
 
 if all_passed:
     print("ALL PASSED")
+```
 
-# %% [markdown]
-# ### Fragment/segment join checks
-#
-# Make sure there is a one-to-one relationship between `segments_` and `framents_` on `frag_id` on every shard date. There should be a one-to-one relationship across all dates as well, but this is designed to be run on a daily basis. The construction of the `frag_id` should keep `frag_id` from having a duplicate on any other shard date by definition, but that is still an assumption we make here to keep checks at the daily level.
+    ALL PASSED
 
-# %%
+
+### Fragment/segment join checks
+
+Make sure there is a one-to-one relationship between `segments_` and `framents_` on `frag_id` on every shard date. There should be a one-to-one relationship across all dates as well, but this is designed to be run on a daily basis. The construction of the `frag_id` should keep `frag_id` from having a duplicate on any other shard date by definition, but that is still an assumption we make here to keep checks at the daily level.
+
+
+```python
 def check_seg_frag_relationship(seg_table, frag_table, shard_date):
     q = f'''
     SELECT
@@ -401,8 +451,10 @@ def check_seg_frag_relationship(seg_table, frag_table, shard_date):
     except:
         print(f"FAILED: {shard_date}")
         return False
+```
 
-# %%
+
+```python
 all_passed = True
 for date in shard_dates_segments.shard_date:
     outcome = check_seg_frag_relationship(f"{DATASET_NEW_MONTHLY_INT}.{SEGMENTS_TABLE}", f"{DATASET_NEW_MONTHLY_INT}.{FRAGMENTS_TABLE}", date)
@@ -411,20 +463,26 @@ for date in shard_dates_segments.shard_date:
 
 if all_passed:
     print("ALL PASSED")
+```
 
-# %%
+    ALL PASSED
 
 
-# %% [markdown]
-# ---
-# # EXPLORATORY ANALYSIS FOR `num_segs` METRIC
-#
-# ### !!! YOU CAN IGNORE THIS IF YOU JUST WANT TO DO THE QA QUERIES !!!
-# Finding a metric that flags when the number of segments in a day deviates far enough from the norm to cause concern. This query will not stop the pipeline but instead raise a flag that the day's data should be inspected against historical segment numbers.
-#
-# *NOTE: If you would like to run, you will need to uncomment the cells below.*
 
-# %%
+```python
+
+```
+
+---
+# EXPLORATORY ANALYSIS FOR `num_segs` METRIC
+
+### !!! YOU CAN IGNORE THIS IF YOU JUST WANT TO DO THE QA QUERIES !!!
+Finding a metric that flags when the number of segments in a day deviates far enough from the norm to cause concern. This query will not stop the pipeline but instead raise a flag that the day's data should be inspected against historical segment numbers.
+
+*NOTE: If you would like to run, you will need to uncomment the cells below.*
+
+
+```python
 # q = f'''
 # WITH 
 
@@ -454,8 +512,10 @@ if all_passed:
 
 # # print(q)
 # df_segs_old_daily = pd.read_gbq(q, project_id='world-fishing-827', dialect='standard')
+```
 
-# %%
+
+```python
 # df_segs_old_daily_aug1 = df_segs_old_daily[df_segs_old_daily.date >= '2020-08-01'].reset_index(drop=True).copy()
 # df_segs_old_daily_aug1['num_segs_7day_avg'] = df_segs_old_daily_aug1.rolling(window=7, closed='left').num_segs.mean()
 # df_segs_old_daily_aug1['num_segs_7day_avg_diff'] = df_segs_old_daily_aug1.num_segs - df_segs_old_daily_aug1.num_segs_7day_avg
@@ -464,24 +524,30 @@ if all_passed:
 # df_segs_old_daily_aug1['num_segs_30day_avg_diff'] = df_segs_old_daily_aug1.num_segs - df_segs_old_daily_aug1.num_segs_30day_avg
 # df_segs_old_daily_aug1['num_segs_30day_avg_diff_perc'] = (df_segs_old_daily_aug1.num_segs - df_segs_old_daily_aug1.num_segs_30day_avg)/df_segs_old_daily_aug1.num_segs_30day_avg
 # df_segs_old_daily_aug1
+```
 
-# %%
+
+```python
 # ax = df_segs_old_daily_aug1.plot(x='date', y='num_segs', ylim=(125000, 400000))
 # df_segs_old_daily_aug1.plot(ax=ax, x='date', y='num_segs_7day_avg', ylim=(125000, 400000))
 # df_segs_old_daily_aug1.plot(ax=ax, x='date', y='num_segs_30day_avg', ylim=(125000, 400000))
 
 # plt.title("Number of segments per day")
 # plt.show()
+```
 
-# %%
+
+```python
 # fig, (ax0, ax1) = plt.subplots(nrows=1, ncols=2, figsize=(15,5))
 # df_segs_old_daily_aug1.num_segs_7day_avg_diff_perc.hist(ax=ax0, bins=100)
 # df_segs_old_daily_aug1.num_segs_30day_avg_diff_perc.hist(ax=ax1, bins=100)
 # ax0.set_title("Percent difference\nfrom 7-day rolling average")
 # ax1.set_title("Percent difference\nfrom 30-day rolling average")
 # plt.show()
+```
 
-# %%
+
+```python
 # ax = df_segs_old_daily_aug1.plot(x='date', y='num_segs_7day_avg_diff_perc', label="7-day")#, ylim=(0, 400000))
 # df_segs_old_daily_aug1.plot(ax=ax, x='date', y='num_segs_30day_avg_diff_perc', label="30-day")#, ylim=(0, 400000))
 
@@ -501,16 +567,17 @@ if all_passed:
 
 # plt.title("Percent change in segments\nwith respect to 7 or 30 day rolling average")
 # plt.show()
+```
 
-# %% [markdown]
-#
-# ### Assessing percent change methodology
-#
-# Seems like a gradual decline into the holidays with a sharp drop at the Lunar New Year in both years. The large drop in November is currently unexplained. These should all probably throw a flag as they are a sharp deviation that warrants some investigation. If a similar deviation happened unrealted to the winter holidays, it would be cause for concern. This methodology tends to trigger both when going into a sudden decrease/increase but also on the way out of that decrease/increase. This means that flags will cluster with long periods of time inbetween flags being thrown. 
-#
-# **I suggest using the 30-day rolling average methodology with a threshold of 0.2 as a first pass at this QA.**
 
-# %%
+### Assessing percent change methodology
+
+Seems like a gradual decline into the holidays with a sharp drop at the Lunar New Year in both years. The large drop in November is currently unexplained. These should all probably throw a flag as they are a sharp deviation that warrants some investigation. If a similar deviation happened unrealted to the winter holidays, it would be cause for concern. This methodology tends to trigger both when going into a sudden decrease/increase but also on the way out of that decrease/increase. This means that flags will cluster with long periods of time inbetween flags being thrown. 
+
+**I suggest using the 30-day rolling average methodology with a threshold of 0.2 as a first pass at this QA.**
+
+
+```python
 # fig, ((ax0, ax1), (ax2, ax3), (ax4, ax5)) = plt.subplots(nrows=3, ncols=2, figsize=(15,10))
 
 # # 10% from 7-day rolling average
@@ -556,13 +623,14 @@ if all_passed:
 # ax1.set_title("30-day rolling average")
 
 # plt.show()
+```
 
-# %% [markdown]
-# #### Could also consider using the stdev for this clean time period as the bar for the future
-#
-# This also somewhat justifies the use of 0.2 or 0.3 depending on if we want to flag 2 or 3 standard deviations.
+#### Could also consider using the stdev for this clean time period as the bar for the future
 
-# %%
+This also somewhat justifies the use of 0.2 or 0.3 depending on if we want to flag 2 or 3 standard deviations.
+
+
+```python
 # print("2 stdev\n--------")
 # print(f"7-day: {df_segs_old_daily_aug1[df_segs_old_daily_aug1.date >= '2020-08-01'].num_segs_7day_avg_diff_perc.std() * 2:0.3f}")
 # print(f"30-day: {df_segs_old_daily_aug1[df_segs_old_daily_aug1.date >= '2020-08-01'].num_segs_30day_avg_diff_perc.std() * 2:0.3f}")
@@ -570,5 +638,4 @@ if all_passed:
 # print("3 stdev\n--------")
 # print(f"7-day: {df_segs_old_daily_aug1[df_segs_old_daily_aug1.date >= '2020-08-01'].num_segs_7day_avg_diff_perc.std() * 3:0.3f}")
 # print(f"30-day: {df_segs_old_daily_aug1[df_segs_old_daily_aug1.date >= '2020-08-01'].num_segs_30day_avg_diff_perc.std() * 3:0.3f}")
-
-
+```
