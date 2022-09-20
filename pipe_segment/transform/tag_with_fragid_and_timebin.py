@@ -8,15 +8,15 @@ logger.setLevel(logging.DEBUG)
 
 
 class TagWithFragIdAndTimeBin(PTransform):
-    def __init__(self, start_date: date, end_date: date, bins_per_days: int):
+    def __init__(self, start_date: date, end_date: date, bins_per_day: int):
         self.start_date = start_date
         self.end_date = end_date
-        self.bins_per_day = bins_per_days
+        self.bins_per_day = bins_per_day
 
     def tag_frags(self, x):
         date = self.start_date
         while date <= self.end_date:
-            for bin in range(self.bins_per_days):
+            for bin in range(self.bins_per_day):
                 yield ((x["frag_id"], str(date), bin), x)
             date += timedelta(days=1)
 
