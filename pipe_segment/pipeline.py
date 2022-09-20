@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timedelta
 
 import apache_beam as beam
+import pytz
 import ujson
 from apache_beam.options.pipeline_options import (GoogleCloudOptions,
                                                   StandardOptions)
@@ -17,8 +18,8 @@ from pipe_segment.transform.invalid_values import filter_invalid_values
 from pipe_segment.transform.read_fragments import ReadFragments
 from pipe_segment.transform.read_messages import ReadMessages
 from pipe_segment.transform.satellite_offsets import SatelliteOffsets
-from pipe_segment.transform.tag_with_fragid_and_date import \
-    TagWithFragIdAndDate
+from pipe_segment.transform.tag_with_fragid_and_timebin import \
+    TagWithFragIdAndTimeBin
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
 from pipe_segment.transform.write_date_sharded import WriteDateSharded
 
@@ -38,6 +39,18 @@ def safe_date(ts):
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
     return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
+
+
+def time_bin_ndx(dtime, time_bins):
+    reltime = dtime - datetime(dtime.year, dtime.month, dtime.day, tzinfo=pytz.UTC)
+    ndx = int(time_bins * (reltime / timedelta(hours=24)))
+    assert 0 <= ndx < time_bins
+    return ndx
+
+
+def time_bin_key(x, time_bins):
+    dtime = datetimeFromTimestamp(x["timestamp"])
+    return x["frag_id"], str(dtime.date()), time_bin_ndx(dtime, time_bins)
 
 
 class SegmentPipeline:
@@ -76,10 +89,17 @@ class SegmentPipeline:
             | "FilterInvalidValues" >> beam.Map(filter_invalid_values)
         )
 
-        if self.options.sat_source and self.options.norad_to_receiver_tbl and self.options.sat_positions_tbl:
+        if (
+            self.options.sat_source
+            and self.options.norad_to_receiver_tbl
+            and self.options.sat_positions_tbl
+        ):
             satellite_offsets = pipeline | SatelliteOffsets(
-                self.options.sat_source, self.options.norad_to_receiver_tbl, self.options.sat_positions_tbl, \
-                start_date, end_date
+                self.options.sat_source,
+                self.options.norad_to_receiver_tbl,
+                self.options.sat_positions_tbl,
+                start_date,
+                end_date,
             )
 
             if self.options.sat_offset_dest:
@@ -137,10 +157,13 @@ class SegmentPipeline:
             | CreateSegmentMap(self.merge_params)
         )
 
-        msg_segmap = segmap_src | TagWithFragIdAndDate(start_date, end_date)
+        bins_per_day = 4
+        msg_segmap = segmap_src | TagWithFragIdAndTimeBin(
+            start_date, end_date, bins_per_day
+        )
 
         tagged_messages = messages | "AddKeyToMessages" >> beam.Map(
-            lambda x: ((x["frag_id"], str(timestamp_to_date(x["timestamp"]))), x)
+            lambda x: (time_bin_key(x, bins_per_day), x)
         )
 
         (
