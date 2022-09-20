@@ -157,7 +157,7 @@ class SegmentPipeline:
             | CreateSegmentMap(self.merge_params)
         )
 
-        bins_per_day = 4
+        bins_per_day = 24
         msg_segmap = segmap_src | TagWithFragIdAndTimeBin(
             start_date, end_date, bins_per_day
         )
