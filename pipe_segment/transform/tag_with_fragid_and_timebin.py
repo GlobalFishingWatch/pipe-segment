@@ -1,5 +1,5 @@
 import logging
-from datetime import date, timedelta
+from datetime import date
 
 from apache_beam import FlatMap, PTransform
 
@@ -14,11 +14,14 @@ class TagWithFragIdAndTimeBin(PTransform):
         self.bins_per_day = bins_per_day
 
     def tag_frags(self, x):
-        date = self.start_date
-        while date <= self.end_date:
+        frag_id = x["frag_id"]
+        date_str = frag_id.split("T")[0].split("-", 1)[1]
+        assert len(date_str) == 10
+        start_date_str = f"{self.start_date:%Y-%m-%d}"
+        end_date_str = f"{self.end_date:%Y-%m-%d}"
+        if start_date_str <= date_str <= end_date_str:
             for bin in range(self.bins_per_day):
                 yield ((x["frag_id"], str(date), bin), x)
-            date += timedelta(days=1)
 
     def expand(self, xs):
         return xs | FlatMap(self.tag_frags)
