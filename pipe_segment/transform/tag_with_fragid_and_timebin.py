@@ -14,14 +14,9 @@ class TagWithFragIdAndTimeBin(PTransform):
         self.bins_per_day = bins_per_day
 
     def tag_frags(self, x):
-        frag_id = x["frag_id"]
-        date_str = frag_id.split("T")[0].split("-", 1)[1]
-        assert len(date_str) == 10
-        start_date_str = f"{self.start_date:%Y-%m-%d}"
-        end_date_str = f"{self.end_date:%Y-%m-%d}"
-        if start_date_str <= date_str <= end_date_str:
-            for bin in range(self.bins_per_day):
-                yield ((x["frag_id"], str(date), bin), x)
+        if self.start_date <= x["date"] <= self.end_date:
+            for sub_bin in range(self.bins_per_day):
+                yield ((x["frag_id"], x["date"], sub_bin), x)
 
     def expand(self, xs):
         return xs | FlatMap(self.tag_frags)
