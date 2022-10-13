@@ -112,3 +112,8 @@ class SegmentOptions(PipelineOptions):
             "testing purposes and if tempted to use for production, more work should be done "
             "so that the data is pruned on the way in.",
         )
+        optional.add_argument(
+            "--bins_per_day",
+            default=4,
+            help="Amount of containers per day to tag fragments and messages.",
+        )
