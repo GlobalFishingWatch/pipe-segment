@@ -47,7 +47,7 @@ class ReadFragments(beam.PTransform):
             start_date = max(first_table_date, self.start_date)
         while start_date <= self.end_date:
             next_start_date = start_date + timedelta(days=365)
-            end_date = next_start_date - timedelta(days=1)
+            end_date = min(next_start_date - timedelta(days=1), self.end_date)
             condition = self.query_condition(start_date, end_date)
             query = f"""
             SELECT *
