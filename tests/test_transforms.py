@@ -1,24 +1,20 @@
-import pytest
 from datetime import datetime, time
-import pytz
-import posixpath as pp
-import newlinejson as nlj
 
 import apache_beam as beam
-
+import newlinejson as nlj
+import posixpath as pp
+import pytest
+import pytz
 from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
-
-# rename the class to prevent py.test from trying to collect TestPipeline as a unit test class
-
-from apache_beam.testing.util import BeamAssertException
-from apache_beam.testing.util import open_shards
-
-from pipe_segment.tools import as_timestamp
-from pipe_segment.tools import timestampFromDatetime
-from pipe_segment.tools import datetimeFromTimestamp
+from apache_beam.testing.util import BeamAssertException, open_shards
+from json_dict_coder import JSONDictCoder
+from pipe_segment.options.segment import SegmentOptions
+from pipe_segment.tools import (as_timestamp, datetimeFromTimestamp,
+                                timestampFromDatetime)
 from pipe_segment.transform.fragment import Fragment
 
-from json_dict_coder import JSONDictCoder
+# rename the class to prevent py.test from trying to collect TestPipeline as a
+# unit test class
 
 
 # >>> Note that cogroupByKey treats unicode and char values as distinct,
@@ -41,6 +37,33 @@ def safe_date(ts):
     )
 
 
+def fill_in_missing_fields(messages):
+    messages = messages.copy()
+    for msg in messages:
+        for k, v in [
+            ("course", 90),
+            ("callsign", "shippy"),
+            ("destination", "generic city name"),
+            ("heading", 0.0),
+            ("imo", 12345),
+            ("length", 100),
+            ("lat", None),
+            ("lon", None),
+            ("msgid", "msgid"),
+            ("receiver", "tagblock?"),
+            ("receiver_type", "satellite"),
+            ("shipname", "shippy-mcshipface"),
+            ("shiptype", "raft"),
+            ("source", "one of our AIS providers"),
+            ("speed", 0),
+            ("status", "perfectly fine"),
+            ("width", 10),
+        ]:
+            if k not in msg:
+                msg[k] = v
+    return messages
+
+
 def contains(subset):
     subset = list(subset)
 
@@ -60,11 +83,16 @@ def contains(subset):
 
 
 DT_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
-strToDatetime = lambda s: datetime.strptime(s, DT_FORMAT).replace(tzinfo=pytz.UTC)
-shortStrToDatetime = lambda s: datetime.strptime(s, "%Y-%m-%d %H:%M").replace(
-    second=0, microsecond=0, tzinfo=pytz.UTC
-)
-shiftDatetimeDays = lambda d, x: d + td(seconds=x)
+
+
+def strToDatetime(s):
+    return datetime.strptime(s, DT_FORMAT).replace(tzinfo=pytz.UTC)
+
+
+# shortStrToDatetime = lambda s: datetime.strptime(s, "%Y-%m-%d %H:%M").replace(
+#     second=0, microsecond=0, tzinfo=pytz.UTC
+# )
+# shiftDatetimeDays = lambda d, x: d + timedelta(seconds=x)
 
 
 def stringFromDatetimeFields(d):
@@ -83,7 +111,7 @@ def stringToDatetimeFields(time_fields, r):
     return rec
 
 
-_interpret_out = lambda x, y: stringToDatetimeFields(x, ast.literal_eval(y))
+# _interpret_out = lambda x, y: stringToDatetimeFields(x, ast.literal_eval(y))
 
 
 def list_contains(superset, subset):
@@ -99,7 +127,8 @@ def list_contains(superset, subset):
 
 @pytest.mark.filterwarnings("ignore:Using fallback coder:UserWarning")
 @pytest.mark.filterwarnings(
-    "ignore:The compiler package is deprecated and removed in Python 3.x.:DeprecationWarning"
+    "ignore:The compiler package is deprecated"
+    " and removed in Python 3.x.:DeprecationWarning"
 )
 @pytest.mark.filterwarnings("ignore:open_shards is experimental.:FutureWarning")
 class TestTransforms:
@@ -130,12 +159,14 @@ class TestTransforms:
         messages_file = pp.join(temp_dir, "_run_segment", "messages")
         segments_file = pp.join(temp_dir, "_run_segment", "segments")
 
-        print(messages_in)
+        messages_in = fill_in_missing_fields(messages_in)
+        # print(messages_in)
 
         args = [
             f"--source={messages_in}",
             f"--msg_dest={messages_file}",
-            f"--seg_dest={segments_file}",
+            f"--segment_dest={segments_file}",
+            "--fragment_tbl=UNUSED",
         ]
         segop = SegmentOptions(args)
 
@@ -197,7 +228,7 @@ class TestTransforms:
         messages_in = [{"ssvid": "1", "timestamp": self.ts, "type": "AIS.1"}]
         messages_out, segments_out = self._run_segment(messages_in, temp_dir=temp_dir)
         assert (
-            messages_out[0]["seg_id"] == None
+            messages_out[0]["seg_id"] is None
         )  # No longer assign seg ids to noise segments
 
     def test_expected_segments(self, temp_dir):
@@ -223,13 +254,11 @@ class TestTransforms:
         ]
 
         messages_out, segments_out = self._run_segment(messages_in, temp_dir=temp_dir)
-        seg_stats = set(
-            [(seg["seg_id"], seg["daily_message_count"]) for seg in segments_out]
-        )
+        seg_stats = set([(seg["seg_id"], seg["msg_count"]) for seg in segments_out])
         print(segments_out)
         expected = {
-            ("257666800-2017-11-15T11:14:32.000000Z", 1),
-            ("257666800-2017-11-26T11:20:16.000000Z", 1),
+            ("257666800-2017-11-15T11:14:32.000000Z-1", 1),
+            ("257666800-2017-11-26T11:20:16.000000Z-1", 1),
         }
         assert seg_stats == expected
 
@@ -288,13 +317,13 @@ class TestTransforms:
         seg_stats = {
             (
                 seg["seg_id"],
-                seg["daily_message_count"],
+                seg["msg_count"],
             )
             for seg in segments_out
         }
 
         expected = {
-            ("123456789-2018-01-01T00:00:00.000000Z", 2),
-            ("123456789-2018-01-01T01:00:00.000000Z", 2),
+            ("123456789-2018-01-01T00:00:00.000000Z-1", 2),
+            ("123456789-2018-01-01T01:00:00.000000Z-1", 2),
         }
         assert seg_stats == expected
