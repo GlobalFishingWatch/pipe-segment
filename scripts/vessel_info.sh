@@ -11,6 +11,7 @@ ARGS=( \
   SEGMENT_VESSEL_TABLE \
   MOST_COMMON_MIN_FREQ \
   DEST_TABLE \
+  LABELS \
 )
 
 ################################################################################
@@ -62,6 +63,7 @@ echo "  Table ${DEST_TABLE} exists"
 # Generate data
 ################################################################################
 SQL=${ASSETS}/${PROCESS}.sql.j2
+LABELS_PARAM=$(test -n ${LABELS} && echo "--label ${LABELS//,/ --label }")
 
 echo "Publishing ${PROCESS} to ${DEST_TABLE}..."
 jinja2 ${SQL} \
@@ -69,7 +71,7 @@ jinja2 ${SQL} \
    -D segment_vessel_daily=${SEGMENT_VESSEL_TABLE//:/.} \
    -D most_common_min_freq=${MOST_COMMON_MIN_FREQ} \
    | bq query --headless --max_rows=0 --allow_large_results --replace \
-     --destination_table ${DEST_TABLE}
+     ${LABELS_PARAM} --destination_table ${DEST_TABLE}
 
 if [ "$?" -ne 0 ]; then
   echo "  Unable to insert records for table ${DEST_TABLE}"
