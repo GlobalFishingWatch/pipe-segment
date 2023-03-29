@@ -31,7 +31,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 from datetime import datetime
 
-from config import DATASET_OLD, DATASET_NEW_MONTHLY_INT, FRAGMENTS_TABLE, SEGMENTS_TABLE, MESSAGES_SEGMENTED_TABLE, NUM_SEGS_DIFF_THRESHOLD
+from config_old import DATASET_OLD, DATASET_NEW_MONTHLY_INT, FRAGMENTS_TABLE, SEGMENTS_TABLE, MESSAGES_SEGMENTED_TABLE, NUM_SEGS_DIFF_THRESHOLD
 
 mpl.rcParams['figure.facecolor'] = 'white'
 pd.set_option("max_rows", 40)
