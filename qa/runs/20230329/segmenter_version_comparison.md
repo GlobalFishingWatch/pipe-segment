@@ -3,7 +3,7 @@
 This notebook calculates and visualizes key segment metrics to allow the user to compare a new pipeline to the old one for QA purposes. This was specifically built to compate pipe 3 to pipe 2.5 and is not guaranteed when using different pipeline versions. Even using a new version of pipe 3 may require some changes if column names have changed.
 
 Author: Jenn Van Osdel  
-Last Updated: August 24, 2022
+Last Updated: April 3, 2023
 
 
 ```python
@@ -427,11 +427,11 @@ yearly_stats_pipe25
     <tr>
       <th>11</th>
       <td>2023</td>
-      <td>8729115</td>
-      <td>8729115</td>
-      <td>4.260415</td>
+      <td>9337380</td>
+      <td>9337380</td>
+      <td>4.253056</td>
       <td>1</td>
-      <td>86</td>
+      <td>91</td>
       <td>2</td>
       <td>3</td>
       <td>2012-01-01 00:12:25+00:00</td>
@@ -483,8 +483,10 @@ segment_data_old AS (
       SELECT 
     DATE(timestamp) as date,
     EXTRACT(YEAR from DATE(timestamp)) as year,
-    COUNT(*) AS num_segs,
-    COUNT(DISTINCT seg_id) AS num_segs_distinct,
+    COUNTIF(is_active) AS num_segs,
+    COUNT(DISTINCT(CASE WHEN is_active THEN seg_id ELSE NULL END)) AS num_segs_distinct,
+    COUNTIF(NOT is_active) AS num_segs_stale,
+    COUNT(*) AS num_segs_with_stale,
     SUM(TIMESTAMP_DIFF(last_msg_of_day_timestamp, first_msg_timestamp, MINUTE)/60.0) as sum_seg_length_h,
     SUM(TIMESTAMP_DIFF(last_msg_of_day_timestamp, first_msg_of_day_timestamp, MINUTE)/60.0) AS sum_seg_day_length_h,
     SUM(IF(num_idents > 0, 1, 0)) as num_segs_with_idents,
@@ -493,7 +495,10 @@ segment_data_old AS (
     AVG(num_idents) as avg_num_idents,
     SUM(message_count) as total_msg_count,
     FROM 
-        (SELECT *, (SELECT COUNTIF(shipname IS NOT NULL) FROM UNNEST (shipnames) AS shipname) as num_idents
+        (SELECT
+            *,
+            DATE(timestamp) <= DATE(last_msg_timestamp) as is_active,
+            (SELECT COUNTIF(shipname IS NOT NULL) FROM UNNEST (shipnames) AS shipname) as num_idents
         FROM `{DATASET_PIPE25}.{SEGMENTS_TABLE}*`
         WHERE _TABLE_SUFFIX BETWEEN '{START_DATE}' AND '{END_DATE}')
     GROUP BY date, year
@@ -515,6 +520,8 @@ segment_join AS (
     segs_new.total_cumul_msg_count AS total_cumul_msg_count_new,
     IFNULL(segs_old.num_segs, 0) AS num_segs_old,
     IFNULL(segs_old.num_segs_distinct, 0) AS num_segs_distinct_old,
+    IFNULL(segs_old.num_segs_stale, 0) AS num_segs_stale_old,
+    IFNULL(segs_old.num_segs_with_stale, 0) AS num_segs_with_stale_old,
     IFNULL(segs_old.sum_seg_length_h, 0) AS sum_seg_length_h_old,
     IFNULL(segs_old.sum_seg_day_length_h, 0) AS sum_seg_day_length_h_old,
     segs_old.min_num_idents AS min_num_idents_old,
@@ -543,6 +550,8 @@ total_msg_count_new,
 total_cumul_msg_count_new,
 num_segs_old,
 num_segs_distinct_old,
+num_segs_stale_old,
+num_segs_with_stale_old,
 sum_seg_length_h_old,
 sum_seg_day_length_h_old,
 num_segs_with_idents_old,
@@ -573,13 +582,11 @@ df_segs_daily['prop_segs_with_idents_new'] = df_segs_daily.num_segs_with_idents_
 df_segs_daily['prop_segs_with_idents_old'] = df_segs_daily.num_segs_with_idents_old / df_segs_daily.num_segs_old
 df_segs_daily['prop_segs_with_idents_diff'] = df_segs_daily.num_segs_with_idents_new - df_segs_daily.num_segs_with_idents_old
 
-# Quick checks for duplicate seg_id
+# Quick checks for duplicate seg_id and that counts of active and state add up for Pipe 2.5
 assert(df_segs_daily[df_segs_daily.num_segs_new != df_segs_daily.num_segs_distinct_new].shape[0] == 0)
+assert(df_segs_daily[(df_segs_daily.num_segs_old + df_segs_daily.num_segs_stale_old) != df_segs_daily.num_segs_with_stale_old].shape[0] == 0)
+
 ```
-
-    /Users/jennifervanosdel/miniconda3/envs/rad/lib/python3.9/site-packages/google/auth/_default.py:81: UserWarning: Your application has authenticated using end user credentials from Google Cloud SDK without a quota project. You might receive a "quota exceeded" or "API not enabled" error. We recommend you rerun `gcloud auth application-default login` and make sure a quota project is added. Or you can use service accounts instead. For more information about service accounts, see https://cloud.google.com/docs/authentication/
-      warnings.warn(_CLOUD_SDK_CREDENTIALS_WARNING)
-
 
 
 ```python
@@ -776,21 +783,25 @@ Note: distinctness of `seg_id`s was checked in an assertion during data pull so 
 
 
 ```python
-plot_new_vs_old(df_segs_daily, col_prefix='num_segs_', 
+fig, ax = plot_new_vs_old(df_segs_daily, col_prefix='num_segs_', 
                 title="Number of active segments per day\nsegments_",
-                ylabel="num_segs", outfile="num_segs_segments.png")
+                ylabel="num_segs")
+df_segs_daily[[f'num_segs_with_stale_old']].plot(label='Pipe 2.5 Stale', ax=ax)
+ax.legend(["Pipe 2.5", "Pipe 3", "Pipe 2.5 With Stale Segments"])
+plt.savefig(f"{FIGURES_FOLDER}/1_num_segs_segments.png", dpi=180)
+
 
 plot_diff(df_segs_daily, col_prefix='num_segs_', 
           title="Difference in number of active segments per day\nsegments_",
-          ylabel="num_segs", outfile="num_segs_diff_segments.png")
+          ylabel="num_segs", outfile="2_num_segs_diff_segments.png")
 
 plot_new_vs_old(df_seg_identity_daily, col_prefix='num_segs_', 
                 title="Number of active segments per day\nsegment_identity_daily_",
-                ylabel="num_segs", outfile="num_segs_segment_identity_daily.png")
+                ylabel="num_segs", outfile="3_num_segs_segment_identity_daily.png")
 
 plot_diff(df_seg_identity_daily, col_prefix='num_segs_', 
           title="Difference in number of active_segments per day\nsegment_identity_daily_",
-          ylabel="num_segs", outfile="num_segs_diff_segment_identity_daily.png")
+          ylabel="num_segs", outfile="4_num_segs_diff_segment_identity_daily.png")
 ```
 
 
@@ -849,19 +860,19 @@ plot_diff(df_seg_identity_daily, col_prefix='num_segs_',
 ```python
 plot_new_vs_old(df_segs_daily, col_prefix='sum_seg_length_h_', 
                       title="Total cumulative length of segments active in each day (hours)\nsegments_",
-                      ylabel="Hours", outfile="sum_seg_length_h_segments.png")
+                      ylabel="Hours", outfile="5_sum_seg_length_h_segments.png")
 
 plot_diff(df_segs_daily, col_prefix='sum_seg_length_h_', 
           title="Difference in total cumulative length of segments active in each day\nsegments_",
-          ylabel="Hours", outfile="sum_seg_length_h_diff_segments.png")
+          ylabel="Hours", outfile="6_sum_seg_length_h_diff_segments.png")
 
 plot_new_vs_old(df_seg_identity_daily, col_prefix='sum_seg_length_h_', 
                       title="Total cumulative length of segments active in each day (hours)\nsegment_identity_daily_",
-                      ylabel="Hours", outfile="sum_seg_length_h_segment_identity_daily.png")
+                      ylabel="Hours", outfile="7_sum_seg_length_h_segment_identity_daily.png")
 
 plot_diff(df_seg_identity_daily, col_prefix='sum_seg_length_h_', 
           title="Difference in total cumulative length of segments active in each day\nsegment_identity_daily_",
-          ylabel="Hours", outfile="sum_seg_length_h_diff_segment_identity_daily.png")
+          ylabel="Hours", outfile="8_sum_seg_length_h_diff_segment_identity_daily.png")
 ```
 
 
@@ -920,19 +931,19 @@ plot_diff(df_seg_identity_daily, col_prefix='sum_seg_length_h_',
 ```python
 plot_new_vs_old(df_segs_daily, col_prefix='sum_seg_day_length_h_', 
                       title="Total length of segments within each day (hours)\nsegments_",
-                      ylabel="Hours", outfile="sum_seg_day_length_h_segments.png")
+                      ylabel="Hours", outfile="9_sum_seg_day_length_h_segments.png")
 
 plot_diff(df_segs_daily, col_prefix='sum_seg_day_length_h_', 
           title="Difference in total length of segments within each day\nsegments_",
-          ylabel="Hours", outfile="sum_seg_day_length_h_diff_segments.png")
+          ylabel="Hours", outfile="10_sum_seg_day_length_h_diff_segments.png")
 
 plot_new_vs_old(df_seg_identity_daily, col_prefix='sum_seg_day_length_h_', 
                       title="Total length of segments within each day (hours)\nsegment_identity_daily_",
-                      ylabel="Hours", outfile="sum_seg_day_length_h_segment_identity_daily.png")
+                      ylabel="Hours", outfile="11_sum_seg_day_length_h_segment_identity_daily.png")
 
 plot_diff(df_seg_identity_daily, col_prefix='sum_seg_day_length_h_', 
           title="Difference in total length of segments within each day\nsegment_identity_daily_",
-          ylabel="Hours", outfile="sum_seg_day_length_h_diff_segment_identity_daily.png")
+          ylabel="Hours", outfile="12_sum_seg_day_length_h_diff_segment_identity_daily.png")
 ```
 
 
@@ -991,19 +1002,19 @@ plot_diff(df_seg_identity_daily, col_prefix='sum_seg_day_length_h_',
 ```python
 plot_new_vs_old(df_segs_daily, col_prefix='avg_seg_length_h_', 
                       title="Average length of segments per day (hours)\nsegments_",
-                      ylabel="Hours", outfile="avg_seg_length_h_segments.png")
+                      ylabel="Hours", outfile="13_avg_seg_length_h_segments.png")
 
 plot_diff(df_segs_daily, col_prefix='avg_seg_length_h_', 
           title="Difference in average length of segment per day\nsegments_",
-          ylabel="Hours", outfile="avg_seg_length_h_diff_segments.png")
+          ylabel="Hours", outfile="14_avg_seg_length_h_diff_segments.png")
 
 plot_new_vs_old(df_seg_identity_daily, col_prefix='avg_seg_length_h_', 
                       title="Average length of segments per day (hours)\nsegment_identity_daily_",
-                      ylabel="Hours", outfile="avg_seg_length_h_segment_identity_daily.png")
+                      ylabel="Hours", outfile="15_avg_seg_length_h_segment_identity_daily.png")
 
 plot_diff(df_seg_identity_daily, col_prefix='avg_seg_length_h_', 
           title="Difference in average length of segment per day\nsegment_identity_daily_",
-          ylabel="Hours", outfile="avg_seg_length_h_diff_segment_identity_daily.png")
+          ylabel="Hours", outfile="16_avg_seg_length_h_diff_segment_identity_daily.png")
 ```
 
 
@@ -1084,19 +1095,19 @@ fig = plot_new_vs_old(df_segs_daily, col_prefix='num_segs_with_idents_',
 ```python
 plot_new_vs_old(df_segs_daily, col_prefix='num_segs_with_idents_', 
                       title="Number of segments with at least one valid shipname per day\nsegments_",
-                      ylabel="num_segs_with_idents_", outfile="num_segs_with_idents_segments.png")
+                      ylabel="num_segs_with_idents_", outfile="17_num_segs_with_idents_segments.png")
 
 plot_diff(df_segs_daily, col_prefix='num_segs_with_idents_', 
           title="Difference in number of segments with at least one valid shipname per day\nsegments_",
-          ylabel="num_segs_with_idents_", outfile="num_segs_with_idents_diff_segments.png")
+          ylabel="num_segs_with_idents_", outfile="18_num_segs_with_idents_diff_segments.png")
 
 plot_new_vs_old(df_seg_identity_daily, col_prefix='num_segs_with_idents_', 
                       title="Number of segments with at least one valid shipname per day\nsegment_identity_daily_",
-                      ylabel="num_segs_with_idents_", outfile="num_segs_with_idents_segment_identity_daily.png")
+                      ylabel="num_segs_with_idents_", outfile="19_num_segs_with_idents_segment_identity_daily.png")
 
 plot_diff(df_seg_identity_daily, col_prefix='num_segs_with_idents_', 
           title="Difference in number of segments with at least one valid shipname per day\nsegment_identity_daily_",
-          ylabel="num_segs_with_idents_", outfile="num_segs_with_idents_diff_segment_identity_daily.png")
+          ylabel="num_segs_with_idents_", outfile="20_num_segs_with_idents_diff_segment_identity_daily.png")
 ```
 
 
@@ -1155,19 +1166,19 @@ plot_diff(df_seg_identity_daily, col_prefix='num_segs_with_idents_',
 ```python
 plot_new_vs_old(df_segs_daily, col_prefix='prop_segs_with_idents_', 
                       title="Proportion of segments with at least one valid shipname per day\nsegments_",
-                      ylabel="prop_segs_with_idents_", outfile="prop_segs_with_idents_segments.png")
+                      ylabel="prop_segs_with_idents_", outfile="21_prop_segs_with_idents_segments.png")
 
 plot_diff(df_segs_daily, col_prefix='prop_segs_with_idents_', 
           title="Difference in proportion of segments with at least one valid shipname per day\nsegments_",
-          ylabel="prop_segs_with_idents_", outfile="prop_segs_with_idents_diff_segments.png")
+          ylabel="prop_segs_with_idents_", outfile="22_prop_segs_with_idents_diff_segments.png")
 
 plot_new_vs_old(df_seg_identity_daily, col_prefix='prop_segs_with_idents_', 
                       title="Proportion of segments with at least one valid shipname per day\nsegment_identity_daily_",
-                      ylabel="prop_segs_with_idents_", outfile="prop_segs_with_idents_segment_identity_daily.png")
+                      ylabel="prop_segs_with_idents_", outfile="23_prop_segs_with_idents_segment_identity_daily.png")
 
 plot_diff(df_seg_identity_daily, col_prefix='prop_segs_with_idents_', 
           title="Difference in proportion of segments with at least one valid shipname per day\nsegment_identity_daily_",
-          ylabel="prop_segs_with_idents_", outfile="prop_segs_with_idents_diff_segment_identity_daily.png")
+          ylabel="prop_segs_with_idents_", outfile="24_prop_segs_with_idents_diff_segment_identity_daily.png")
 ```
 
 
@@ -1226,19 +1237,19 @@ plot_diff(df_seg_identity_daily, col_prefix='prop_segs_with_idents_',
 ```python
 plot_new_vs_old(df_segs_daily, col_prefix='avg_num_idents_', 
                       title="Average number of distinct shipnames in a segment per day\nsegments_",
-                      ylabel="avg_num_idents_", outfile="avg_num_idents_segments.png")
+                      ylabel="avg_num_idents_", outfile="25_avg_num_idents_segments.png")
 
 plot_diff(df_segs_daily, col_prefix='avg_num_idents_', 
           title="Difference in average number of distinct shipnames in a segment per day\nsegments_",
-          ylabel="avg_num_idents_", outfile="avg_num_idents_diff_segments.png")
+          ylabel="avg_num_idents_", outfile="26_avg_num_idents_diff_segments.png")
 
 plot_new_vs_old(df_seg_identity_daily, col_prefix='avg_num_idents_', 
                       title="Average number of distinct shipnames in a segment per day\nsegment_identity_daily_",
-                      ylabel="avg_num_idents_", outfile="avg_num_idents_segment_identity_daily.png")
+                      ylabel="avg_num_idents_", outfile="27_avg_num_idents_segment_identity_daily.png")
 
 plot_diff(df_seg_identity_daily, col_prefix='avg_num_idents_', 
           title="Difference in average number of distinct shipnames in a segment per day\nsegment_identity_daily_",
-          ylabel="avg_num_idents_", outfile="avg_num_idents_diff_segment_identity_daily.png")
+          ylabel="avg_num_idents_", outfile="28_avg_num_idents_diff_segment_identity_daily.png")
 ```
 
 
@@ -1297,19 +1308,19 @@ plot_diff(df_seg_identity_daily, col_prefix='avg_num_idents_',
 ```python
 plot_new_vs_old(df_segs_daily, col_prefix='max_num_idents_', 
                       title="Maximum number of distinct shipnames in a segment per day\nsegments_",
-                      ylabel="max_num_idents_", outfile="max_num_idents_segments.png")
+                      ylabel="max_num_idents_", outfile="29_max_num_idents_segments.png")
 
 plot_diff(df_segs_daily, col_prefix='max_num_idents_', 
           title="Difference in maximum number of distinct shipnames in a segment per day\nsegments_",
-          ylabel="max_num_idents_", outfile="max_num_idents_diff_segments.png")
+          ylabel="max_num_idents_", outfile="30_max_num_idents_diff_segments.png")
 
 plot_new_vs_old(df_seg_identity_daily, col_prefix='max_num_idents_', 
                       title="Maximum number of distinct shipnames in a segment per day\nsegment_identity_daily_",
-                      ylabel="max_num_idents_", outfile="max_num_idents_segment_identity_daily.png")
+                      ylabel="max_num_idents_", outfile="31_max_num_idents_segment_identity_daily.png")
 
 plot_diff(df_seg_identity_daily, col_prefix='max_num_idents_', 
           title="Difference in maximum number of distinct shipnames in a segment per day\nsegment_identity_daily_",
-          ylabel="max_num_idents_", outfile="max_num_idents_diff_segment_identity_daily.png")
+          ylabel="max_num_idents_", outfile="32_max_num_idents_diff_segment_identity_daily.png")
 ```
 
 
@@ -1368,19 +1379,19 @@ plot_diff(df_seg_identity_daily, col_prefix='max_num_idents_',
 ```python
 plot_new_vs_old(df_segs_daily, col_prefix='total_msg_count_', 
                       title="Total message count per day\nsegments_",
-                      ylabel="total_msg_count_", outfile="total_msg_count_segments.png")
+                      ylabel="total_msg_count_", outfile="33_total_msg_count_segments.png")
 
 plot_diff(df_segs_daily, col_prefix='total_msg_count_', 
           title="Difference in total message count per day\nsegments_",
-          ylabel="total_msg_count_", outfile="total_msg_count_diff_segments.png")
+          ylabel="total_msg_count_", outfile="34_total_msg_count_diff_segments.png")
 
 plot_new_vs_old(df_seg_identity_daily, col_prefix='total_msg_count_', 
                       title="Total message count per day\nsegment_identity_daily_",
-                      ylabel="total_msg_count_", outfile="total_msg_count_segment_identity_daily.png")
+                      ylabel="total_msg_count_", outfile="35_total_msg_count_segment_identity_daily.png")
 
 plot_diff(df_seg_identity_daily, col_prefix='total_msg_count_', 
           title="Difference in total message count per day\nsegment_identity_daily_",
-          ylabel="total_msg_count_", outfile="total_msg_count_diff_segment_identity_daily.png")
+          ylabel="total_msg_count_", outfile="36_total_msg_count_diff_segment_identity_daily.png")
 ```
 
 
@@ -1449,7 +1460,7 @@ fig.patch.set_facecolor('white')
 ax.legend(["Pipe 2.5", "Pipe 3"])
 plt.title("Total cumulative messages counts per day\nsegments_")
 
-plt.savefig(f"{FIGURES_FOLDER}/total_cumul_msg_count_segments.png", dpi=180)
+plt.savefig(f"{FIGURES_FOLDER}/37_total_cumul_msg_count_segments.png", dpi=180)
 ```
 
 
@@ -1475,7 +1486,7 @@ fig.patch.set_facecolor('white')
 ax.legend(["Pipe 3 - Pipe 2.5"])
 plt.title("Difference in total cumulative messages counts per day\nsegments_")
 
-plt.savefig(f"{FIGURES_FOLDER}/total_cumul_msg_count_diff_segments.png", dpi=180)
+plt.savefig(f"{FIGURES_FOLDER}/38_total_cumul_msg_count_diff_segments.png", dpi=180)
 ```
 
 
@@ -1496,11 +1507,11 @@ plt.savefig(f"{FIGURES_FOLDER}/total_cumul_msg_count_diff_segments.png", dpi=180
 ```python
 plot_new_vs_old(df_seg_identity_daily, col_prefix='total_pos_count_', 
                       title="Total position message count per day\nsegment_identity_daily_",
-                      ylabel="total_pos_count_", outfile="total_pos_count_segment_identity_daily.png")
+                      ylabel="total_pos_count_", outfile="39_total_pos_count_segment_identity_daily.png")
 
 plot_diff(df_seg_identity_daily, col_prefix='total_pos_count_', 
           title="Difference in total position message count per day\nsegment_identity_daily_",
-          ylabel="total_pos_count_", outfile="total_pos_count_diff_segment_identity_daily.png")
+          ylabel="total_pos_count_", outfile="40_total_pos_count_diff_segment_identity_daily.png")
 ```
 
 
@@ -1539,11 +1550,11 @@ plot_diff(df_seg_identity_daily, col_prefix='total_pos_count_',
 ```python
 plot_new_vs_old(df_seg_identity_daily, col_prefix='total_ident_count_', 
                       title="Total identity message count per day\nsegment_identity_daily_",
-                      ylabel="total_ident_count_", outfile="total_ident_count_segment_identity_daily.png")
+                      ylabel="total_ident_count_", outfile="41_total_ident_count_segment_identity_daily.png")
 
 plot_diff(df_seg_identity_daily, col_prefix='total_ident_count_', 
           title="Difference in total identity message count per day\nsegment_identity_daily_",
-          ylabel="total_ident_count_", outfile="total_ident_count_diff_segment_identity_daily.png")
+          ylabel="total_ident_count_", outfile="42_total_ident_count_diff_segment_identity_daily.png")
 ```
 
 
@@ -1645,6 +1656,8 @@ SELECT
   bin_max, 
   hist_old.num_segs as num_segs_pipe25,
   hist_new.num_segs AS num_segs_pipe3,
+  hist_old.num_segs / (SELECT COUNT(*) FROM `pipe_production_v20201001.segment_info` WHERE first_timestamp < '2023-01-01') as prop_segs_pipe25,
+  hist_new.num_segs / (SELECT COUNT(*) FROM `pipe_ais_v3_alpha_internal.segment_info`) as prop_segs_pipe3,
 FROM hist_new
 JOIN hist_old
 USING (bin_min, bin_max)
@@ -1664,11 +1677,11 @@ ax.legend(["Pipe 2.5", "Pipe 3"])
 df_sorted = df_seg_hours_hist.sort_values('bin_min').copy()
 labels = [f"{int(row.bin_min)}-{int(row.bin_max)}" if i < df_sorted.shape[0]-1 else f"{int(row.bin_min)}+" for i, row in df_sorted.iterrows()]
 ax.set_xticklabels(labels)
-plt.title("Distribution of segment length")
+plt.title("Distribution of segment length by count")
 plt.xlabel("Segment length (hours)")
 plt.ylabel("Number of segments in bin")
 
-plt.savefig(f"{FIGURES_FOLDER}/segment_length_distribution.png", dpi=180)
+plt.savefig(f"{FIGURES_FOLDER}/43_segment_length_distribution.png", dpi=180)
 plt.show()
 ```
 
@@ -1679,6 +1692,33 @@ plt.show()
 
     
 ![png](segmenter_version_comparison_files/segmenter_version_comparison_45_1.png)
+    
+
+
+
+```python
+fig = plt.figure()
+ax = df_seg_hours_hist.plot.bar(x="bin_max", y=["prop_segs_pipe25", "prop_segs_pipe3"])
+fig.patch.set_facecolor('white')
+ax.legend(["Pipe 2.5", "Pipe 3"])
+df_sorted = df_seg_hours_hist.sort_values('bin_min').copy()
+labels = [f"{int(row.bin_min)}-{int(row.bin_max)}" if i < df_sorted.shape[0]-1 else f"{int(row.bin_min)}+" for i, row in df_sorted.iterrows()]
+ax.set_xticklabels(labels)
+plt.title("Distribution of segment length by proportion")
+plt.xlabel("Segment length (hours)")
+plt.ylabel("Proportion of segments in bin")
+
+plt.savefig(f"{FIGURES_FOLDER}/44_segment_length_distribution_proportion.png", dpi=180)
+plt.show()
+```
+
+
+    <Figure size 640x480 with 0 Axes>
+
+
+
+    
+![png](segmenter_version_comparison_files/segmenter_version_comparison_46_1.png)
     
 
 
@@ -1758,13 +1798,13 @@ plt.title("Distribution of the difference in the number of segments\nper ssvid")
 plt.ylabel("Number of ssvid")
 plt.ylabel("Difference in number of segments")
 
-plt.savefig(f"{FIGURES_FOLDER}/segments_per_ssvid_difference_distribution.png", dpi=180)
+plt.savefig(f"{FIGURES_FOLDER}/45_segments_per_ssvid_difference_distribution.png", dpi=180)
 plt.show()
 ```
 
 
     
-![png](segmenter_version_comparison_files/segmenter_version_comparison_48_0.png)
+![png](segmenter_version_comparison_files/segmenter_version_comparison_49_0.png)
     
 
 
@@ -1777,7 +1817,7 @@ plt.title("Distribution of the difference in the number of segments\nfor ssvid w
 plt.ylabel("Number of ssvid")
 plt.ylabel("Difference in number of segments")
 
-plt.savefig(f"{FIGURES_FOLDER}/segments_per_ssvid_difference_distribution_over1000.png", dpi=180)
+plt.savefig(f"{FIGURES_FOLDER}/46_segments_per_ssvid_difference_distribution_over1000.png", dpi=180)
 plt.show()
 
 
@@ -1785,7 +1825,7 @@ plt.show()
 
 
     
-![png](segmenter_version_comparison_files/segmenter_version_comparison_49_0.png)
+![png](segmenter_version_comparison_files/segmenter_version_comparison_50_0.png)
     
 
 
@@ -1927,12 +1967,12 @@ print("** Note: percentages may not add up to 100% due to the set of SSVID that 
     13,136,010,432 total segment hours in pipe 3
     0.2315% more segment hours in pipe 3
     
-    15,925,010 SSVID with the same segment hours in pipe 3 (91.7744% of all SSVID)
-    605,861 SSVID with fewer total segment hours in pipe 3 (3.4915% of all SSVID)
-    657,649 SSVID with more total segment hours in pipe 3 (3.7900% of all SSVID)
+    15,924,844 SSVID with the same segment hours in pipe 3 (91.7735% of all SSVID)
+    605,902 SSVID with fewer total segment hours in pipe 3 (3.4918% of all SSVID)
+    657,774 SSVID with more total segment hours in pipe 3 (3.7907% of all SSVID)
     
-    -18.882 is the average difference for SSVID with fewer total segment hours in pipe 3
-    63.523 is the average difference for SSVID with more total segment hours in pipe 3
+    -18.881 is the average difference for SSVID with fewer total segment hours in pipe 3
+    63.511 is the average difference for SSVID with more total segment hours in pipe 3
     
     ** Note: percentages may not add up to 100% due to the set of SSVID that are only present in one of the pipelines.
 
