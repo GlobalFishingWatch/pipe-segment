@@ -34,13 +34,17 @@ if not os.path.exists(FIGURES_FOLDER):
 
 
 ```python
-def get_yearly_segment_stats(segments_table_ref, first_timestamp="first_timestamp"):
+def get_yearly_segment_stats(segments_table_ref, first_timestamp="first_timestamp", filter_stale_segs=False):
+
+    filter = "WHERE DATE(timestamp) <= DATE(last_msg_timestamp)" if filter_stale_segs else ""
+
     q = f'''
     WITH
 
     seg_counts AS (
     SELECT seg_id, EXTRACT(YEAR FROM timestamp) as year, {first_timestamp}, COUNT(*) AS num_days
     FROM `{segments_table_ref}*`
+    {filter}
     GROUP BY seg_id, year, {first_timestamp}
     )
 
@@ -68,6 +72,10 @@ yearly_stats_pipe3 = get_yearly_segment_stats(f"{DATASET_PIPE3}.{SEGMENTS_TABLE}
 yearly_stats_pipe3.to_csv(f"{DATA_FOLDER}/yearly_stats_pipe3.csv")
 yearly_stats_pipe3
 ```
+
+    /Users/jennifervanosdel/miniconda3/envs/rad/lib/python3.9/site-packages/google/auth/_default.py:81: UserWarning: Your application has authenticated using end user credentials from Google Cloud SDK without a quota project. You might receive a "quota exceeded" or "API not enabled" error. We recommend you rerun `gcloud auth application-default login` and make sure a quota project is added. Or you can use service accounts instead. For more information about service accounts, see https://cloud.google.com/docs/authentication/
+      warnings.warn(_CLOUD_SDK_CREDENTIALS_WARNING)
+
 
 
 
@@ -254,7 +262,7 @@ except:
 
 
 ```python
-yearly_stats_pipe25 = get_yearly_segment_stats(f"{DATASET_PIPE25}.{SEGMENTS_TABLE}", first_timestamp='first_msg_timestamp')
+yearly_stats_pipe25 = get_yearly_segment_stats(f"{DATASET_PIPE25}.{SEGMENTS_TABLE}", first_timestamp='first_msg_timestamp', filter_stale_segs=True)
 yearly_stats_pipe25.to_csv(f"{DATA_FOLDER}/yearly_stats_pipe25.csv")
 yearly_stats_pipe25
 ```
@@ -297,142 +305,142 @@ yearly_stats_pipe25
       <td>2012</td>
       <td>6251758</td>
       <td>6251758</td>
-      <td>18.874140</td>
+      <td>3.967792</td>
       <td>1</td>
       <td>366</td>
-      <td>6</td>
-      <td>6</td>
+      <td>1</td>
+      <td>3</td>
       <td>2012-01-01 00:00:00+00:00</td>
     </tr>
     <tr>
       <th>1</th>
       <td>2013</td>
-      <td>13586719</td>
-      <td>13586719</td>
-      <td>47.132224</td>
+      <td>13165946</td>
+      <td>13165946</td>
+      <td>3.405986</td>
       <td>1</td>
       <td>365</td>
-      <td>8</td>
-      <td>9</td>
+      <td>1</td>
+      <td>3</td>
       <td>2012-01-01 00:00:03+00:00</td>
     </tr>
     <tr>
       <th>2</th>
       <td>2014</td>
-      <td>14381196</td>
-      <td>14381196</td>
-      <td>44.581296</td>
+      <td>13598588</td>
+      <td>13598588</td>
+      <td>3.583210</td>
       <td>1</td>
       <td>365</td>
-      <td>8</td>
-      <td>8</td>
+      <td>1</td>
+      <td>3</td>
       <td>2012-01-01 00:00:03+00:00</td>
     </tr>
     <tr>
       <th>3</th>
       <td>2015</td>
-      <td>15195131</td>
-      <td>15195131</td>
-      <td>43.380832</td>
+      <td>14379308</td>
+      <td>14379308</td>
+      <td>3.558141</td>
       <td>1</td>
       <td>365</td>
-      <td>8</td>
-      <td>8</td>
+      <td>1</td>
+      <td>3</td>
       <td>2012-01-01 00:00:03+00:00</td>
     </tr>
     <tr>
       <th>4</th>
       <td>2016</td>
-      <td>16469766</td>
-      <td>16469766</td>
-      <td>34.305468</td>
+      <td>15678527</td>
+      <td>15678527</td>
+      <td>3.812399</td>
       <td>1</td>
       <td>366</td>
-      <td>7</td>
-      <td>7</td>
+      <td>1</td>
+      <td>3</td>
       <td>2012-01-01 00:00:03+00:00</td>
     </tr>
     <tr>
       <th>5</th>
       <td>2017</td>
-      <td>21556053</td>
-      <td>21556053</td>
-      <td>11.319488</td>
+      <td>21238433</td>
+      <td>21238433</td>
+      <td>3.477121</td>
       <td>1</td>
       <td>365</td>
-      <td>6</td>
-      <td>7</td>
+      <td>1</td>
+      <td>3</td>
       <td>2012-01-01 00:00:58+00:00</td>
     </tr>
     <tr>
       <th>6</th>
       <td>2018</td>
-      <td>23215438</td>
-      <td>23215438</td>
-      <td>10.896917</td>
+      <td>22927589</td>
+      <td>22927589</td>
+      <td>3.511011</td>
       <td>1</td>
       <td>365</td>
-      <td>6</td>
-      <td>6</td>
+      <td>1</td>
+      <td>3</td>
       <td>2012-01-01 00:00:58+00:00</td>
     </tr>
     <tr>
       <th>7</th>
       <td>2019</td>
-      <td>22750083</td>
-      <td>22750083</td>
-      <td>10.436229</td>
+      <td>22472604</td>
+      <td>22472604</td>
+      <td>3.741668</td>
       <td>1</td>
       <td>365</td>
-      <td>6</td>
-      <td>6</td>
+      <td>1</td>
+      <td>3</td>
       <td>2012-01-01 00:01:34+00:00</td>
     </tr>
     <tr>
       <th>8</th>
       <td>2020</td>
-      <td>22609571</td>
-      <td>22609571</td>
-      <td>8.431826</td>
+      <td>22343931</td>
+      <td>22343931</td>
+      <td>3.805185</td>
       <td>1</td>
       <td>366</td>
-      <td>4</td>
-      <td>4</td>
+      <td>1</td>
+      <td>3</td>
       <td>2012-01-01 00:04:45+00:00</td>
     </tr>
     <tr>
       <th>9</th>
       <td>2021</td>
-      <td>21188047</td>
-      <td>21188047</td>
-      <td>5.443355</td>
+      <td>21123305</td>
+      <td>21123305</td>
+      <td>4.200547</td>
       <td>1</td>
       <td>365</td>
-      <td>3</td>
+      <td>1</td>
       <td>3</td>
       <td>2012-01-01 00:04:45+00:00</td>
     </tr>
     <tr>
       <th>10</th>
       <td>2022</td>
-      <td>24549079</td>
-      <td>24549079</td>
-      <td>5.252183</td>
+      <td>24491047</td>
+      <td>24491047</td>
+      <td>4.097240</td>
       <td>1</td>
       <td>365</td>
-      <td>3</td>
+      <td>1</td>
       <td>3</td>
       <td>2012-01-01 00:12:25+00:00</td>
     </tr>
     <tr>
       <th>11</th>
       <td>2023</td>
-      <td>9337380</td>
-      <td>9337380</td>
-      <td>4.253056</td>
+      <td>10049200</td>
+      <td>10049200</td>
+      <td>3.324321</td>
       <td>1</td>
-      <td>91</td>
-      <td>2</td>
+      <td>98</td>
+      <td>1</td>
       <td>3</td>
       <td>2012-01-01 00:12:25+00:00</td>
     </tr>
@@ -585,7 +593,6 @@ df_segs_daily['prop_segs_with_idents_diff'] = df_segs_daily.num_segs_with_idents
 # Quick checks for duplicate seg_id and that counts of active and state add up for Pipe 2.5
 assert(df_segs_daily[df_segs_daily.num_segs_new != df_segs_daily.num_segs_distinct_new].shape[0] == 0)
 assert(df_segs_daily[(df_segs_daily.num_segs_old + df_segs_daily.num_segs_stale_old) != df_segs_daily.num_segs_with_stale_old].shape[0] == 0)
-
 ```
 
 
@@ -1967,12 +1974,12 @@ print("** Note: percentages may not add up to 100% due to the set of SSVID that 
     13,136,010,432 total segment hours in pipe 3
     0.2315% more segment hours in pipe 3
     
-    15,924,844 SSVID with the same segment hours in pipe 3 (91.7735% of all SSVID)
-    605,902 SSVID with fewer total segment hours in pipe 3 (3.4918% of all SSVID)
-    657,774 SSVID with more total segment hours in pipe 3 (3.7907% of all SSVID)
+    15,925,131 SSVID with the same segment hours in pipe 3 (91.7751% of all SSVID)
+    606,279 SSVID with fewer total segment hours in pipe 3 (3.4939% of all SSVID)
+    657,110 SSVID with more total segment hours in pipe 3 (3.7869% of all SSVID)
     
-    -18.881 is the average difference for SSVID with fewer total segment hours in pipe 3
-    63.511 is the average difference for SSVID with more total segment hours in pipe 3
+    -18.869 is the average difference for SSVID with fewer total segment hours in pipe 3
+    63.575 is the average difference for SSVID with more total segment hours in pipe 3
     
     ** Note: percentages may not add up to 100% due to the set of SSVID that are only present in one of the pipelines.
 
