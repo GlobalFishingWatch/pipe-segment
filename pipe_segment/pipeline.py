@@ -106,12 +106,27 @@ class SegmentPipeline:
                 (
                     satellite_offsets
                     | "WriteSatOffsets"
-                    >> WriteDateSharded(
+                    >> beam.io.WriteToBigQuery(
                         self.options.sat_offset_dest,
-                        self.cloud_options.project,
-                        SatelliteOffsets.schema,
-                        key="hour",
+                        schema=SatelliteOffsets.schema,
+                        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
+                        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                        additional_bq_parameters={
+                            'timePartitioning': {
+                                'type': 'MONTH',
+                                'field' : 'hour',
+                                'requirePartitionFilter': True
+                            }, 'clustering': {
+                                'fields': [ 'hour' ]
+                            }
+                        }
                     )
+                    # >> WriteDateSharded(
+                    #     self.options.sat_offset_dest,
+                    #     self.cloud_options.project,
+                    #     SatelliteOffsets.schema,
+                    #     key="hour",
+                    # )
                 )
 
             messages = messages | FilterBadSatelliteTimes(
