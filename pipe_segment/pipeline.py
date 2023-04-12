@@ -121,12 +121,6 @@ class SegmentPipeline:
                             }
                         }
                     )
-                    # >> WriteDateSharded(
-                    #     self.options.sat_offset_dest,
-                    #     self.cloud_options.project,
-                    #     SatelliteOffsets.schema,
-                    #     key="hour",
-                    # )
                 )
 
             messages = messages | FilterBadSatelliteTimes(
