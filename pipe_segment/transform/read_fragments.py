@@ -26,12 +26,12 @@ class ReadFragments(beam.PTransform):
         try:
             [row] = request.result()
         except BadRequest as err:
-            return None
             logging.info(
                 f"Could not query existing table. Ignore if this is first run: {err}"
             )
+            return None
         else:
-            return datetime.strptime(row.min_suffix, "%Y%m%d").date()
+            return datetime.strptime(row.min_suffix, "%Y%m%d").date() if row.min_suffix != None else None
 
     def query_condition(self, start_date, end_date):
         if start_date is None:
