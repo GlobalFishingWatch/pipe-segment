@@ -92,12 +92,6 @@ class SegmentIdentityPipeline:
                     "description": "Number of identity messages in the segment for this day. Note that some messages can contain both position and identity",
                 },
                 {
-                    "mode": "NULLABLE",
-                    "name": "noise",
-                    "type": "BOOLEAN",
-                    "description": "If true, then this is a noise segment, usually because of an invalid lat or lon value.  Messages in these segments should be filtered out",
-                },
-                {
                     "fields": [
                         {
                             "mode": "NULLABLE",
@@ -216,26 +210,6 @@ class SegmentIdentityPipeline:
                     "name": "n_imo",
                     "type": "RECORD",
                     "description": "Array of all unique valid imo numbers for this segment for this day.",
-                },
-                {
-                    "fields": [
-                        {
-                            "mode": "NULLABLE",
-                            "name": "value",
-                            "type": "STRING",
-                            "description": "Unique field value",
-                        },
-                        {
-                            "mode": "NULLABLE",
-                            "name": "count",
-                            "type": "INTEGER",
-                            "description": "Number of times the unique field value occured for this segment for this day",
-                        },
-                    ],
-                    "mode": "REPEATED",
-                    "name": "shiptype",
-                    "type": "RECORD",
-                    "description": "Array of all unique shiptypes for this segment for this day. Note that this field is already normalized in the messages",
                 },
                 {
                     "fields": [
