@@ -11,43 +11,33 @@ def normalize_imo(value):
     else:
         return None
 
+def always_true(x):
+    return True
 
-def extract_count(x):
-    return x.get("count", 0)
+def no_normalization(x):
+    return x
 
+def extract_identity_counts(identities, key, filtering_fn=always_true , normalization_fn=no_normalization):
+    # Every value starts at zero
+    accummulator = defaultdict(int)
 
-def normalize_counted_array(f, xs):
-    result = []
-    for x in xs:
-        value = f(x.get("value"))
-        if value is not None:
-            result.append(
-                {
-                    "count": x.get("count"),
-                    "value": value,
-                }
-            )
+    for identity in identities:
+        value = identity[key]
+        count = identity["count"]
 
-    return result
+        if filtering_fn(value):
+            normalized_value = normalization_fn(value)
+            accummulator[normalized_value] += count
 
-
-def extract(identities, key):
-    mapping = defaultdict(int)
-    for ident in identities:
-        value = ident[key]
-        if value is not None:
-            mapping[value] += ident["count"]
-    return [{"value": k, "count": v} for (k, v) in mapping.items()]
+    result = [{"value": k,  "count": v} for (k, v) in accummulator.items()]
+    return result or None
 
 def summarize_identifiers(segment):
     identities = segment["daily_identities"]
-    counts = [ident["count"] for ident in identities]
-    shipnames = extract(identities, "shipname")
-    callsigns = extract(identities, "callsign")
-    imos = extract(identities, "imo")
-    lengths = extract(identities, "length")
-    widths = extract(identities, "width")
     pos_count = segment.get("daily_msg_count")
+    # We approximate identity message count by summing all the counts from
+    # the atomic identity messages we collected in the segment.
+    counts = [ident["count"] for ident in identities]
     ident_count = sum(counts)
     msg_count = pos_count + ident_count
 
@@ -61,19 +51,50 @@ def summarize_identifiers(segment):
         "last_pos_timestamp": segment.get("last_msg_timestamp"),
         "msg_count": msg_count,
         "pos_count": pos_count,
-        # We approximate identity message count by summing all the counts from
-        # the atomic identity messages we collected in the segment.
         "ident_count": ident_count,
-        "shipname": shipnames or None,
-        "callsign": callsigns or None,
-        "imo": imos or None,
-        "n_shipname": normalize_counted_array(normalize_shipname, shipnames) or None,
-        "n_callsign": normalize_counted_array(normalize_callsign, callsigns) or None,
-        "n_imo": normalize_counted_array(normalize_imo, imos) or None,
-        "shiptype": None,
-        "length": lengths or None,
-        "width": widths or None,
-        "noise": False,
+        "shipname": extract_identity_counts(
+            identities,
+            key="shipname",
+            filtering_fn=normalize_shipname,
+        ),
+        "callsign": extract_identity_counts(
+            identities, 
+            key="callsign",
+            filtering_fn=normalize_callsign,
+        ),
+        "imo": extract_identity_counts(
+            identities,
+            key="imo",
+            filtering_fn=normalize_imo,
+        ),
+        "n_shipname": extract_identity_counts(
+            identities,
+            key="shipname",
+            filtering_fn=normalize_shipname,
+            normalization_fn=normalize_shipname,
+        ),
+        "n_callsign": extract_identity_counts(
+            identities,
+            key="callsign",
+            filtering_fn=normalize_callsign,
+            normalization_fn=normalize_callsign,
+        ),
+        "n_imo": extract_identity_counts(
+            identities,
+            key="imo",
+            filtering_fn=normalize_imo,
+            normalization_fn=normalize_imo,
+        ),
+        "length": extract_identity_counts(
+            identities,
+            key="length",
+            filtering_fn=lambda x: x, # Discard None
+        ),
+        "width": extract_identity_counts(
+            identities,
+            key="width",
+            filtering_fn=lambda x: x, # Discard None
+        ),
     }
 
 
@@ -81,19 +102,10 @@ def rename_timestamp(record):
     result = record.copy()
     result["summary_timestamp"] = result.pop("timestamp")
     return result
-    
-
-BQ_PARAMS = {
-    "destinationTableProperties": {
-        "description": "Daily satellite messages.",
-    },
-}
 
 
 def write_sink(sink_table, schema, from_dt, description):
     sink_table = sink_table.replace("bq://", "")
-    bq_params_cp = dict(BQ_PARAMS)
-    bq_params_cp["destinationTableProperties"]["description"] = description
 
     def compute_table(message):
         timestamp = message["summary_timestamp"]
@@ -102,7 +114,11 @@ def write_sink(sink_table, schema, from_dt, description):
     return beam.io.WriteToBigQuery(
         compute_table,
         schema=schema,
-        additional_bq_parameters=bq_params_cp,
         write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+        additional_bq_parameters={
+            "destinationTableProperties": {
+                "description": description,
+            },
+        },
     )
