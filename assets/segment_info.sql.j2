@@ -40,14 +40,12 @@ WITH
     SUM(msg_count) as msg_count,
     SUM(pos_count) as pos_count,
     SUM(ident_count) as ident_count,
-    LOGICAL_OR(noise) as noise,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(shipname  )), SUM(ident_count), mostCommonMinFreq()) as shipname,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(callsign  )), SUM(ident_count), mostCommonMinFreq()) as callsign,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(imo       )), SUM(ident_count), mostCommonMinFreq()) as imo,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_shipname)), SUM(ident_count), mostCommonMinFreq()) as n_shipname,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_callsign)), SUM(ident_count), mostCommonMinFreq()) as n_callsign,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_imo     )), SUM(ident_count), mostCommonMinFreq()) as n_imo,
-    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(shiptype  )), SUM(ident_count), mostCommonMinFreq()) as shiptype,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(length    )), SUM(ident_count), mostCommonMinFreq()) as length,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(width     )), SUM(ident_count), mostCommonMinFreq()) as width
   FROM
