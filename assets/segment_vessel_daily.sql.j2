@@ -49,14 +49,12 @@ WITH
     MAX(last_pos_timestamp) as last_pos_timestamp,
     SUM(msg_count) as msg_count,
     SUM(pos_count) as pos_count,
-    LOGICAL_OR(noise) as noise,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(shipname  )), SUM(ident_count), mostCommonMinFreq()) as shipname,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(callsign  )), SUM(ident_count), mostCommonMinFreq()) as callsign,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(imo       )), SUM(ident_count), mostCommonMinFreq()) as imo,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_shipname)), SUM(ident_count), mostCommonMinFreq()) as n_shipname,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_callsign)), SUM(ident_count), mostCommonMinFreq()) as n_callsign,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_imo     )), SUM(ident_count), mostCommonMinFreq()) as n_imo,
-    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(shiptype  )), SUM(ident_count), mostCommonMinFreq()) as shiptype,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(length    )), SUM(ident_count), mostCommonMinFreq()) as length,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(width     )), SUM(ident_count), mostCommonMinFreq()) as width
   FROM
@@ -74,8 +72,7 @@ WITH
     ssvid,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_shipname)), SUM(ident_count), mostCommonMinFreq()) as n_shipname,
     minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_callsign)), SUM(ident_count), mostCommonMinFreq()) as n_callsign,
-    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_imo     )), SUM(ident_count), mostCommonMinFreq()) as n_imo,
-    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(shiptype  )), SUM(ident_count), mostCommonMinFreq()) as shiptype
+    minFreqFilter(mostCommon(ARRAY_CONCAT_AGG(n_imo     )), SUM(ident_count), mostCommonMinFreq()) as n_imo
   FROM
     segments
   GROUP BY
@@ -94,7 +91,7 @@ WITH
   FROM
     segments
   WHERE
-    NOT noise AND pos_count > spoofingThreshold()
+    pos_count > spoofingThreshold()
   ),
   #
   # Order all the good segments within a single SSVID and capture the start timestamp of the following segment
@@ -135,8 +132,7 @@ WITH
     LEAST(
       IFNULL(n_shipname.freq, 1.0),
       IFNULL(n_callsign.freq, 1.0),
-      IFNULL(n_imo.freq, 1.0),
-      IFNULL(shiptype.freq, 1.0)
+      IFNULL(n_imo.freq, 1.0)
      ) > singleIdentMinFreq()
   ),
   #
