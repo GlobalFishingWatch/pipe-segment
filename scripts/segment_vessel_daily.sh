@@ -5,6 +5,7 @@ source pipe-tools-utils
 
 PROCESS="segment_vessel_daily"
 THIS_SCRIPT_DIR="$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )"
+source ${THIS_SCRIPT_DIR}/pipeline.sh
 ASSETS=${THIS_SCRIPT_DIR}/../assets
 ARGS=( \
   PROCESS_DATE \
@@ -86,5 +87,7 @@ if [ "$?" -ne 0 ]; then
   echo "  Unable to insert records for table ${DEST_TABLE}"
   exit 1
 fi
+
+bq update --description "${TABLE_DESC}" ${DEST_TABLE}
 
 echo "DONE ${DEST_TABLE}."
