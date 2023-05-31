@@ -22,6 +22,7 @@ from pipe_segment.transform.tag_with_fragid_and_timebin import \
     TagWithFragIdAndTimeBin
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
 from pipe_segment.transform.write_date_sharded import WriteDateSharded
+from pipe_segment.transform.whitelist_messages_segmented import WhitelistFields
 
 from .tools import as_timestamp, datetimeFromTimestamp
 
@@ -179,6 +180,7 @@ class SegmentPipeline:
             {"segmap": msg_segmap, "target": tagged_messages}
             | "GroupMsgsWithMap" >> beam.CoGroupByKey()
             | "TagMsgsWithSegId" >> TagWithSegId()
+            | "WhitelistFields" >> WhitelistFields()
             | "WriteMessages"
             >> WriteDateSharded(
                 self.options.msg_dest,
