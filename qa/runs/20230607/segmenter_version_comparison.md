@@ -515,6 +515,7 @@ segment_data_old AS (
     MAX(num_idents) as max_num_idents,
     AVG(num_idents) as avg_num_idents,
     AVG(IF(num_idents > 0, num_idents, NULL)) as avg_num_idents_non_zero,
+    AVG(IF(is_active, num_idents, NULL)) as avg_num_idents_active_only,
     SUM(message_count) as total_msg_count,
     FROM 
         (SELECT
@@ -551,6 +552,7 @@ segment_join AS (
     segs_old.max_num_idents AS max_num_idents_old,
     segs_old.avg_num_idents AS avg_num_idents_old,
     segs_old.avg_num_idents_non_zero AS avg_num_idents_non_zero_old,
+    segs_old.avg_num_idents_active_only AS avg_num_idents_active_only_old,
     segs_old.num_segs_with_idents AS num_segs_with_idents_old,
     segs_old.total_msg_count AS total_msg_count_old,
     FROM segment_data_new segs_new
@@ -584,6 +586,7 @@ min_num_idents_old,
 max_num_idents_old,
 avg_num_idents_old,
 avg_num_idents_non_zero_old,
+avg_num_idents_active_only_old,
 total_msg_count_old,
 (num_segs_new - num_segs_old) as num_segs_diff,
 (num_segs_distinct_new - num_segs_distinct_old) as num_segs_distinct_diff,
@@ -592,7 +595,7 @@ total_msg_count_old,
 (num_segs_with_idents_new - num_segs_with_idents_old) as num_segs_with_idents_diff,
 (min_num_idents_new - min_num_idents_old) as min_num_idents_diff,
 (max_num_idents_new - max_num_idents_old) as max_num_idents_diff,
-(avg_num_idents_new - avg_num_idents_old) as avg_num_idents_diff,
+(avg_num_idents_new - avg_num_idents_active_only_old) as avg_num_idents_diff,
 (avg_num_idents_non_zero_new - avg_num_idents_non_zero_old) as avg_num_idents_non_zero_diff,
 (total_msg_count_new - total_msg_count_old) as total_msg_count_diff,
 FROM segment_join
@@ -1246,13 +1249,19 @@ plot_diff(df_seg_identity_daily, col_prefix='prop_segs_with_idents_',
 
 
 ```python
-plot_new_vs_old(df_segs_daily, col_prefix='avg_num_idents_', 
+fig, ax = plot_new_vs_old(df_segs_daily, col_prefix='avg_num_idents_', 
                       title="Average number of distinct shipnames in a segment per day\nsegments_",
-                      ylabel="avg_num_idents_", outfile="25_avg_num_idents_segments.png")
+                      ylabel="avg_num_idents_")
+
+df_segs_daily[[f'avg_num_idents_active_only_old']].plot(label='Pipe 2.5 Active Only', ax=ax)
+ax.legend(["Pipe 2.5 With Stale Segments", "Pipe 3", "Pipe 2.5 Active Segments Only"])
+plt.savefig(f"{FIGURES_FOLDER}/25_avg_num_idents_segments.png", dpi=180)
 
 plot_diff(df_segs_daily, col_prefix='avg_num_idents_', 
           title="Difference in average number of distinct shipnames in a segment per day\nsegments_",
           ylabel="avg_num_idents_", outfile="26_avg_num_idents_diff_segments.png")
+
+
 
 plot_new_vs_old(df_seg_identity_daily, col_prefix='avg_num_idents_', 
                       title="Average number of distinct shipnames in a segment per day\nsegment_identity_daily_",
