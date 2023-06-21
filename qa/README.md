@@ -33,3 +33,11 @@ _Note: it can be tricky in VSCode to get a .ipynb to save out if you are using l
 See [this link](https://reproducible-science-curriculum.github.io/publication-RR-Jupyter/02-exporting_the_notebook/index.html) for more information.
 
 *Note: you may need to install the `jupyter-contrib-nbextensions` if you haven't done so yet (see [instructions](https://jupyter-contrib-nbextensions.readthedocs.io/en/latest/install.html))*.
+
+## Current QA Runs
+
+* `20220901` - Original QA where these notebooks were developed. This run focused on making sure the pipeline was stable when running in monthly versus yearly mode and was also only performed on the "baby pipe" version with a limited set of SSVID being run. The scripts for that comparison are not run in later QA so this run has been preserved to show that process as many changes came from this QA process.
+
+* `20230329` - QA of full run of segmenter 4.0.0
+
+* `20230607` - QA of full run of segmenter 4.1.1
