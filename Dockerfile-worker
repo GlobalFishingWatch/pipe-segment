@@ -4,3 +4,6 @@ FROM apache/beam_python3.8_sdk:2.49.0
 COPY ./requirements-worker.txt ./
 RUN pip install -r requirements-worker.txt
 
+# Set the entrypoint to the Apache Beam SDK launcher.
+ENTRYPOINT ["/opt/apache/beam/boot"]
+
