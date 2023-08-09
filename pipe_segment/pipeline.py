@@ -17,7 +17,7 @@ from pipe_segment.transform.fragment import Fragment
 from pipe_segment.transform.invalid_values import filter_invalid_values
 from pipe_segment.transform.read_fragments import ReadFragments
 from pipe_segment.transform.read_messages import ReadMessages
-from pipe_segment.transform.satellite_offsets import SatelliteOffsets
+from pipe_segment.transform.satellite_offsets import SatelliteOffsets, SatelliteOffsetsWrite
 from pipe_segment.transform.tag_with_fragid_and_timebin import \
     TagWithFragIdAndTimeBin
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
@@ -59,6 +59,7 @@ class SegmentPipeline:
         self.cloud_options = options.view_as(GoogleCloudOptions)
         self.options = options.view_as(SegmentOptions)
         self.date_range = parse_date_range(self.options.date_range)
+        self.satellite_offsets_writer = None
 
     @property
     def merge_params(self):
@@ -104,24 +105,9 @@ class SegmentPipeline:
             )
 
             if self.options.sat_offset_dest:
+                self.satellite_offsets_writer = SatelliteOffsetsWrite(self.options, self.cloud_options)
                 (
-                    satellite_offsets
-                    | "WriteSatOffsets"
-                    >> beam.io.WriteToBigQuery(
-                        self.options.sat_offset_dest,
-                        schema=SatelliteOffsets.schema,
-                        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
-                        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-                        additional_bq_parameters={
-                            'timePartitioning': {
-                                'type': 'MONTH',
-                                'field' : 'hour',
-                                'requirePartitionFilter': True
-                            }, 'clustering': {
-                                'fields': [ 'hour' ]
-                            }
-                        }
-                    )
+                    satellite_offsets | self.satellite_offsets_writer
                 )
 
             messages = messages | FilterBadSatelliteTimes(
@@ -234,6 +220,10 @@ def run(options):
         or options.view_as(StandardOptions).runner == "DirectRunner"
     ):
         result.wait_until_finish()
+        if (result.state == PipelineState.DONE and pipeline.satellite_offsets_writer):
+            pipeline.satellite_offsets_writer.update_table_description()
+            pipeline.satellite_offsets_writer.update_labels()
+
     else:
         success_states.add(PipelineState.RUNNING)
         success_states.add(PipelineState.UNKNOWN)
