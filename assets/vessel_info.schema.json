@@ -3,37 +3,37 @@
     "mode": "NULLABLE",
     "name": "vessel_id",
     "type": "STRING",
-    "description": "unique vessel id.  This table has one row per vessel_id"
+    "description": "The unique vessel id. This table has one row per vessel_id."
   },
   {
     "mode": "NULLABLE",
     "name": "ssvid",
     "type": "STRING",
-    "description": "source specific vessel id.  This is the transponder id, and for AIS this is the MMSI"
+    "description": "The source specific vessel id. This is the transponder id, and for AIS this is the MMSI."
   },
   {
     "mode": "NULLABLE",
     "name": "first_timestamp",
     "type": "TIMESTAMP",
-    "description": "Timestamp of the first message in the segment"
+    "description": "Timestamp of the first message in the segment."
   },
   {
     "mode": "NULLABLE",
     "name": "last_timestamp",
     "type": "TIMESTAMP",
-    "description": "Timestamp of the last message in the segment"
+    "description": "Timestamp of the last message in the segment."
   },
   {
     "mode": "NULLABLE",
     "name": "msg_count",
     "type": "INTEGER",
-    "description": "Total number of messages in the segment, including identiy messages and positional messages"
+    "description": "Total number of messages in the segment, including identiy messages and positional messages."
   },
   {
     "mode": "NULLABLE",
     "name": "pos_count",
     "type": "INTEGER",
-    "description": "Total number or positional messages in the segment.   Consider filtering out messages in segments with only a small number of positional messagess"
+    "description": "Total number or positional messages in the segment. Consider filtering out messages in segments with only a small number of positional messagess."
   },
   {
     "fields": [
@@ -41,25 +41,25 @@
         "mode": "NULLABLE",
         "name": "value",
         "type": "STRING",
-        "description": "field value"
+        "description": "The field value."
       },
       {
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this vessel"
+        "description": "Number of times the this field value occured for this vessel."
       },
       {
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value."
       }
     ],
     "mode": "NULLABLE",
     "name": "shipname",
     "type": "RECORD",
-    "description": "Most commonly occuring shipname (unnormalized) for this vessel"
+    "description": "Most commonly occuring shipname (unnormalized) for this vessel."
   },
   {
     "fields": [
@@ -67,25 +67,25 @@
         "mode": "NULLABLE",
         "name": "value",
         "type": "STRING",
-        "description": "field value"
+        "description": "field value."
       },
       {
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this vessel"
+        "description": "Number of times the this field value occured for this vessel."
       },
       {
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value."
       }
     ],
     "mode": "NULLABLE",
     "name": "callsign",
     "type": "RECORD",
-    "description": "Most commonly occuring callsign (unnormalized) for this vessel"
+    "description": "Most commonly occuring callsign (unnormalized) for this vessel."
   },
   {
     "fields": [
@@ -93,25 +93,25 @@
         "mode": "NULLABLE",
         "name": "value",
         "type": "STRING",
-        "description": "field value"
+        "description": "field value."
       },
       {
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this vessel"
+        "description": "Number of times the this field value occured for this vessel."
       },
       {
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value."
       }
     ],
     "mode": "NULLABLE",
     "name": "imo",
     "type": "RECORD",
-    "description": "Most commonly occuring imo number (unvalidated) for this vessel"
+    "description": "Most commonly occuring imo number (unvalidated) for this vessel."
   },
   {
     "fields": [
@@ -119,25 +119,25 @@
         "mode": "NULLABLE",
         "name": "value",
         "type": "STRING",
-        "description": "field value"
+        "description": "field value."
       },
       {
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this vessel"
+        "description": "Number of times the this field value occured for this vessel."
       },
       {
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value."
       }
     ],
     "mode": "NULLABLE",
     "name": "n_shipname",
     "type": "RECORD",
-    "description": "Most commonly occuring normalized shipname for this vessel"
+    "description": "Most commonly occuring normalized shipname for this vessel."
   },
   {
     "fields": [
@@ -145,25 +145,25 @@
         "mode": "NULLABLE",
         "name": "value",
         "type": "STRING",
-        "description": "field value"
+        "description": "field value."
       },
       {
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this vessel"
+        "description": "Number of times the this field value occured for this vessel."
       },
       {
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value."
       }
     ],
     "mode": "NULLABLE",
     "name": "n_callsign",
     "type": "RECORD",
-    "description": "Most commonly occuring normalized callsign for this vessel"
+    "description": "Most commonly occuring normalized callsign for this vessel."
   },
   {
     "fields": [
@@ -171,25 +171,25 @@
         "mode": "NULLABLE",
         "name": "value",
         "type": "STRING",
-        "description": "field value"
+        "description": "field value."
       },
       {
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this vessel"
+        "description": "Number of times the this field value occured for this vessel."
       },
       {
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value."
       }
     ],
     "mode": "NULLABLE",
     "name": "n_imo",
     "type": "RECORD",
-    "description": "Most commonly occuring valid imo number for this vessel"
+    "description": "Most commonly occuring valid imo number for this vessel."
   },
   {
     "fields": [
@@ -197,19 +197,19 @@
         "mode": "NULLABLE",
         "name": "value",
         "type": "STRING",
-        "description": "field value"
+        "description": "field value."
       },
       {
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this vessel "
+        "description": "Number of times the this field value occured for this vessel."
       },
       {
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value."
       }
     ],
     "mode": "NULLABLE",
@@ -223,19 +223,19 @@
         "mode": "NULLABLE",
         "name": "value",
         "type": "STRING",
-        "description": "field value"
+        "description": "field value."
       },
       {
         "mode": "NULLABLE",
         "name": "count",
         "type": "INTEGER",
-        "description": "Number of times the this field value occured for this vessel "
+        "description": "Number of times the this field value occured for this vessel."
       },
       {
         "mode": "NULLABLE",
         "name": "freq",
         "type": "FLOAT",
-        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value"
+        "description": "The relative frequency of this value to all values present in this field.  Range from 0.0 to 1.0.   A value of 1.0 indicates that this was the only value."
       }
     ],
     "mode": "NULLABLE",
@@ -243,6 +243,5 @@
     "type": "RECORD",
     "description": "Most commonly occuring width for this vessel."
   }
-
 ]
 
