@@ -42,7 +42,9 @@ done
 echo "Ensuring table ${DEST_TABLE} exists"
 TABLE_DESC=(
   "* Pipeline: ${PIPELINE} ${PIPELINE_VERSION}"
-  "* Source: ${SOURCE_TABLE}"
+  "* Create a segment info table with one row per seg_id from segment_identity_daily. Includes the entire time range from the source table."
+  "* Source Identity: ${SEGMENT_IDENTITY_TABLE}"
+  "* Source Vessel: ${SEGMENT_VESSEL_DAILY}"
   "* Command:"
   "$(basename $0)"
   "$@"
@@ -72,7 +74,8 @@ jinja2 ${SQL} \
    -D segment_vessel_daily=${SEGMENT_VESSEL_DAILY//:/.} \
    -D most_common_min_freq=${MOST_COMMON_MIN_FREQ} \
    | bq query --headless --max_rows=0 --allow_large_results --replace \
-     ${LABELS_PARAM} --destination_table ${DEST_TABLE}
+     ${LABELS_PARAM} --destination_table ${DEST_TABLE} \
+     --destination_schema ${SCHEMA}
 
 if [ "$?" -ne 0 ]; then
   echo "  Unable to insert records for table ${DEST_TABLE}"
@@ -81,5 +84,10 @@ fi
 
 
 bq update --description "${TABLE_DESC}" ${DEST_TABLE}
+for label in ${LABELS//,/ }; do
+  sleep 2 # Avoids Exceeded rate limits: too many table update operations for this table.
+  echo "Setting label <$label> to table <$DEST_TABLE>"
+  bq update --set_label ${label} ${DEST_TABLE}
+done
 
 echo "DONE ${DEST_TABLE}."
