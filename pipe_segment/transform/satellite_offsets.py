@@ -157,7 +157,7 @@ class SatelliteOffsetsWrite(PTransform):
                 'timePartitioning': {
                     'type': 'MONTH',
                     'field' : 'hour',
-                    'requirePartitionFilter': True
+                    'requirePartitionFilter': False
                 }, 'clustering': {
                     'fields': [ 'hour' ]
                 }

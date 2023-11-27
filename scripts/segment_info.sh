@@ -51,8 +51,10 @@ TABLE_DESC=(
 )
 TABLE_DESC=$( IFS=$'\n'; echo "${TABLE_DESC[*]}" )
 SCHEMA=${ASSETS}/${PROCESS}.schema.json
+CLUSTERING_FIELDS='seg_id'
 bq mk --force \
   --description "${TABLE_DESC}" \
+  --clustering_fields=${CLUSTERING_FIELDS} \
   ${DEST_TABLE} \
   ${SCHEMA}
 
