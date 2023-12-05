@@ -19,7 +19,8 @@ def run(args):
 
     seg_options = options.view_as(SegmentOptions)
     gcloud_options = options.view_as(GoogleCloudOptions)
-    remove_satellite_offsets_content(seg_options.sat_offset_dest, seg_options.date_range, gcloud_options.labels, gcloud_options.project)
+    if seg_options.sat_offset_dest:
+        remove_satellite_offsets_content(seg_options.sat_offset_dest, seg_options.date_range, gcloud_options.labels, gcloud_options.project)
 
     return pipeline.run(options)
 
