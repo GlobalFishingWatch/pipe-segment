@@ -12,9 +12,6 @@ logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
 
 
-def key_or_none(d, k):
-    return d[k] if k in d else None
-
 def none_to_inf(x):
     return math.inf if (x is None) else x
 
@@ -124,19 +121,19 @@ class Fragment(PTransform):
                 none_to_inf(x["lat"]),
                 none_to_inf(x["speed"]),
                 none_to_inf(x["course"]),
-                none_to_inf(key_or_none(x,"heading")),
-                none_to_blank(key_or_none(x,"destination")),
-                none_to_inf(key_or_none(x,"length")),
-                none_to_inf(key_or_none(x,"width")),
+                none_to_inf(x.get("heading")),
+                none_to_blank(x.get("destination")),
+                none_to_inf(x.get("length")),
+                none_to_inf(x.get("width")),
                 none_to_blank(x["shiptype"]),
-                none_to_inf(key_or_none(x,"status")),
+                none_to_inf(x.get("status")),
                 none_to_inf(x["source"]),
                 none_to_inf(x["type"]),
                 none_to_blank(x["shipname"]),
                 none_to_blank(x["callsign"]),
-                none_to_blank(key_or_none(x,"imo")),
-                none_to_blank(key_or_none(x,"receiver_type")),
-                none_to_blank(key_or_none(x,"receiver")),
+                none_to_blank(x.get("imo")),
+                none_to_blank(x.get("receiver_type")),
+                none_to_blank(x.get("receiver")),
             )
         )
         for key, value in self._fragmenter.fragment(messages):
