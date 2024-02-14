@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name="pipe_segment",
-    version='4.2.2',
+    version='4.2.3',
     packages=find_packages(exclude=["test*.*", "tests"]),
     include_package_data=True
 )
