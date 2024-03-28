@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta
+from typing import List
 
 import apache_beam as beam
 import pytz
@@ -8,6 +9,7 @@ from apache_beam.options.pipeline_options import (GoogleCloudOptions,
                                                   StandardOptions)
 from apache_beam.runners import PipelineState
 from pipe_segment import message_schema, segment_schema
+from pipe_segment.models.bigquery_message_source import BigQueryMessagesSource
 from pipe_segment.options.segment import SegmentOptions
 from pipe_segment.transform.create_segment_map import CreateSegmentMap
 from pipe_segment.transform.create_segments import CreateSegments
@@ -70,8 +72,15 @@ class SegmentPipeline:
         return ujson.loads(self.options.segmenter_params)
 
     @property
-    def source_tables(self):
-        return self.options.source.split(",")
+    def source_tables(self) -> List[BigQueryMessagesSource]:
+        result=[]
+        source_types=(self.options.source_type or '').lower().split(",")
+        for i, source in enumerate(self.options.source.split(",")):
+            is_sharded=(source_types[i] if i + 1 <= len(source_types) else 'sharded')=='sharded'
+            result.append(BigQueryMessagesSource(table_id=source, 
+                                                 is_sharded=is_sharded,
+                                                 ))
+        return result
 
     # TODO: consider breaking up
     def pipeline(self):

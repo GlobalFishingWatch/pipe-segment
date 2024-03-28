@@ -16,6 +16,9 @@ class SegmentOptions(PipelineOptions):
             "--source", required=True, help="Bigquery table to read normalized messages"
         )
         optional.add_argument(
+            "--source_type", required=False, help="Bigquery normalized messages table type, when not provided assumes the source table is date sharded. Possible values [sharded, partitioned]"
+        )
+        optional.add_argument(
             "--sat_source",
             required=False,
             help="Bigquery table, query or file to read normalized messages,"
