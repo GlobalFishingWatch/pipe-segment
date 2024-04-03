@@ -26,4 +26,4 @@ class BigQueryMessagesSource:
 
     @property
     def qualified_source_messages(self) -> str:
-        return f'{self.table_id}{'*' if self.is_table_date_sharded else ''}'
+        return f"{self.table_id}{'*' if self.is_table_date_sharded else ''}"
