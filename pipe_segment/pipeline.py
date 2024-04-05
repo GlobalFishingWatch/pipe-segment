@@ -5,8 +5,11 @@ from apache_beam.io.gcp.bigquery_tools import table_schema_to_dict
 
 from apitools.base.py.exceptions import HttpError
 
+from google.cloud import bigquery
+
 from datetime import timedelta
 
+from pipe_segment.utils.bqtools import BigQueryTools
 from pipe_tools.timestamp import datetimeFromTimestamp
 from pipe_tools.timestamp import timestampFromDatetime
 from pipe_tools.utils.timestamp import as_timestamp
@@ -29,6 +32,14 @@ def safe_dateFromTimestamp(ts):
 
 def filter_by_ssvid_predicate(obj, ssvid_kkdict):
     return obj['ssvid'] in ssvid_kkdict
+
+def build_sink_table_descriptor(table_id, schema, description):
+    table = bigquery.Table(
+        table_id.replace('bq://','').replace(':', '.'),
+        schema=schema,
+    )
+    table.description = description
+    return table
 
 class FilterBySsvid(beam.PTransform):
 
@@ -73,7 +84,7 @@ class SegmentPipeline:
     def message_sink(self):
         return WriteSink(
             self.options.msg_dest,
-            self.read_from_several_sources.message_output_schema,
+            table_schema_to_dict(self.read_from_several_sources.message_output_schema),
             "Daily satellite messages segmented processed in segment step."
         )
 
@@ -109,6 +120,45 @@ class SegmentPipeline:
         # for purposes of CoGroupByKey, so both messages and segments should be
         # stringified or neither. 
         pipeline = beam.Pipeline(options=self.options)
+        
+        start_date=safe_dateFromTimestamp(self.date_range_ts[0])
+        end_date=safe_dateFromTimestamp(self.date_range_ts[1])
+
+        segmenter = Segment(start_date=start_date,
+                            end_date=end_date,
+                            segmenter_params=self.segmenter_params,
+                            look_ahead=self.options.look_ahead)
+        
+        # Ensure sharded tables are created for all dates
+        logging.info('Ensure sharded tables are created for all dates')
+
+        destination_tables = [{"table": self.options.msg_dest,
+                               "schema": self.read_from_several_sources.message_output_schema,
+                               "description": "Daily satellite messages segmented processed in segment step.",
+                               },
+                              {"table": self.options.seg_dest,
+                               "schema": segmenter.segment_schema,
+                               "description": "Daily segments processed in segment step.",
+                               },
+                              ] + ([
+                                  {"table": self.options.legacy_seg_v1_dest,
+                                   "schema": segmenter.segment_schema_v1,
+                                      "description": "Daily segments processed in segment step.",
+                                   },
+                              ] if self.options.legacy_seg_v1_dest else [])
+        # Create list of days between start_date and end_date including the start_date.
+        days = ([start_date]+[start_date+timedelta(days=x) for x in range((end_date-start_date).days)])
+        for dt in days:
+            shard = dt.strftime("%Y%m%d")
+
+            for dst in destination_tables:
+                sink_table_descriptor = build_sink_table_descriptor(table_id=f"{dst['table']}{shard}", 
+                                                                    schema=table_schema_to_dict(dst['schema'])["fields"],
+                                                                    description=dst['description'])
+                bqtools = BigQueryTools(project=sink_table_descriptor.project)
+                sink_table = bqtools.ensure_table_exists(sink_table_descriptor)
+                bqtools.clear_records(sink_table, "timestamp", dt, dt)
+
 
         messages = (
             pipeline
@@ -144,10 +194,6 @@ class SegmentPipeline:
             | 'GroupAllBySSVID' >> beam.CoGroupByKey()
         )
 
-        segmenter = Segment(start_date=safe_dateFromTimestamp(self.date_range_ts[0]),
-                            end_date=safe_dateFromTimestamp(self.date_range_ts[1]),
-                            segmenter_params=self.segmenter_params,
-                            look_ahead=self.options.look_ahead)
         # Runs the segmenter. Input: messages and segments group by ssvid {ssvid: {messages:m, segments:s}}
         segmented = args | "Segment" >> segmenter
 

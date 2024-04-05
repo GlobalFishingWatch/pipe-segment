@@ -1,4 +1,3 @@
-from apache_beam.io.gcp.bigquery_tools import table_schema_to_dict
 from apache_beam.io.gcp.internal.clients.bigquery import TableFieldSchema
 
 from datetime import datetime, timedelta
@@ -89,7 +88,7 @@ class ReadMessagesFromSeveralSources(beam.PTransform):
         field.mode="NULLABLE"
         schema.fields.append(field)
 
-        return table_schema_to_dict(schema)
+        return schema
 
     def expand(self, pcoll):
         return (
