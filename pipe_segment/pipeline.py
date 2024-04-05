@@ -31,7 +31,7 @@ from pipe_segment.transform.tag_with_seg_id import TagWithSegId
 from pipe_segment.transform.write_date_sharded import WriteDateSharded
 from pipe_segment.transform.write_sink import WriteSink
 from pipe_segment.transform.whitelist_messages_segmented import WhitelistFields
-from pipe_segment.utils.bqtools import BigQueryTools
+from pipe_segment.utils.bqtools import BigQueryTools, build_sink_table_descriptor
 
 from .tools import as_timestamp, datetimeFromTimestamp, timestampFromDatetime
 
@@ -45,11 +45,9 @@ def safe_date(ts):
         return None
     return datetimeFromTimestamp(ts).date()
 
-
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
     return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
-
 
 def time_bin_ndx(dtime, time_bins):
     reltime = dtime - datetime.datetime(dtime.year, dtime.month, dtime.day, tzinfo=pytz.UTC)

@@ -2,11 +2,13 @@ import datetime as dt
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
+
 from pipe_segment.segment_identity.options import SegmentIdentityOptions
 from pipe_segment.segment_identity.read_source import ReadSource
 from pipe_segment.segment_identity.transforms import (rename_timestamp,
                                                       summarize_identifiers,
                                                       write_sink)
+from pipe_segment.utils.bqtools import BigQueryTools, build_sink_table_descriptor
 
 from ..tools import as_timestamp
 
@@ -275,8 +277,35 @@ class SegmentIdentityPipeline:
             "Daily segments identity processed in segment step."
         )
 
+    @property
+    def ensure_sharded_creation(self):
+        # Ensure sharded tables are created for all dates
+        logging.info('Ensure sharded tables are created for all dates')
+        start_date, end_date = [timezoneToDatetime(ts) for ts in self.date_range]
+        destination_tables = [{
+            "table": self.options.dest_segment_identity,
+            "schema": self.dest_segment_identity_schema,
+            "description": "Daily segments identity processed in segment step.",
+        }]
+        # Create list of days between start_date and end_date including the start_date.
+        days = ([start_date]+[start_date+dt.timedelta(days=x) for x in range((end_date-start_date).days)])
+        for dt in days:
+            shard = dt.strftime("%Y%m%d")
+
+            for dst in destination_tables:
+                sink_table_descriptor = build_sink_table_descriptor(table_id=f"{dst['table']}{shard}",
+                                                                    schema=dst['schema']["fields"],
+                                                                    description=dst['description'])
+                bqtools = BigQueryTools(project=sink_table_descriptor.project)
+                sink_table = bqtools.ensure_table_exists(sink_table_descriptor)
+                # force to clear all records in the shard
+                bqtools.clear_records(sink_table, f"'{dt:%Y-%m-%d}'", dt, dt)
+
+
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.options)
+
+        self.ensure_sharded_creation()
 
         (
             pipeline
