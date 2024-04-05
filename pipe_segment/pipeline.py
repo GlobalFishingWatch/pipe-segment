@@ -9,7 +9,7 @@ from google.cloud import bigquery
 
 from datetime import timedelta
 
-from pipe_segment.utils.bqtools import BigQueryTools
+from pipe_segment.utils.bqtools import BigQueryTools, build_sink_table_descriptor
 from pipe_tools.timestamp import datetimeFromTimestamp
 from pipe_tools.timestamp import timestampFromDatetime
 from pipe_tools.utils.timestamp import as_timestamp
@@ -33,13 +33,6 @@ def safe_dateFromTimestamp(ts):
 def filter_by_ssvid_predicate(obj, ssvid_kkdict):
     return obj['ssvid'] in ssvid_kkdict
 
-def build_sink_table_descriptor(table_id, schema, description):
-    table = bigquery.Table(
-        table_id.replace('bq://','').replace(':', '.'),
-        schema=schema,
-    )
-    table.description = description
-    return table
 
 class FilterBySsvid(beam.PTransform):
 

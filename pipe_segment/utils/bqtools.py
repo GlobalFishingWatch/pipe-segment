@@ -1,6 +1,14 @@
 import logging
 from google.cloud import bigquery
 
+def build_sink_table_descriptor(table_id, schema, description):
+    table = bigquery.Table(
+        table_id.replace('bq://','').replace(':', '.'),
+        schema=schema,
+    )
+    table.description = description
+    return table
+
 class BigQueryTools():
     def __init__(self, project):
         self.client = bigquery.Client(project=project)
