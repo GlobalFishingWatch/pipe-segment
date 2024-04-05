@@ -1,3 +1,4 @@
+import copy
 from apache_beam.io.gcp.internal.clients.bigquery import TableFieldSchema
 
 from datetime import datetime, timedelta
@@ -29,6 +30,7 @@ class ReadMessagesFromSeveralSources(beam.PTransform):
         self.date_range = extract_range(self.options.date_range)
         self.pipeline_start_date_dt = datetimeFromStr(self.options.pipeline_start_date)
         self._message_sources_list = None
+        self._message_output_schema = None
 
     @property
     def message_sources_list(self):
@@ -62,33 +64,35 @@ class ReadMessagesFromSeveralSources(beam.PTransform):
 
     @property
     def message_output_schema(self):
-        schema = self.message_input_schema
+        if not self._message_output_schema:
+            self._message_output_schema = copy.deepcopy(self.message_input_schema)
 
-        field = TableFieldSchema()
-        field.name = "seg_id"
-        field.type = "STRING"
-        field.mode="NULLABLE"
-        schema.fields.append(field)
+            field = TableFieldSchema()
+            field.name = "seg_id"
+            field.type = "STRING"
+            field.mode="NULLABLE"
+            self._message_output_schemafields.append(field)
 
-        field = TableFieldSchema()
-        field.name = "n_shipname"
-        field.type = "STRING"
-        field.mode="NULLABLE"
-        schema.fields.append(field)
+            field = TableFieldSchema()
+            field.name = "n_shipname"
+            field.type = "STRING"
+            field.mode="NULLABLE"
+            self._message_output_schemafields.append(field)
 
-        field = TableFieldSchema()
-        field.name = "n_callsign"
-        field.type = "STRING"
-        field.mode="NULLABLE"
-        schema.fields.append(field)
+            field = TableFieldSchema()
+            field.name = "n_callsign"
+            field.type = "STRING"
+            field.mode="NULLABLE"
+            self._message_output_schemafields.append(field)
 
-        field = TableFieldSchema()
-        field.name = "n_imo"
-        field.type = "INTEGER"
-        field.mode="NULLABLE"
-        schema.fields.append(field)
+            field = TableFieldSchema()
+            field.name = "n_imo"
+            field.type = "INTEGER"
+            field.mode="NULLABLE"
+            self._message_output_schema.fields.append(field)
 
-        return schema
+            self._message_output_schema = schema
+        return self._message_output_schema
 
     def expand(self, pcoll):
         return (
