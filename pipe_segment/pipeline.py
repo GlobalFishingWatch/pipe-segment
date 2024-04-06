@@ -74,12 +74,8 @@ class SegmentPipeline:
     @property
     def source_tables(self) -> List[BigQueryMessagesSource]:
         result=[]
-        source_types=(self.options.source_type or '').lower().split(",")
         for i, source in enumerate(self.options.source.split(",")):
-            is_sharded=(source_types[i] if i + 1 <= len(source_types) else 'sharded')=='sharded'
-            result.append(BigQueryMessagesSource(table_id=source, 
-                                                 is_sharded=is_sharded,
-                                                 ))
+            result.append(BigQueryMessagesSource(table_id=source))
         return result
 
     # TODO: consider breaking up
