@@ -133,12 +133,12 @@ class SegmentPipeline:
                                "schema": segmenter.segment_schema,
                                "description": "Daily segments processed in segment step.",
                                },
-                              ] + ([
-                                  {"table": self.options.legacy_seg_v1_dest,
-                                   "schema": segmenter.segment_schema_v1,
-                                      "description": "Daily segments processed in segment step.",
-                                   },
-                              ] if self.options.legacy_seg_v1_dest else [])
+                              ]
+        if self.options.legacy_seg_v1_dest:
+            destination_tables.append({"table": self.options.legacy_seg_v1_dest,
+                                       "schema": segmenter.segment_schema_v1,
+                                       "description": "Daily segments processed in segment step.",
+                                       })
         # Create list of days between start_date and end_date including the start_date.
         days = ([start_date]+[start_date+timedelta(days=x) for x in range((end_date-start_date).days)])
         for dt in days:

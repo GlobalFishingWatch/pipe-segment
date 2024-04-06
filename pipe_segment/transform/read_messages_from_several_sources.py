@@ -65,31 +65,31 @@ class ReadMessagesFromSeveralSources(beam.PTransform):
     @property
     def message_output_schema(self):
         if not self._message_output_schema:
-            self._message_output_schema = copy.deepcopy(self.message_input_schema)
+            schema = copy.deepcopy(self.message_input_schema)
 
             field = TableFieldSchema()
             field.name = "seg_id"
             field.type = "STRING"
             field.mode="NULLABLE"
-            self._message_output_schemafields.append(field)
+            schema.fields.append(field)
 
             field = TableFieldSchema()
             field.name = "n_shipname"
             field.type = "STRING"
             field.mode="NULLABLE"
-            self._message_output_schemafields.append(field)
+            schema.fields.append(field)
 
             field = TableFieldSchema()
             field.name = "n_callsign"
             field.type = "STRING"
             field.mode="NULLABLE"
-            self._message_output_schemafields.append(field)
+            schema.fields.append(field)
 
             field = TableFieldSchema()
             field.name = "n_imo"
             field.type = "INTEGER"
             field.mode="NULLABLE"
-            self._message_output_schema.fields.append(field)
+            schema.fields.append(field)
 
             self._message_output_schema = schema
         return self._message_output_schema
