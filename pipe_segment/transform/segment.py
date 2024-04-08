@@ -143,9 +143,11 @@ class Segment(PTransform):
             f1 = bigquery.TableFieldSchema()
             f1.name = 'value'
             f1.type = 'STRING'
+            f1.mode = 'NULLABLE'
             f2 =  bigquery.TableFieldSchema()
             f2.name = 'count'
             f2.type = 'INTEGER'
+            f2.mode = 'NULLABLE'
             field.fields = [f1, f2]
             schema.fields.append(field)
 

@@ -8,6 +8,11 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [UNRELEASED]
 
+## v3.4.0 - 2024-04-08
+
+* [PIPELINE-1875](https://globalfishingwatch.atlassian.net/browse/PIPELINE-1875): Ensure 
+  destination tables of pipe_segment steps are created even without data.
+
 ## v3.3.0 - 2023-07-26
 
 ### Added
