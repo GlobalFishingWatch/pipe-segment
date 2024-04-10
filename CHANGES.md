@@ -8,6 +8,11 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [UNRELEASED]
 
+## v3.4.1 - 2024-04-10
+
+* [PIPELINE-1875](https://globalfishingwatch.atlassian.net/browse/PIPELINE-1875): Ensure 
+  to set all fields mode None as NULLABLE
+
 ## v3.4.0 - 2024-04-08
 
 * [PIPELINE-1875](https://globalfishingwatch.atlassian.net/browse/PIPELINE-1875): Ensure 
