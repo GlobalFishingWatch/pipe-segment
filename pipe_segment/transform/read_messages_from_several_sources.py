@@ -67,6 +67,11 @@ class ReadMessagesFromSeveralSources(beam.PTransform):
         if not self._message_output_schema:
             schema = copy.deepcopy(self.message_input_schema)
 
+            # Ensure to set all fields mode None as NULLABLE
+            for f in schema.fields:
+                if f.mode==None:
+                    f.mode="NULLABLE"
+
             field = TableFieldSchema()
             field.name = "seg_id"
             field.type = "STRING"
