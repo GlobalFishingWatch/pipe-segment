@@ -46,13 +46,11 @@ Remember to re-run this command everytime you update dependencies or modify the 
 The pipeline reads it's input from (and write its output to) BigQuery,
 so you need to first authenticate with your google cloud account inside the docker images.
 To do that, you need to run this command and follow the instructions:
-
 ```bash
 docker compose run gcloud auth application-default login
 ```
 
 You also need to configure the project:
-
 ```bash
 docker compose run gcloud config set project world-fishing-827
 ```
@@ -96,30 +94,29 @@ python3.8 -m venv .venv
 
 Install dependencies:
 ```shell
-pip install -r requirements-scheduler.txt
-pip install -r requirements-worker.txt 
+pip install -r requirements-dev.txt
 ```
 
 Run unit tests:
 ```shell
-./run_tests.sh 
+pytest
 ```
 
 Alternatively, you can run the unit tests inside the docker container:
 Run unit tests:
 ```shell
-./docker_run_tests.sh 
+./docker_run_tests.sh
 ```
 
 Unit tests using docker compose:
 
 Quick run
 ```shell
-docker-compose run test tests
+docker compose run test tests
 ```
 Run with all tests including ones that hit some GCP API
 ```shell
-docker-compose run test tests --runslow
+docker compose run test tests --runslow
 ```
 
 You can do a local run using a query from BQ in order to get more data to run through it.
