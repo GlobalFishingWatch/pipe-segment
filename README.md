@@ -48,6 +48,7 @@ docker compose run gcloud auth application-default login
 You also need to configure the project:
 ```bash
 docker compose run gcloud config set project world-fishing-827
+docker compose run gcloud auth application-default set-quota-project world-fishing-827
 ```
 
 ## CLI
