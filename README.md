@@ -8,15 +8,14 @@ which are broadcasting using the same MMSI at the same time.
 [configure a SSH-key for GitHub]: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account
 [docker official instructions]: https://docs.docker.com/engine/install/
 [docker compose plugin]: https://docs.docker.com/compose/install/linux/
-[git installed]: https://git-scm.com/downloads
-[pip-tools]: https://pip-tools.readthedocs.io/en/stable/
-[configure a SSH-key for GitHub]: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account
-[requirements/prod.in]: requirements/prod.in
-[Makefile]: Makefile
-[Semantic Versioning]: https://semver.org
 [examples]: examples/
+[git installed]: https://git-scm.com/downloads
 [git workflow documentation]: GIT-WORKFLOW.md
-[requirements.txt]: requirements.txt
+[Makefile]: Makefile
+[pip-tools]: https://pip-tools.readthedocs.io/en/stable/
+[requirements/scheduler.in]: requirements/scheduler.in
+[requirements/worker.in]: requirements/worker.in
+[Semantic Versioning]: https://semver.org
 
 
 # How to run
@@ -95,7 +94,7 @@ python3.8 -m venv .venv
 
 Install dependencies:
 ```shell
-pip install -r requirements-dev.txt
+pip install -r requirements/dev.txt
 ```
 
 Run unit tests:
@@ -132,6 +131,24 @@ cat local-output-00000-of-00001 | jq -s '. | sort_by(.mmsi + .timestamp)'
 
 Please refer to our [git workflow documentation] to know how to manage branches in this repository.
 
+## Updating dependencies
+
+Dependencies are managed with [pip-tools].
+Inside [requirements/scheduler.in] and [requirements/scheduler.in]
+production dependencies are specified with restrictions.
+
+The final .txt requirements are generated with pip-compile command:
+If you want to upgrade all dependencies to latest available versions
+(compatible with restrictions declared), just run:
+```shell
+pip-compile -o requirements/worker.txt -U requirements/scheduler.in -v
+pip-compile -o requirements/scheduler.txt -U requirements/scheduler.in -v
+```
+
+If you want to upgrade specific package use -P option, for example:
+```shell
+pip-compile -o requirements/worker.txt -P pandas requirements/scheduler.in -v
+```
 
 ## Schema
 
