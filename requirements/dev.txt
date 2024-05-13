@@ -1,0 +1,7 @@
+pip-tools~=7.4
+-r test.txt
+
+-r worker.txt
+-r scheduler.txt
+
+-e .
