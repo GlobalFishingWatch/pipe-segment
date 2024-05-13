@@ -1,4 +1,0 @@
--r requirements-worker.txt
--r requirements-scheduler.txt
-
--e .
