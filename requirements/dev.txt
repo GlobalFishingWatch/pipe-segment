@@ -2,8 +2,6 @@ pip-tools~=7.4
 flake8~=7.0
 
 -r test.txt
-
--r worker.txt
 -r scheduler.txt
 
 -e .
