@@ -1,5 +1,4 @@
 import apache_beam as beam
-from datetime import date
 
 schema = {
     "fields": [

@@ -1,5 +1,6 @@
 import re
 
+
 def get_pipe_ver():
     """Returns the version of the package."""
     with open('setup.py') as rf:

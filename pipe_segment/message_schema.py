@@ -4,13 +4,18 @@ from copy import deepcopy
 message_input_schema = {
     "fields": [
         {
-            "description": "A unique id, we try using the spire raw id but sometimes it is not unique.",
+            "description": (
+                "A unique id, we try using the spire raw id but sometimes it is not unique."
+            ),
             "mode": "NULLABLE",
             "name": "msgid",
             "type": "STRING",
         },
         {
-            "description": "spire/orbcomm used on posterior steps when both spire and orbcomm are merge to know where they come from.",
+            "description": (
+                "spire/orbcomm used on posterior steps when both spire"
+                "and orbcomm are merge to know where they come from."
+            ),
             "mode": "NULLABLE",
             "name": "source",
             "type": "STRING",
@@ -88,13 +93,18 @@ message_input_schema = {
             "type": "STRING",
         },
         {
-            "description": "The shiptype included in the spire message using the shiptype.json match.",
+            "description": (
+                "The shiptype included in the spire message using the shiptype.json match."
+            ),
             "mode": "NULLABLE",
             "name": "shiptype",
             "type": "STRING",
         },
         {
-            "description": "terrestrial or satellite. Obtained through the collection_type in the spire json decoded message.",
+            "description": (
+                "terrestrial or satellite. "
+                "Obtained through the collection_type in the spire json decoded message."
+            ),
             "mode": "NULLABLE",
             "name": "receiver_type",
             "type": "STRING",

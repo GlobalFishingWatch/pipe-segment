@@ -17,6 +17,7 @@ SOURCE_QUERY_TEMPLATE = """
       AND TRUE
 """
 
+
 class ReadSource(beam.PTransform):
     def __init__(self, source_segments, source_fragments, start_ts, end_ts):
         self.source_segments = source_segments.replace("bq://", "").replace(":", ".")

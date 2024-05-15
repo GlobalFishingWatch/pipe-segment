@@ -105,7 +105,8 @@ class SegmentPipeline:
             )
 
             if self.options.sat_offset_dest:
-                self.satellite_offsets_writer = SatelliteOffsetsWrite(self.options, self.cloud_options)
+                self.satellite_offsets_writer = SatelliteOffsetsWrite(
+                    self.options, self.cloud_options)
                 (
                     satellite_offsets | self.satellite_offsets_writer
                 )

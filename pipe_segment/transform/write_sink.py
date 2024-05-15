@@ -6,9 +6,10 @@ BQ_PARAMS = {
     },
 }
 
+
 class WriteSink(beam.PTransform):
     def __init__(self, sink_table, schema, description=None):
-        self.sink_table = sink_table.replace('bq://','')
+        self.sink_table = sink_table.replace('bq://', '')
         self.schema = schema
         self.description = description
 
@@ -33,4 +34,3 @@ class WriteSink(beam.PTransform):
             write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
         )
-

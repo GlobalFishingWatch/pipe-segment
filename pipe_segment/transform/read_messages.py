@@ -24,7 +24,7 @@ class ReadMessages(beam.PTransform):
               CAST(UNIX_MICROS(timestamp) AS FLOAT64) / 1000000  AS timestamp,
                 * except (timestamp)
             FROM `{source}*`
-            WHERE _TABLE_SUFFIX BETWEEN 
+            WHERE _TABLE_SUFFIX BETWEEN
              '{self.start_date:%Y%m%d}' AND '{self.end_date:%Y%m%d}'
         )
         """
