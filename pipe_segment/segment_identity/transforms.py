@@ -11,13 +11,20 @@ def normalize_imo(value):
     else:
         return None
 
+
 def always_true(x):
     return True
+
 
 def no_normalization(x):
     return x
 
-def extract_identity_counts(identities, key, filtering_fn=always_true , normalization_fn=no_normalization):
+
+def extract_identity_counts(
+        identities,
+        key,
+        filtering_fn=always_true,
+        normalization_fn=no_normalization):
     # Every value starts at zero
     accummulator = defaultdict(int)
 
@@ -29,8 +36,9 @@ def extract_identity_counts(identities, key, filtering_fn=always_true , normaliz
             normalized_value = normalization_fn(value)
             accummulator[normalized_value] += count
 
-    result = [{"value": k,  "count": v} for (k, v) in accummulator.items()]
+    result = [{"value": k, "count": v} for (k, v) in accummulator.items()]
     return result or None
+
 
 def summarize_identifiers(segment):
     identities = segment["daily_identities"]
@@ -58,7 +66,7 @@ def summarize_identifiers(segment):
             filtering_fn=normalize_shipname,
         ),
         "callsign": extract_identity_counts(
-            identities, 
+            identities,
             key="callsign",
             filtering_fn=normalize_callsign,
         ),
@@ -88,12 +96,12 @@ def summarize_identifiers(segment):
         "length": extract_identity_counts(
             identities,
             key="length",
-            filtering_fn=lambda x: x, # Discard None
+            filtering_fn=lambda x: x,  # Discard None
         ),
         "width": extract_identity_counts(
             identities,
             key="width",
-            filtering_fn=lambda x: x, # Discard None
+            filtering_fn=lambda x: x,  # Discard None
         ),
     }
 

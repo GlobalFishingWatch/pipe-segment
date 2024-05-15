@@ -32,7 +32,10 @@ class LoggingOptions(PipelineOptions):
             "--log_args",
             default=False,
             action="store_true",
-            help="Output command line arguments to logging (useful for debugging then you cant get stdout",
+            help=(
+                "Output command line arguments to logging "
+                "(useful for debugging then you cant get stdout"
+            ),
         )
 
     def configure_logging(self):

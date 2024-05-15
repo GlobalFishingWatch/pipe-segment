@@ -1,4 +1,3 @@
-from collections import defaultdict
 from datetime import date
 
 import apache_beam as beam
