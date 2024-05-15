@@ -7,7 +7,6 @@ from pipe_segment.transform.satellite_offsets import remove_satellite_offsets_co
 from pipe_segment import pipeline
 
 
-
 def run(args):
     args = args or []
 
@@ -20,7 +19,11 @@ def run(args):
     seg_options = options.view_as(SegmentOptions)
     gcloud_options = options.view_as(GoogleCloudOptions)
     if seg_options.sat_offset_dest:
-        remove_satellite_offsets_content(seg_options.sat_offset_dest, seg_options.date_range, gcloud_options.labels, gcloud_options.project)
+        remove_satellite_offsets_content(
+            seg_options.sat_offset_dest,
+            seg_options.date_range,
+            gcloud_options.labels,
+            gcloud_options.project)
 
     return pipeline.run(options)
 
