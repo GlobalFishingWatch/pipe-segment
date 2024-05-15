@@ -23,7 +23,6 @@ import numpy as np
 import pyseas
 from pyseas import maps, styles
 from pyseas.contrib import plot_tracks
-from skimage import morphology
 
 # %matplotlib inline
 # -
@@ -34,13 +33,13 @@ from skimage import morphology
 # that are close in time and received by different satellites. The expected time
 # difference ($\Delta t$) is computed by looking at the distance between the two point divided
 # by the reported speed. The sign of $\Delta t$ is determing by looking at the relationship
-# between the reported course and the course implied by the pair of pings. This gives us 
+# between the reported course and the course implied by the pair of pings. This gives us
 # a mutiples estimates of the relative clock error between pairs of satellites and take
 # a median to arrive at an estimated relative clock error for each pair of satellites.
 #
 # We then take the median clock error between any single satellite and all other satellites
 # as the clock error for that satellite. Effectively assuming that the median clock value of
-# all the satellites is correct. 
+# all the satellites is correct.
 #
 # This only is applicable to the set of Spire data as we don't have the time
 # tagblock information to disambiguate the Orbcom satellites.
@@ -51,15 +50,15 @@ WITH
 
 position_messages as (
   SELECT *,
-         ABS(TIMESTAMP_DIFF(LAG(timestamp) OVER 
+         ABS(TIMESTAMP_DIFF(LAG(timestamp) OVER
              (PARTITION BY ssvid ORDER BY timestamp), timestamp, SECOND)) next_dt,
-         ABS(TIMESTAMP_DIFF(LEAD(timestamp) OVER 
+         ABS(TIMESTAMP_DIFF(LEAD(timestamp) OVER
              (PARTITION BY ssvid ORDER BY timestamp), timestamp, SECOND)) prev_dt,
          TIMESTAMP_TRUNC(timestamp, HOUR) hour,
          ROW_NUMBER() OVER (PARTITION BY ssvid, receiver, EXTRACT(MINUTE FROM timestamp)) rn
   FROM `pipe_ais_sources_v20190222.normalized_spire_*`
   WHERE _table_suffix BETWEEN '{start_date:%Y%m%d}' AND '{end_date:%Y%m%d}'
-    AND lat IS NOT NULL AND lon IS NOT NULL 
+    AND lat IS NOT NULL AND lon IS NOT NULL
  ),
 
 base AS (
@@ -82,7 +81,7 @@ base AS (
     AND abs(lon) <= 180
     AND receiver_type = 'satellite'
     AND type != 'AIS.27'
-    AND source = 'spire' 
+    AND source = 'spire'
     AND rn = 1 -- only 1 point per ssvid, receiver pair per minute
 ),
 
@@ -102,7 +101,7 @@ pairs AS (
     0.5 * (a.speed + b.speed) AS speed,
     0.5 * (a.course + b.course) AS course,
     a.receiver AS receiver1, b.receiver AS receiver2,
-    ROW_NUMBER() OVER (PARTITION BY ssvid, a.receiver, b.receiver, hour 
+    ROW_NUMBER() OVER (PARTITION BY ssvid, a.receiver, b.receiver, hour
                        ORDER BY timestamp_diff(b.timestamp, a.timestamp, millisecond)) rn
   FROM base AS a
   JOIN base AS b
@@ -121,10 +120,10 @@ close_pairs AS (
            (lat2 - lat1) * 60 AS dy,
            SUM(IF(rn = 1, 1, 0)) over(partition by receiver1, receiver2) AS pair_count
     FROM pairs
-    WHERE abs(dt) < 600 
+    WHERE abs(dt) < 600
       AND rn = 1  -- only use one ping per hour for each (ssvid, receiver1, receiver2) combo
 ),
- 
+
 
 _distances_1 AS (
   SELECT * except (pair_count, dx, dy),
@@ -135,17 +134,17 @@ _distances_1 AS (
 ),
 
 _distances_2 AS (
-  SELECT *, 
+  SELECT *,
          COS(course  * 3.14159 / 180 - implied_course_rads) AS cos_delta
   FROM _distances_1
 ),
 
 distances AS (
     SELECT * except(distance),
-           -- `sign` here takes care of case where boats implied course and course are ~180 deg apart
+           -- `sign` here: case where boats implied course and course are ~180 deg apart
            SIGN(cos_delta) * distance AS signed_distance
     FROM _distances_2
-    -- only use cases where implied course ~agree or are ~opposite 
+    -- only use cases where implied course ~agree or are ~opposite
     WHERE ABS(cos_delta) > 0.8
 ),
 
@@ -159,16 +158,17 @@ grouped AS (
   SELECT *
   FROM (
     SELECT hour,
-           percentile_cont(dt - expected_dt, 0.5) over (partition by receiver1, receiver2, hour) AS dt,
+           percentile_cont(dt - expected_dt, 0.5)
+           over (partition by receiver1, receiver2, hour) AS dt,
            receiver1,
            receiver2
     FROM delta_ts
   )
 GROUP BY receiver1, receiver2, dt, hour
-), 
+),
 
 time_offset_by_hour_by_satellite AS (
-  SELECT * 
+  SELECT *
   FROM (
     SELECT receiver1 AS receiver,
            hour,
@@ -180,7 +180,7 @@ time_offset_by_hour_by_satellite AS (
 
 safe_time_offset_by_hour_by_satellite AS (
     SELECT receiver, hour,
-           GREATEST(dt, 
+           GREATEST(dt,
                     IFNULL(LAG(dt) OVER(PARTITION BY receiver ORDER BY hour), 0),
                     IFNULL(LEAD(dt) OVER(PARTITION BY receiver ORDER BY hour), 0)), dt
     FROM time_offset_by_hour_by_satellite
@@ -190,16 +190,16 @@ safe_time_offset_by_hour_by_satellite AS (
 '''
 
 offset_template = core_template + '''
-SELECT * 
+SELECT *
 FROM time_offset_by_hour_by_satellite
-LEFT JOIN hours 
+LEFT JOIN hours
 USING (hour, receiver)
 ORDER BY receiver, hour
 '''
 
 bad_id_template = core_template + '''
-select msgid  
-FROM position_messages 
+select msgid
+FROM position_messages
 JOIN time_offset_by_hour_by_satellite
 USING (hour, receiver)
 -- bad msgids are returned when:
@@ -236,7 +236,7 @@ offsets = pd.concat([offsets_1, offsets_2, offsets_3, offsets_4])
 #
 # We look at how many messages we keep versus clock error threshold in the plot below.
 # The main takeaway here is that above ~20s, we keep nearly all messages (>99%), but
-# below that the fraction of messages kept falls off rapidly. 
+# below that the fraction of messages kept falls off rapidly.
 #
 # We would like the threshold to be below one minute,
 # thin points to 1 per minute later in the pipeline. Any cutoff below ~30s should eliminate
@@ -259,7 +259,7 @@ plt.xlim(0, 60)
 plt.xlabel('clock error')
 plt.ylabel('cumulative pings')
 
-# Another way to visualize this is to look at the time series for the various satellites. 
+# Another way to visualize this is to look at the time series for the various satellites.
 # The clock errors cluster between about -10s and 10s, but there are excursions well outside
 # this range, some of them prolonged.
 
@@ -294,7 +294,7 @@ ssvid_list AS (
   )
   WHERE -- (frac > 0.05
     --AND pings > 100)
-    -- OR 
+    -- OR
      ssvid IN ('303272000', '503702600', '503752700')
   ORDER BY FARM_FINGERPRINT(ssvid)
   LIMIT 10
@@ -302,7 +302,7 @@ ssvid_list AS (
 
 SELECT ssvid, timestamp, lat, lon, dt, prev_dt, next_dt
 FROM safe_time_offset_by_hour_by_satellite
-LEFT JOIN position_messages 
+LEFT JOIN position_messages
 USING (hour, receiver)
 WHERE ssvid IN (SELECT * FROM ssvid_list)
 ORDER BY ssvid, timestamp
@@ -318,25 +318,36 @@ extreme_df = pd.read_gbq(query, project_id='world-fishing-827', dialect='standar
 # -
 
 def plot_example(df, ssvid, t_range=None):
-    fig = plt.figure(figsize=(20, 20))
+    plt.figure(figsize=(20, 20))
     with pyseas.context(styles.light):
         data = df[df.ssvid == ssvid]
         good = abs(data.dt) < 30
-        
+
         gs = gridspec.GridSpec(3, 1, height_ratios=[2, 1, 1])
 
         projection_info = plot_tracks.find_projection(data.lon, data.lat, abs_delta=0.01)
-        ax = maps.create_map(gs[0], projection=projection_info.projection, 
-                                    extent=projection_info.extent)
+        ax = maps.create_map(gs[0], projection=projection_info.projection,
+                             extent=projection_info.extent)
         maps.add_land()
-        ax.plot(data.lon.values[:], data.lat.values[:], 'k.-', linewidth=0.2, transform=maps.identity)
-        ax.plot(data.lon.values[good], data.lat.values[good], 'b.-', linewidth=0.5, transform=maps.identity)
+        ax.plot(
+            data.lon.values[:],
+            data.lat.values[:],
+            'k.-',
+            linewidth=0.2,
+            transform=maps.identity)
+        ax.plot(
+            data.lon.values[good],
+            data.lat.values[good],
+            'b.-',
+            linewidth=0.5,
+            transform=maps.identity)
         ax.plot(data.lon.values[~good], data.lat.values[~good], 'r.', transform=maps.identity)
         ax.set_title(ssvid)
-        
+
         x = mdates.date2num(data.timestamp.values)
-        xc = mdates.date2num([t + np.timedelta64(int(round(dt)), 's') 
-                              for (t, dt) in zip(data.timestamp.values, data.dt.values)])
+        mdates.date2num([
+            t + np.timedelta64(int(round(dt)), 's')
+            for (t, dt) in zip(data.timestamp.values, data.dt.values)])
 
         ax = plt.subplot(gs[1])
         ax.plot(x[good], data.lon.values[good], 'b.-')
@@ -344,31 +355,44 @@ def plot_example(df, ssvid, t_range=None):
 #         ax.plot(xc[~good], data.lon.values[~good], 'g.')
         if t_range:
             ax.set_xlim(*t_range)
-        ax.set_xticks([]) 
+        ax.set_xticks([])
         ax.set_ylabel('longitude')
-        
+
         ax = plt.subplot(gs[2])
         ax.plot(x[good], data.lat.values[good], 'b.-')
         ax.plot(x[~good], data.lat.values[~good], 'r.')
 #         ax.plot(xc[~good], data.lat.values[~good], 'g.')
         if t_range:
-            ax.set_xlim(*t_range)  
+            ax.set_xlim(*t_range)
         ax.xaxis_date()
         ax.set_ylabel('latitude')
 
 
-# Here we show some examples with offsets on the order of an hour. The raw track is shown with light 
-# black lines and you can see where offset causes unrealistic tracks. The corrected track is shown in 
-# blue and the dropped points are shown in red.
+# Here we show some examples with offsets on the order of an hour.
+# The raw track is shown with light black lines
+# and you can see where offset causes unrealistic tracks.
+# The corrected track is shown in blue and the dropped points are shown in red.
 #
-# The offset points appear as a characteristic parallel track when viewed in a lat/lon versus timestamp
-# plot.
+# The offset points appear as a characteristic parallel track
+# when viewed in a lat/lon versus timestamp plot.
 
-plot_example(extreme_df, '303272000', t_range=(dt_.datetime(2019, 1, 8, 17), dt_.datetime(2019, 1, 8, 20)))  
+plot_example(
+    extreme_df, '303272000', t_range=(
+        dt_.datetime(
+            2019, 1, 8, 17), dt_.datetime(
+                2019, 1, 8, 20)))
 
-plot_example(extreme_df, '503702600', t_range=(dt_.datetime(2019, 1, 8, 23), dt_.datetime(2019, 1, 9, 3)))
+plot_example(
+    extreme_df, '503702600', t_range=(
+        dt_.datetime(
+            2019, 1, 8, 23), dt_.datetime(
+                2019, 1, 9, 3)))
 
-plot_example(extreme_df, '503752700', t_range=(dt_.datetime(2019, 1, 7, 23), dt_.datetime(2019, 1, 8, 1)))
+plot_example(
+    extreme_df, '503752700', t_range=(
+        dt_.datetime(
+            2019, 1, 7, 23), dt_.datetime(
+                2019, 1, 8, 1)))
 
 # ### Why not just correct the results?
 # 1. Offset is sometimes a jump, so there would be edge cases.
@@ -386,7 +410,7 @@ template = core_template + '''
 
 ssvid_list AS (
   SELECT ssvid FROM (
-    SELECT ssvid, AVG(IF(abs(dt) BETWEEN 30 AND 60, 1, 0)) frac, 
+    SELECT ssvid, AVG(IF(abs(dt) BETWEEN 30 AND 60, 1, 0)) frac,
                   AVG(IF(abs(dt) > 60, 1, 0)) frac2, count(*) pings
     FROM time_offset_by_hour_by_satellite
     JOIN position_messages
@@ -401,7 +425,7 @@ ssvid_list AS (
 
 SELECT ssvid, timestamp, lat, lon, dt, prev_dt, next_dt
 FROM safe_time_offset_by_hour_by_satellite
-LEFT JOIN position_messages 
+LEFT JOIN position_messages
 USING (hour, receiver)
 WHERE ssvid IN (SELECT * FROM ssvid_list)
 ORDER BY ssvid, timestamp
@@ -417,7 +441,7 @@ moderate_df = pd.read_gbq(query, project_id='world-fishing-827', dialect='standa
 # -
 
 def plot_moderate_example(df, ssvid, t_range=None):
-    fig = plt.figure(figsize=(20, 20))
+    plt.figure(figsize=(20, 20))
     with pyseas.context(styles.light):
         data = df[df.ssvid == ssvid]
         good1 = abs(data.dt) < 30
@@ -433,57 +457,57 @@ def plot_moderate_example(df, ssvid, t_range=None):
                 thin_mask.append(False)
         thin_mask = np.array(thin_mask)
         thin_mask &= good2
-        
+
         gs = gridspec.GridSpec(3, 1, height_ratios=[2, 1, 1])
 
         projection_info = plot_tracks.find_projection(data.lon, data.lat, abs_delta=0.01)
-        ax = maps.create_map(gs[0], projection=projection_info.projection, 
-                                    extent=projection_info.extent)
+        ax = maps.create_map(gs[0], projection=projection_info.projection,
+                             extent=projection_info.extent)
         maps.add_land()
-        ax.plot(data.lon.values[thin_mask], data.lat.values[thin_mask], 'k.-', linewidth=0.2, 
+        ax.plot(data.lon.values[thin_mask], data.lat.values[thin_mask], 'k.-', linewidth=0.2,
                 transform=maps.identity)
-        ax.plot(data.lon.values[good1 & thin_mask], data.lat.values[good1 & thin_mask], 'b.-', 
+        ax.plot(data.lon.values[good1 & thin_mask], data.lat.values[good1 & thin_mask], 'b.-',
                 linewidth=0.5, transform=maps.identity)
         ax.plot(data.lon.values[~good1 & thin_mask], data.lat.values[~good1 & thin_mask], 'r.',
                 transform=maps.identity)
         ax.set_title(ssvid)
-        
-        x = mdates.date2num(data.timestamp.values )
-        
-        tc = np.array([t + np.timedelta64(int(round(dt)), 's') 
-                              for (t, dt) in zip(data.timestamp.values, data.dt.values)])
-        xc = mdates.date2num(tc)
 
+        x = mdates.date2num(data.timestamp.values)
 
-        
+        tc = np.array([t + np.timedelta64(int(round(dt)), 's')
+                       for (t, dt) in zip(data.timestamp.values, data.dt.values)])
+        mdates.date2num(tc)
+
         def implied_speed(x, df):
             dist = np.hypot(df.lat[1:].values - df.lat[:-1].values,
-                            np.cos(np.deg2rad(df.lat[1:].values)) * 
-                            (df.lon[1:].values - df.lon[:-1].values)) # lots of room for imp
-            return 60 * dist / (1e-10 + (x[1:] - x[:-1]) / 
-                           np.timedelta64(1, 's') / (60 * 60))
+                            np.cos(np.deg2rad(df.lat[1:].values)) *
+                            (df.lon[1:].values - df.lon[:-1].values))  # lots of room for imp
+            return 60 * dist / (1e-10 + (x[1:] - x[:-1]) /
+                                np.timedelta64(1, 's') / (60 * 60))
 
         ax = plt.subplot(gs[1])
-        ax.plot(x[thin_mask][1:], implied_speed(data.timestamp.values[thin_mask], data[thin_mask]), 'r.-')
+        ax.plot(x[thin_mask][1:], implied_speed(
+            data.timestamp.values[thin_mask], data[thin_mask]), 'r.-')
         if t_range:
             ax.set_xlim(*t_range)
-        ax.set_xticks([]) 
+        ax.set_xticks([])
         ax.set_ylabel('implied speed')
         ax.set_ylim(0, 20)
         ax.set_title('cutoff of 60s')
-        
+
         ax = plt.subplot(gs[2])
-        ax.plot(x[good1 & thin_mask][1:], implied_speed(data.timestamp.values[good1 & thin_mask], 
+        ax.plot(x[good1 & thin_mask][1:], implied_speed(data.timestamp.values[good1 & thin_mask],
                                                         data[good1 & thin_mask]), 'b.-')
         if t_range:
-            ax.set_xlim(*t_range)  
+            ax.set_xlim(*t_range)
         ax.xaxis_date()
         ax.set_ylabel('implied speed')
         ax.set_ylim(0, 20)
         ax.set_title('cutoff of 30s')
 
-# It is difficult to find examples where a cutoff of 30 is different versus a cutoff of 60. Here's one
-# however.
+# It is difficult to find examples where a cutoff of 30 is different versus a cutoff of 60.
+# Here's one however.
+
 
 plot_moderate_example(moderate_df, '232012919')
 
@@ -496,14 +520,14 @@ template = core_template + '''
 tagged_msgs AS (
 SELECT ssvid, timestamp, lat, lon, dt, prev_dt, next_dt,
 FROM safe_time_offset_by_hour_by_satellite
-LEFT JOIN position_messages 
+LEFT JOIN position_messages
 USING (hour, receiver)
 WHERE ABS(dt) < {max_dt}
 ORDER BY ssvid, timestamp
 ),
 
 prethinned AS (
-SELECT *, 
+SELECT *,
        ROW_NUMBER() OVER (PARTITION BY ssvid, EXTRACT(MINUTE FROM timestamp)
                           ORDER BY ABS(EXTRACT(SECOND FROM timestamp) - 30)) rn
 FROM tagged_msgs
@@ -512,10 +536,12 @@ FROM tagged_msgs
 w_implied_speed AS (
   SELECT *,
          60 * (60 * 60) * SQRT(
-             (lat - LAG(lat) OVER (PARTITION BY ssvid ORDER BY timestamp)) * 
+             (lat - LAG(lat) OVER (PARTITION BY ssvid ORDER BY timestamp)) *
              (lat - LAG(lat) OVER (PARTITION BY ssvid ORDER BY timestamp)) +
-             COS(3.14159 / 180 * lat) * (lon - LAG(lon) OVER (PARTITION BY ssvid ORDER BY timestamp)) * 
-             COS(3.14159 / 180 * lat) * (lon - LAG(lon) OVER (PARTITION BY ssvid ORDER BY timestamp))
+             COS(3.14159 / 180 * lat) * (lon - LAG(lon)
+             OVER (PARTITION BY ssvid ORDER BY timestamp)) *
+             COS(3.14159 / 180 * lat) * (lon - LAG(lon)
+             OVER (PARTITION BY ssvid ORDER BY timestamp))
          ) / TIMESTAMP_DIFF(timestamp,
             LAG(timestamp) OVER (PARTITION BY ssvid ORDER BY timestamp), SECOND) implied_speed
   FROM (SELECT * FROM prethinned WHERE rn = 1)
@@ -554,10 +580,26 @@ implied_speeds_large = pd.read_gbq(query, project_id='world-fishing-827', dialec
 # a combination of "spoofing" (SSVID used by more than one vessel) and noise.
 
 plt.figure(figsize=(12, 12))
-plt.plot(implied_speeds_5.implied_speed, implied_speeds_5.cnt / implied_speeds_15.cnt.sum(), '-', label='15s')
-plt.plot(implied_speeds_30.implied_speed, implied_speeds_30.cnt/ implied_speeds_30.cnt.sum(), '-', label='30s')
-plt.plot(implied_speeds_60.implied_speed, implied_speeds_60.cnt/ implied_speeds_60.cnt.sum(), '-', label='60s')
-plt.plot(implied_speeds_large.implied_speed, implied_speeds_large.cnt/ implied_speeds_large.cnt.sum(), '-', label='no threshold')
+plt.plot(
+    implied_speeds_5.implied_speed,
+    implied_speeds_5.cnt /
+    implied_speeds_15.cnt.sum(),
+    '-',
+    label='15s')
+plt.plot(
+    implied_speeds_30.implied_speed,
+    implied_speeds_30.cnt /
+    implied_speeds_30.cnt.sum(),
+    '-',
+    label='30s')
+plt.plot(
+    implied_speeds_60.implied_speed,
+    implied_speeds_60.cnt /
+    implied_speeds_60.cnt.sum(),
+    '-',
+    label='60s')
+plt.plot(implied_speeds_large.implied_speed, implied_speeds_large.cnt /
+         implied_speeds_large.cnt.sum(), '-', label='no threshold')
 plt.yscale('log')
 plt.legend()
 plt.ylabel('fraction of messages')
@@ -567,15 +609,15 @@ plt.xlim(0, 99)
 
 
 plt.figure(figsize=(12, 12))
-# plt.plot(implied_speeds_30.implied_speed, implied_speeds_15.cnt / implied_speeds_15.cnt 
+# plt.plot(implied_speeds_30.implied_speed, implied_speeds_15.cnt / implied_speeds_15.cnt
 #          / (implied_speeds_15.cnt.sum() / implied_speeds_15.cnt.sum() ), '-', label='15s')
-plt.plot(implied_speeds_30.implied_speed, implied_speeds_30.cnt / implied_speeds_15.cnt 
-         / (implied_speeds_30.cnt.sum() / implied_speeds_15.cnt.sum() ), '-', label='30s')
+plt.plot(implied_speeds_30.implied_speed, implied_speeds_30.cnt / implied_speeds_15.cnt
+         / (implied_speeds_30.cnt.sum() / implied_speeds_15.cnt.sum()), '-', label='30s')
 plt.plot(implied_speeds_60.implied_speed, implied_speeds_60.cnt / implied_speeds_15.cnt
-         / (implied_speeds_60.cnt.sum() / implied_speeds_15.cnt.sum() ), '-', label='60s')
+         / (implied_speeds_60.cnt.sum() / implied_speeds_15.cnt.sum()), '-', label='60s')
 plt.plot(implied_speeds_large.implied_speed, implied_speeds_large.cnt / implied_speeds_15.cnt
-         / (implied_speeds_large.cnt.sum() / implied_speeds_15.cnt.sum() ), '-', 
-                                             label='no threshold')
+         / (implied_speeds_large.cnt.sum() / implied_speeds_15.cnt.sum()), '-',
+         label='no threshold')
 plt.ylim(0.9, 2)
 plt.xlim(1, 60)
 plt.xlabel('implied speed')
@@ -591,5 +633,5 @@ plt.title('How Threshold Affects Amount of Pings with a Given Implied Speed')
 
 # +
 # import rendered
-# rendered.publish_to_github('./SatelliteTiming.ipynb', 
+# rendered.publish_to_github('./SatelliteTiming.ipynb',
 #                            'pipe-segment/notebooks', action='push')
