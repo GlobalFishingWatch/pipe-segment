@@ -9,12 +9,30 @@ import shlex
 
 max_timing_offset_s = 30
 
-example_mmsi = ["725002300", "512445000" , "725001619" , "512000113" , "412217999" , "634125000"  , "304043000", 
-                "770576439"  , "412000000" , "319088200" , "248402000" , "273840800" , "740349000", "503564000" , 
-                "273810710"  , "503432000" , "512000058" , "503674000" , "226327000"  , "368926089"]
+example_mmsi = [
+    "725002300",
+    "512445000",
+    "725001619",
+    "512000113",
+    "412217999",
+    "634125000",
+    "304043000",
+    "770576439",
+    "412000000",
+    "319088200",
+    "248402000",
+    "273840800",
+    "740349000",
+    "503564000",
+    "273810710",
+    "503432000",
+    "512000058",
+    "503674000",
+    "226327000",
+    "368926089"
+]
 
 mmsi_str = ', '.join(f'"{x}"' for x in example_mmsi)
-
 
 
 # Only look at Spire here since spire is the only one getting pruned by satellite and this
@@ -78,9 +96,6 @@ python -m pipe_segment \
 pipeline_cmd_nosat = shlex.split(pipeline_cmd_nosat_str.strip())
 
 
-
-
-
 @pytest.mark.slow
 class TestEndToEnd:
 
@@ -92,11 +107,11 @@ class TestEndToEnd:
         subprocess.run(pipeline_cmd, check=True, capture_output=True)
         # subprocess.run(pipeline_cmd_nosat, check=True, capture_output=True)
         self._table_names = dict(
-                sat_offsets = '0_ttl24h.segmenter_test_sat_offsets_',
-                segments = '0_ttl24h.segmenter_test_segments_',
-                messages = '0_ttl24h.segmenter_test_messages_',
-                # nosat_messages = '0_ttl24h.segmenter_test_nosat_messages_'
-            )
+            sat_offsets='0_ttl24h.segmenter_test_sat_offsets_',
+            segments='0_ttl24h.segmenter_test_segments_',
+            messages='0_ttl24h.segmenter_test_messages_',
+            # nosat_messages = '0_ttl24h.segmenter_test_nosat_messages_'
+        )
 
     @property
     @lru_cache(1)
@@ -150,14 +165,13 @@ class TestEndToEnd:
         bad_cnts = Counter(self.hourly_offsets[self.drop_mask].receiver.values)
         return [name for (name, cnt) in bad_cnts.most_common()]
 
-
     def test_that_bad_hours_dropped(self):
         worst_rcvr = self.receivers[0]
-        examples = self.hourly_offsets.hour[self.drop_mask & 
+        examples = self.hourly_offsets.hour[self.drop_mask &
                                             (self.hourly_offsets.receiver == worst_rcvr)].unique()
-        xmpl_str  = ', '.join(f'timestamp("{x}")' for x in examples)
+        xmpl_str = ', '.join(f'timestamp("{x}")' for x in examples)
         query = f"""
-            select * 
+            select *
             from `{self.messages_table}20180701`
             where receiver = "{worst_rcvr}"
               and timestamp_trunc(timestamp, hour) in ({xmpl_str})
@@ -166,14 +180,13 @@ class TestEndToEnd:
         should_be_empty = pd.read_gbq(query, project_id='world-fishing-827')
         assert len(should_be_empty) == 0
 
-
     def test_that_good_hours_kept(self):
         worst_rcvr = self.receivers[0]
-        examples = self.hourly_offsets.hour[self.drop_mask & 
+        examples = self.hourly_offsets.hour[self.drop_mask &
                                             (self.hourly_offsets.receiver == worst_rcvr)].unique()
         xmpl_str = ', '.join(f'timestamp("{x}")' for x in examples)
         query = f"""
-            select *, timestamp_trunc(timestamp, hour) hour 
+            select *, timestamp_trunc(timestamp, hour) hour
             from `{self.messages_table}20180701`
             where receiver = "{worst_rcvr}"
               and timestamp_trunc(timestamp, hour) not in ({xmpl_str})
@@ -182,7 +195,7 @@ class TestEndToEnd:
             """
         none_should_dropped = pd.read_gbq(query, project_id='world-fishing-827')
         query = f"""
-            select *, timestamp_trunc(timestamp, hour) hour 
+            select *, timestamp_trunc(timestamp, hour) hour
             from `pipe_ais_sources_v20190222.normalized_spire_20180701`
             where receiver = "{worst_rcvr}"
               and timestamp_trunc(timestamp, hour) not in ({xmpl_str})
@@ -192,6 +205,3 @@ class TestEndToEnd:
             """
         baseline = pd.read_gbq(query, project_id='world-fishing-827')
         assert len(none_should_dropped) == len(baseline)
-
-
-        

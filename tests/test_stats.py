@@ -1,7 +1,6 @@
 import pytest
 import itertools as it
 import collections
-import pandas as pd
 
 from pipe_segment import stats
 
@@ -21,7 +20,7 @@ def consume(iterator, n):
 class TestStats:
 
     @pytest.mark.parametrize("data, subset, expected", [
-        ({'a':1, 'b': 2, 'c':3}, ['a','b'], {'a':1, 'b': 2}),
+        ({'a': 1, 'b': 2, 'c': 3}, ['a', 'b'], {'a': 1, 'b': 2}),
         ({'a': 1, 'b': 2, 'c': 3}, ['a', 'not_present'], {'a': 1}),
         ({'a': 1, 'b': 2, 'c': 3}, ['not_present'], {})
     ])
@@ -34,10 +33,10 @@ class TestStats:
         ([{'a': 'apple', 'b': 'boat'}], ['a'], 'a', [('apple', 1)]),
         ([{'a': 'apple', 'b': 'boat'}], ['a'], 'b', []),
         ([
-             {'a': 'apple', 'b': 'boat'},
-             {'a': 'pear', 'b': 'boat'},
-             {'a': 'apple', 'b': 'boat'},
-         ], ['a'], 'a', [('apple', 2)]),
+            {'a': 'apple', 'b': 'boat'},
+            {'a': 'pear', 'b': 'boat'},
+            {'a': 'apple', 'b': 'boat'},
+        ], ['a'], 'a', [('apple', 2)]),
     ])
     def test_MessageFieldCounter(self, messages, filter_fields, test_field, expected):
         mfc = stats.MessageFieldCounter(messages, filter_fields)
@@ -84,4 +83,3 @@ class TestStats:
         ms = stats.MessageStats(messages, numeric_fields, frequency_fields)
 
         assert ms.numeric_stats('not_present') == {}
-
