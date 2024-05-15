@@ -6,8 +6,16 @@
 #
 annotated-types==0.6.0
     # via pydantic
-apache-beam[gcp]==2.49.0
+apache-beam[gcp]==2.56.0
     # via -r requirements/scheduler.in
+async-timeout==4.0.3
+    # via redis
+attrs==23.2.0
+    # via
+    #   jsonschema
+    #   referencing
+backports-zoneinfo==0.2.1
+    # via tzlocal
 cachetools==5.3.3
     # via
     #   apache-beam
@@ -29,7 +37,9 @@ docopt==0.6.2
 docstring-parser==0.16
     # via google-cloud-aiplatform
 exceptiongroup==1.2.1
-    # via pytest
+    # via
+    #   -r requirements/worker.txt
+    #   pytest
 fastavro==1.9.4
     # via apache-beam
 fasteners==0.19
@@ -38,6 +48,7 @@ fasteners==0.19
     #   google-apitools
 google-api-core[grpc]==2.19.0
     # via
+    #   apache-beam
     #   google-cloud-aiplatform
     #   google-cloud-bigquery
     #   google-cloud-bigquery-storage
@@ -73,7 +84,7 @@ google-auth==2.29.0
     #   google-cloud-storage
     #   google-cloud-videointelligence
     #   google-cloud-vision
-google-auth-httplib2==0.1.1
+google-auth-httplib2==0.2.0
     # via apache-beam
 google-cloud-aiplatform==1.51.0
     # via apache-beam
@@ -112,7 +123,9 @@ google-cloud-resource-manager==1.12.3
 google-cloud-spanner==3.46.0
     # via apache-beam
 google-cloud-storage==2.16.0
-    # via google-cloud-aiplatform
+    # via
+    #   apache-beam
+    #   google-cloud-aiplatform
 google-cloud-videointelligence==2.13.3
     # via apache-beam
 google-cloud-vision==3.7.2
@@ -131,7 +144,7 @@ googleapis-common-protos[grpc]==1.63.0
     #   grpc-google-iam-v1
     #   grpcio-status
 gpsdio-segment @ https://codeload.github.com/GlobalFishingWatch/gpsdio-segment/tar.gz/v3.0.0
-    # via -r requirements/worker.in
+    # via -r requirements/worker.txt
 grpc-google-iam-v1==0.13.0
     # via
     #   google-cloud-bigtable
@@ -165,27 +178,42 @@ httplib2==0.22.0
     #   oauth2client
 idna==3.7
     # via requests
+importlib-resources==6.4.0
+    # via
+    #   jsonschema
+    #   jsonschema-specifications
 iniconfig==2.0.0
-    # via pytest
+    # via
+    #   -r requirements/worker.txt
+    #   pytest
 jinja2==3.1.4
     # via
-    #   -r requirements/worker.in
+    #   -r requirements/worker.txt
     #   jinja2-cli
 jinja2-cli==0.8.2
     # via -r requirements/scheduler.in
+js2py==0.74
+    # via apache-beam
+jsonpickle==3.0.4
+    # via apache-beam
+jsonschema==4.22.0
+    # via apache-beam
+jsonschema-specifications==2023.12.1
+    # via jsonschema
 markupsafe==2.1.5
-    # via jinja2
+    # via
+    #   -r requirements/worker.txt
+    #   jinja2
 newlinejson==1.0
     # via -r requirements/scheduler.in
 numpy==1.24.4
     # via
     #   apache-beam
-    #   pandas
     #   pyarrow
     #   shapely
 oauth2client==4.1.3
     # via google-apitools
-objsize==0.6.1
+objsize==0.7.0
     # via apache-beam
 orjson==3.10.3
     # via apache-beam
@@ -193,13 +221,17 @@ overrides==7.7.0
     # via google-cloud-pubsublite
 packaging==24.0
     # via
+    #   -r requirements/worker.txt
+    #   apache-beam
     #   google-cloud-aiplatform
     #   google-cloud-bigquery
     #   pytest
-pandas==1.3.5
-    # via -r requirements/worker.in
+pkgutil-resolve-name==1.3.10
+    # via jsonschema
 pluggy==1.5.0
-    # via pytest
+    # via
+    #   -r requirements/worker.txt
+    #   pytest
 proto-plus==1.23.0
     # via
     #   apache-beam
@@ -216,7 +248,7 @@ proto-plus==1.23.0
     #   google-cloud-spanner
     #   google-cloud-videointelligence
     #   google-cloud-vision
-protobuf==4.23.4
+protobuf==4.25.3
     # via
     #   apache-beam
     #   google-api-core
@@ -236,7 +268,9 @@ protobuf==4.23.4
     #   grpc-google-iam-v1
     #   grpcio-status
     #   proto-plus
-pyarrow==11.0.0
+pyarrow==14.0.2
+    # via apache-beam
+pyarrow-hotfix==0.6
     # via apache-beam
 pyasn1==0.6.0
     # via
@@ -253,6 +287,8 @@ pydantic-core==2.18.2
     # via pydantic
 pydot==1.4.2
     # via apache-beam
+pyjsparser==2.7.1
+    # via js2py
 pymongo==4.7.2
     # via apache-beam
 pyparsing==3.1.2
@@ -260,19 +296,24 @@ pyparsing==3.1.2
     #   httplib2
     #   pydot
 pytest==8.2.0
-    # via shipdataprocess
+    # via
+    #   -r requirements/worker.txt
+    #   shipdataprocess
 python-dateutil==2.9.0.post0
     # via
     #   apache-beam
     #   google-cloud-bigquery
-    #   pandas
 python-stdnum==1.20
-    # via -r requirements/worker.in
+    # via -r requirements/worker.txt
 pytz==2024.1
+    # via apache-beam
+redis==5.0.4
+    # via apache-beam
+referencing==0.35.1
     # via
-    #   apache-beam
-    #   pandas
-regex==2024.5.10
+    #   jsonschema
+    #   jsonschema-specifications
+regex==2024.5.15
     # via apache-beam
 requests==2.31.0
     # via
@@ -282,7 +323,13 @@ requests==2.31.0
     #   google-cloud-storage
     #   hdfs
 roman==4.2
-    # via shipdataprocess
+    # via
+    #   -r requirements/worker.txt
+    #   shipdataprocess
+rpds-py==0.18.1
+    # via
+    #   jsonschema
+    #   referencing
 rsa==4.9
     # via
     #   google-auth
@@ -290,29 +337,38 @@ rsa==4.9
 shapely==2.0.4
     # via google-cloud-aiplatform
 shipdataprocess==0.7.1
-    # via -r requirements/worker.in
+    # via -r requirements/worker.txt
 six==1.16.0
     # via
     #   google-apitools
     #   hdfs
+    #   js2py
     #   newlinejson
     #   oauth2client
     #   python-dateutil
 sqlparse==0.5.0
     # via google-cloud-spanner
 tomli==2.0.1
-    # via pytest
+    # via
+    #   -r requirements/worker.txt
+    #   pytest
 typing-extensions==4.11.0
     # via
     #   annotated-types
     #   apache-beam
     #   pydantic
     #   pydantic-core
+tzlocal==5.2
+    # via js2py
 ujson==5.9.0
-    # via -r requirements/worker.in
+    # via -r requirements/worker.txt
 unidecode==1.3.8
-    # via shipdataprocess
+    # via
+    #   -r requirements/worker.txt
+    #   shipdataprocess
 urllib3==2.2.1
     # via requests
+zipp==3.18.1
+    # via importlib-resources
 zstandard==0.22.0
     # via apache-beam
