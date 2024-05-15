@@ -5,14 +5,17 @@ import shutil
 
 import pytest
 
+
 def pytest_configure(config):
     config.addinivalue_line(
         "markers", "slow: mark slow tests that are only run --runslow"
     )
 
+
 def pytest_addoption(parser):
     parser.addoption("--runslow", action="store_true",
                      default=False, help="run slow tests")
+
 
 def pytest_collection_modifyitems(config, items):
     if config.getoption("--runslow"):
@@ -31,6 +34,7 @@ TEST_DATA_DIR = posixpath.join(TESTS_DIR, 'data')
 # and the fixtures below are magically provided to any test function in any test module
 # without needing to import them of declare them
 
+
 @pytest.fixture(scope='session')
 def test_data_dir():
     return TEST_DATA_DIR
@@ -45,4 +49,3 @@ def temp_dir(request):
 
     request.addfinalizer(fin)
     return d
-
