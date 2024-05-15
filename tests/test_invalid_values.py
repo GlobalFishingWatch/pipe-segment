@@ -1,5 +1,3 @@
-import pytest
-
 from pipe_segment.transform.invalid_values import filter_invalid_values
 
 

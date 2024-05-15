@@ -1,11 +1,10 @@
-import pytest
-
-from datetime import datetime as dt
 from dateutil.parser import parse
 from pipe_segment.segment_identity.transforms import summarize_identifiers
 
+
 def as_timestamp(dt):
     return parse(dt).timestamp()
+
 
 def build_example_segment_with_identities(daily_msg_count, daily_identities):
     """
@@ -58,6 +57,7 @@ def build_example_segment_with_identities(daily_msg_count, daily_identities):
         }]
     }
 
+
 def expected_segment_identities(segment, **fields):
     return {
         "seg_id": segment.get("seg_id"),
@@ -70,11 +70,13 @@ def expected_segment_identities(segment, **fields):
         **fields,
     }
 
+
 def counted_value(value, count):
     return {
         "count": count,
         "value": value,
     }
+
 
 class TestSegmentIdentityDaily():
     def test_summarize_identifiers_no_noise(self):
@@ -89,7 +91,7 @@ class TestSegmentIdentityDaily():
                     "transponder_type": "AIS-A",
                     "length": "89.0",
                     "width": "14.0"
-                },{
+                }, {
                     "count": 40,
                     "shipname": "FRIESLAND ONE",
                     "callsign": "0WDE6789",
@@ -97,7 +99,7 @@ class TestSegmentIdentityDaily():
                     "transponder_type": "AIS-A",
                     "length": "89.0",
                     "width": "14.0"
-                },{
+                }, {
                     "count": 30,
                     "shipname": "OTHERSHIP",
                     "callsign": "WDE5000",
@@ -106,7 +108,7 @@ class TestSegmentIdentityDaily():
                     "length": "90.0",
                     "width": "15.0"
                 }]
-            )
+        )
 
         result = summarize_identifiers(segment)
 
@@ -162,7 +164,7 @@ class TestSegmentIdentityDaily():
                     "transponder_type": "AIS-A",
                     "length": "89.0",
                     "width": "14.0"
-                },{
+                }, {
                     "count": 30,
                     "shipname": "000",
                     "callsign": "000",
@@ -171,7 +173,7 @@ class TestSegmentIdentityDaily():
                     "length": None,
                     "width": None
                 }]
-            )
+        )
 
         result = summarize_identifiers(segment)
 
@@ -180,12 +182,12 @@ class TestSegmentIdentityDaily():
             msg_count=370,
             pos_count=295,
             ident_count=75,
-            shipname=[ counted_value("FRIESLAND ONE", 45), ],
-            callsign=[ counted_value("0WDE6789", 45), ],
-            imo=[ counted_value("9310953", 45), ],
-            n_shipname=[ counted_value("FRIESLAND1", 45), ],
-            n_callsign=[ counted_value("WDE6789", 45), ],
-            n_imo=[ counted_value("9310953", 45), ],
-            length=[ counted_value("89.0", 45), ],
-            width=[ counted_value("14.0", 45), ],
+            shipname=[counted_value("FRIESLAND ONE", 45), ],
+            callsign=[counted_value("0WDE6789", 45), ],
+            imo=[counted_value("9310953", 45), ],
+            n_shipname=[counted_value("FRIESLAND1", 45), ],
+            n_callsign=[counted_value("WDE6789", 45), ],
+            n_imo=[counted_value("9310953", 45), ],
+            length=[counted_value("89.0", 45), ],
+            width=[counted_value("14.0", 45), ],
         )
