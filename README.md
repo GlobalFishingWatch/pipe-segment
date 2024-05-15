@@ -14,9 +14,9 @@ which are broadcasting using the same MMSI at the same time.
 [git installed]: https://git-scm.com/downloads
 [pip-tools]: https://pip-tools.readthedocs.io/en/stable/
 [configure a SSH-key for GitHub]: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account
-[requirements/scheduler.in]: requirements/scheduler.in
-[requirements/worker.in]: requirements/worker.in
-
+[scheduler.in]: requirements/scheduler.in
+[worker.in]: requirements/worker.in
+[Makefile]: Makefile
 
 # How to run
 
@@ -85,6 +85,7 @@ docker compose run dev segment --help
 
 The pipeline is only tested on python 3.8 for the moment.
 Make sure you have that version installed.
+The [Makefile] should ease the development process.
 
 Create a virtual environment:
 ```shell
@@ -94,46 +95,41 @@ python3.8 -m venv .venv
 
 Install dependencies:
 ```shell
-pip install -r requirements/dev.txt
+make install
 ```
 
 Run unit tests:
 ```shell
-pytest
+make test
 ```
 
 Alternatively, you can run the unit tests inside the docker container:
 Run unit tests:
 ```shell
-./docker_run_tests.sh
+make testdocker
 ```
 
-Unit tests using docker compose:
-
-Quick run
+Run all tests including ones that hit some GCP API
 ```shell
-docker compose run test tests
-```
-Run with all tests including ones that hit some GCP API
-```shell
-docker compose run test tests --runslow
-```
-
-You can do a local run using a query from BQ in order to get more data to run through it.
-Use the second command below to help view the output in sorted order
-
-```shell
-./scripts/local.sh
-cat local-output-00000-of-00001 | jq -s '. | sort_by(.mmsi + .timestamp)'
+make testdocker-all
 ```
 
 ## Updating dependencies
 
-Dependencies are managed with [pip-tools].
-Inside [requirements/scheduler.in] and [requirements/scheduler.in]
-production dependencies are specified with restrictions.
+Requirements files are compiled with [pip-tools].
+Inside [scheduler.in] and [worker.in] production dependencies are specified with restrictions.
 
-The final .txt requirements are generated with pip-compile command:
+The [scheduler.in] is a superset of the [worker.in].
+Thus, if you changed something in [worker.in], you must also re-compile [scheduler.in].
+This is enforced using a unique Makefile command:
+```shell
+make requirements-worker
+```
+If you only modified something in [scheduler.in], you can just run
+```shell
+make requirements-scheduler
+```
+
 If you want to upgrade all dependencies to latest available versions
 (compatible with restrictions declared), just run:
 ```shell
@@ -141,15 +137,9 @@ pip-compile -o requirements/worker.txt -U requirements/scheduler.in -v
 pip-compile -o requirements/scheduler.txt -U requirements/scheduler.in -v
 ```
 
-If you want to upgrade specific package use -P option, for example:
-```shell
-pip-compile -o requirements/worker.txt -P pandas requirements/scheduler.in -v
-```
-
 ## Schema
 
 To get the schema for an existing bigquery table - use something like this
-
 ```shell
 bq show --format=prettyjson world-fishing-827:pipeline_measures_p_p516_daily.20170923 | jq '.schema'`
 ```
