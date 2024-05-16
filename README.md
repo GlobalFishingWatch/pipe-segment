@@ -103,7 +103,6 @@ make test
 ```
 
 Alternatively, you can run the unit tests inside the docker container:
-Run unit tests:
 ```shell
 make testdocker
 ```
@@ -136,8 +135,7 @@ make requirements-scheduler
 If you want to upgrade all dependencies to latest available versions
 (compatible with restrictions declared), just run:
 ```shell
-pip-compile -o requirements/worker.txt -U requirements/scheduler.in -v
-pip-compile -o requirements/scheduler.txt -U requirements/scheduler.in -v
+make requirements-upgrade
 ```
 
 ## Schema
