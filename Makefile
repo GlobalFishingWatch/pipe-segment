@@ -3,6 +3,7 @@ PYTHON=${VENV_NAME}/bin/python3
 
 
 ## help: Prints this list of commands.
+## venv: creates a virtual environment inside .venv.
 ## install: Installs development dependencies.
 ## requirements: Compiles requirement txt files with pip-tools.
 ## requirements-upgrade: Upgrades requirements txt files based on .in constraints.
@@ -17,6 +18,9 @@ PYTHON=${VENV_NAME}/bin/python3
 help:
 	@echo "\nUsage: \n"
 	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' | sed -e 's/^/-/'
+
+venv:
+	python3 -m venv ${VENV_NAME}
 
 install:
 	pip install -r requirements/all.txt

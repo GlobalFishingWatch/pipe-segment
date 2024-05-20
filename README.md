@@ -9,10 +9,12 @@
     <img alt="Coverage" src="https://codecov.io/gh/GlobalFishingWatch/pipe-segment/graph/badge.svg?token=OO2L9SXVG0">
   </a>
   <a>
-    <img alt="Python versions" src="https://img.shields.io/github/v/release/GlobalFishingWatch/pipe-segment">
+    <img alt="Python versions" src="https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11-blue">
+  </a>
+  <a>
+    <img alt="Last release" src="https://img.shields.io/github/v/release/GlobalFishingWatch/pipe-segment">
   </a>
 </p>
-
 
 This repository contains the segment pipeline,
 a dataflow pipeline which divides vessel tracks into contiguous "segments",
@@ -28,6 +30,7 @@ which are broadcasting using the same MMSI at the same time.
 [scheduler.in]: requirements/scheduler.in
 [worker.in]: requirements/worker.in
 [Makefile]: Makefile
+
 
 # How to run
 
@@ -92,13 +95,13 @@ docker compose run dev segment --help
 
 # How to contribute
 
-The pipeline is only tested on python 3.8 for the moment.
-Make sure you have that version installed.
+The pipeline is tested on python [3.8, ..., 3.11].
+Make sure you have one of those versions installed.
 The [Makefile] should ease the development process.
 
 Create a virtual environment:
 ```shell
-python3.8 -m venv .venv
+make venv
 . .venv/bin/activate
 ```
 
