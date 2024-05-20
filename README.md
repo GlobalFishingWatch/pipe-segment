@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> The `master` branch currently contains the pipe-v3 stuff. If you need to make changes in the pipe-v2.5, please create a `HOT-FIX` from tags (latest pipe-v2.5 version used is [v3.4.1](https://github.com/GlobalFishingWatch/pipe-segment/releases/tag/v3.4.1).
+
 # Segment pipeline
 
 This repository contains the segment pipeline, a dataflow pipeline which
