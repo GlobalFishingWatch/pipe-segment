@@ -8,9 +8,16 @@ RUN pip install -r scheduler.txt
 COPY ./requirements/test.txt ./
 RUN pip install -r test.txt
 
+# Temporary. TODO: Use a dev docker image with extra dependencies.
+COPY ./requirements/dev.txt ./
+RUN pip install -r dev.txt
+
 # Setup local packages
 COPY . /opt/project
 RUN pip install -e .
+
+# To properly run Makefile
+RUN apt install -y bsdmainutils 
 
 # Setup the entrypoint for quickly executing the pipelines
 ENTRYPOINT ["scripts/run.sh"]

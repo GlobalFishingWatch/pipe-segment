@@ -43,7 +43,7 @@ def remove_satellite_offsets_content(
         # deletes the content
         query_job = client.query(
             f"""
-               DELETE FROM `{ destination_table }`
+               DELETE FROM `{destination_table}`
                WHERE date(hour) BETWEEN '{date_from}' AND '{date_to}'
             """,
             bigquery.QueryJobConfig(

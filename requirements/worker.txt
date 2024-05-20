@@ -18,17 +18,17 @@ packaging==24.0
     # via pytest
 pluggy==1.5.0
     # via pytest
-pytest==8.2.0
+pytest==8.2.1
     # via shipdataprocess
 python-stdnum==1.20
     # via -r requirements/worker.in
 roman==4.2
     # via shipdataprocess
-shipdataprocess==0.7.1
+shipdataprocess==0.8.5
     # via -r requirements/worker.in
 tomli==2.0.1
     # via pytest
-ujson==5.9.0
+ujson==5.10.0
     # via -r requirements/worker.in
 unidecode==1.3.8
     # via shipdataprocess
