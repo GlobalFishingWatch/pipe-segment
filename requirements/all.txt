@@ -1,0 +1,5 @@
+-r dev.txt
+-r test.txt
+-r scheduler.txt
+
+-e .

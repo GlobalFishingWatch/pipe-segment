@@ -19,7 +19,7 @@ help:
 	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' | sed -e 's/^/-/'
 
 install:
-	pip install -r requirements/dev.txt
+	pip install -r requirements/all.txt
 
 requirements: requirements-worker requirements-scheduler
 
