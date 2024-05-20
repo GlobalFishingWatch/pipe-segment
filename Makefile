@@ -5,7 +5,7 @@ PYTHON=${VENV_NAME}/bin/python3
 ## help: Prints this list of commands.
 ## install: Installs development dependencies.
 ## requirements: Compiles requirement txt files with pip-tools.
-## requirements-upgrade: Upgrades requirements txt files based on .in constraints.
+## upgrade-requirements: Upgrades requirements txt files based on .in constraints.
 ## requirements-worker: Compiles only worker requirements with pip-tools.
 ## requirements-scheduler: Compiles only scheduler requirements with pip-tools.
 ## test: Run unit tests.

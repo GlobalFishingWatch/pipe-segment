@@ -1,4 +1,14 @@
-# Segment pipeline
+<h1 align="center" style="border-bottom: none;"> pipe-segment </h1>
+
+<p align="center">
+  <a href="https://codecov.io/gh/GlobalFishingWatch/pipe-segment">
+    <img alt="Coverage" src="https://codecov.io/gh/GlobalFishingWatch/pipe-segment/graph/badge.svg?token=OO2L9SXVG0">
+  </a>
+  <a>
+    <img alt="Python versions" src="https://img.shields.io/github/v/release/GlobalFishingWatch/pipe-segment">
+  </a>
+</p>
+
 
 This repository contains the segment pipeline,
 a dataflow pipeline which divides vessel tracks into contiguous "segments",
@@ -13,9 +23,9 @@ which are broadcasting using the same MMSI at the same time.
 [git workflow documentation]: GIT-WORKFLOW.md
 [Makefile]: Makefile
 [pip-tools]: https://pip-tools.readthedocs.io/en/stable/
+[requirements/scheduler.in]: requirements/scheduler.in
+[requirements/worker.in]: requirements/worker.in
 [Semantic Versioning]: https://semver.org
-[scheduler.in]: requirements/scheduler.in
-[worker.in]: requirements/worker.in
 
 # How to run
 
@@ -36,8 +46,6 @@ To build the docker image, run:
 ```bash
 docker compose build
 ```
-
-Remember to re-run this command everytime you update dependencies or modify the code.
 
 ## Google Cloud setup
 
@@ -104,10 +112,11 @@ make test
 
 Alternatively, you can run the unit tests inside the docker container:
 ```shell
+docker compose build
 make testdocker
 ```
 
-Run all tests including ones that hit some GCP API
+Run all tests in docker including ones that hit some GCP API (**currently failing**).
 ```shell
 make testdocker-all
 ```
@@ -119,15 +128,17 @@ Please refer to our [git workflow documentation] to know how to manage branches 
 ## Updating dependencies
 
 Requirements files are compiled with [pip-tools].
-Inside [scheduler.in] and [worker.in] production dependencies are specified with restrictions.
+Inside [requirements/scheduler.in] and [requirements/worker.in]
+production dependencies are specified with restrictions.
 
-The [scheduler.in] is a superset of the [worker.in].
-Thus, if you changed something in [worker.in], you must also re-compile [scheduler.in].
+The [requirements/scheduler.in] is a superset of the [requirements/worker.in].
+Thus, if you changed something in [requirements/worker.in],
+you must also re-compile [requirements/scheduler.in].
 This is enforced using a unique Makefile command:
 ```shell
 make requirements-worker
 ```
-If you only modified something in [scheduler.in], you can just run
+If you only modified something in [requirements/scheduler.in], you can just run
 ```shell
 make requirements-scheduler
 ```
@@ -135,7 +146,7 @@ make requirements-scheduler
 If you want to upgrade all dependencies to latest available versions
 (compatible with restrictions declared), just run:
 ```shell
-make requirements-upgrade
+make upgrade-requirements
 ```
 
 ## Schema
