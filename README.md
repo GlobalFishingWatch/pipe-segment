@@ -1,12 +1,21 @@
-> [!IMPORTANT]
-> The `master` branch currently contains the pipe-v3 stuff. If you need to make changes in the pipe-v2.5, please create a `HOT-FIX` from tags. The latest pipe-v2.5 version used is [v3.4.1](https://github.com/GlobalFishingWatch/pipe-segment/releases/tag/v3.4.1).
-
 # Segment pipeline
 
-This repository contains the segment pipeline, a dataflow pipeline which
- divides vessel tracks into contiguous "segments", separating
-out noise and signals that may come from two or more vessels which are
-broadcasting using hte same mmsi at the same time
+This repository contains the segment pipeline,
+a dataflow pipeline which divides vessel tracks into contiguous "segments",
+separating out noise and signals that may come from two or more vessels
+which are broadcasting using the same MMSI at the same time.
+
+[docker official instructions]: https://docs.docker.com/engine/install/
+[docker compose plugin]: https://docs.docker.com/compose/install/linux/
+[git installed]: https://git-scm.com/downloads
+[pip-tools]: https://pip-tools.readthedocs.io/en/stable/
+[configure a SSH-key for GitHub]: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account
+[requirements/prod.in]: requirements/prod.in
+[Makefile]: Makefile
+[Semantic Versioning]: https://semver.org
+[examples]: examples/
+[git workflow documentation]: GIT-WORKFLOW.md
+[requirements.txt]: requirements.txt
 
 # Running
 
@@ -61,6 +70,11 @@ Use the second command below to help view the output in sorted order
 ./scripts/local.sh
 cat local-output-00000-of-00001 | jq -s '. | sort_by(.mmsi + .timestamp)'
 ```
+
+## Git Workflow
+
+Please refer to our [git workflow documentation] to know how to manage branches in this repository.
+
 
 ## Schema
 
