@@ -23,6 +23,8 @@ docker compose run dev segment \
     --project=world-fishing-827 \
     --temp_location=gs://pipe-temp-us-central-ttl7/dataflow_temp \
     --staging_location=gs://pipe-temp-us-central-ttl7/dataflow_staging \
+    --ssvid_filter_query='"226013750","226010660","226014030"' \
+    --sdk_container_image=gcr.io/world-fishing-827/github.com/globalfishingwatch/pipe-segment:4.2.4-dev-unique-docker-image-2 \
     --region=us-central1 \
     --max_num_workers=600 \
     --worker_machine_type=custom-1-65536-ext \
