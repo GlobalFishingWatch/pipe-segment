@@ -27,9 +27,12 @@ which are broadcasting using the same MMSI at the same time.
 [git installed]: https://git-scm.com/downloads
 [pip-tools]: https://pip-tools.readthedocs.io/en/stable/
 [configure a SSH-key for GitHub]: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account
-[scheduler.in]: requirements/scheduler.in
-[worker.in]: requirements/worker.in
+[requirements/prod.in]: requirements/prod.in
 [Makefile]: Makefile
+[Semantic Versioning]: https://semver.org
+[examples]: examples/
+[git workflow documentation]: GIT-WORKFLOW.md
+[requirements.txt]: requirements.txt
 
 
 # How to run
@@ -117,7 +120,7 @@ make test
 
 Alternatively, you can run the unit tests inside the docker container:
 ```shell
-docker compose build
+make build
 make testdocker
 ```
 
@@ -128,24 +131,18 @@ make testdocker-all
 
 ## Updating dependencies
 
-Requirements files are compiled with [pip-tools].
-Inside [scheduler.in] and [worker.in] production dependencies are specified with restrictions.
+The [requirements.txt] is compiled with [pip-tools].
+Inside [requirements/prod.in] dependencies are specified with restrictions.
 
-The [scheduler.in] is a superset of the [worker.in].
-Thus, if you changed something in [worker.in], you must also re-compile [scheduler.in].
-This is enforced using a unique Makefile command:
+To recompile dependencies after modifying [requirements/prod.in], just run
 ```shell
-make requirements-worker
-```
-If you only modified something in [scheduler.in], you can just run
-```shell
-make requirements-scheduler
+make requirements
 ```
 
 If you want to upgrade all dependencies to latest available versions
 (compatible with restrictions declared), just run:
 ```shell
-make requirements-upgrade
+make upgrade-requirements
 ```
 
 ## Schema

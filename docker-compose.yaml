@@ -3,7 +3,7 @@ services:
     image: gfw/pipe-segment
     build:
       context: .
-      dockerfile: Dockerfile-scheduler
+      dockerfile: Dockerfile
     volumes:
       - ".:/opt/project"
       - "gcp:/root/.config/"
@@ -11,7 +11,7 @@ services:
     image: gfw/pipe-segment
     build:
       context: .
-      dockerfile: Dockerfile-scheduler
+      dockerfile: Dockerfile
     entrypoint: gcloud
     volumes:
       - "gcp:/root/.config/"

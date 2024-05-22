@@ -1,5 +1,0 @@
-apache-beam[gcp]==2.56.0
-jinja2-cli~=0.8
-newlinejson~=1.0
-
--r worker.txt

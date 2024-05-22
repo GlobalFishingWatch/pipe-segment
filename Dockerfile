@@ -1,8 +1,7 @@
 FROM gcr.io/world-fishing-827/github.com/globalfishingwatch/gfw-bash-pipeline:latest-python3.8
 
-# Setup scheduler-specific dependencies
-COPY ./requirements/scheduler.txt ./
-RUN pip install -r scheduler.txt
+COPY ./requirements.txt ./
+RUN pip install -r requirements.txt
 
 # Temporary. TODO: Use a test docker image with extra dependencies.
 COPY ./requirements/test.txt ./
