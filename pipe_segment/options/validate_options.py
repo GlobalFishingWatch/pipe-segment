@@ -1,6 +1,5 @@
 import argparse
 import sys
-import six
 
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -9,11 +8,7 @@ from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
 
-def validate_options(args=None, option_classes=None):
-
-    args = args or sys.argv
-    option_classes = flatten(option_classes)
-
+def validate_options(args: list, option_classes: list):
     help_flags = ["-h", "--help"]
     help = any(flag in help_flags for flag in args)
 
@@ -42,37 +37,3 @@ def validate_options(args=None, option_classes=None):
     parser.parse_known_args(args)
 
     return PipelineOptions(args)
-
-
-def flatten(struct):
-    """
-    Creates a flat list of all all items in structured output (dicts, lists, items):
-    .. code-block:: python
-        >>> sorted(flatten({'a': 'foo', 'b': 'bar'}))
-        ['bar', 'foo']
-        >>> sorted(flatten(['foo', ['bar', 'troll']]))
-        ['bar', 'foo', 'troll']
-        >>> flatten('foo')
-        ['foo']
-        >>> flatten(42)
-        [42]
-    """
-    if struct is None:
-        return []
-    flat = []
-    if isinstance(struct, dict):
-        for _, result in six.iteritems(struct):
-            flat += flatten(result)
-        return flat
-    if isinstance(struct, six.string_types):
-        return [struct]
-
-    try:
-        # if iterable
-        iterator = iter(struct)
-    except TypeError:
-        return [struct]
-
-    for result in iterator:
-        flat += flatten(result)
-    return flat
