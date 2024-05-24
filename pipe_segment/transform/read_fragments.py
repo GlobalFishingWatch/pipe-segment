@@ -5,6 +5,8 @@ import apache_beam as beam
 from google.api_core.exceptions import BadRequest
 from google.cloud import bigquery
 
+logger = logging.getLogger(__name__)
+
 
 class ReadFragments(beam.PTransform):
     def __init__(
@@ -17,11 +19,16 @@ class ReadFragments(beam.PTransform):
         self.create_if_missing = create_if_missing
 
     def first_table_date(self):
+        logger.info("Getting first table date...")
+
         client = bigquery.Client(self.project)
-        condition = self.query_condition(self.start_date, self.end_date)
+        condition = self.condition_query(self.start_date, self.end_date)
+
         query = f"""SELECT MIN(_TABLE_SUFFIX) min_suffix FROM `{self.source}*`
                      WHERE {condition}"""
-        logging.info(f"QUERY:\n{query}")
+
+        logger.debug(f"FIRST TABLE DATE QUERY: \n{query}")
+
         request = client.query(query)
         try:
             [row] = request.result()
@@ -34,7 +41,7 @@ class ReadFragments(beam.PTransform):
             return datetime.strptime(row.min_suffix,
                                      "%Y%m%d").date() if row.min_suffix is not None else None
 
-    def query_condition(self, start_date, end_date):
+    def condition_query(self, start_date, end_date):
         if start_date is None:
             return f'''_TABLE_SUFFIX <= "{end_date:%Y%m%d}"'''
         else:
@@ -69,7 +76,8 @@ class ReadFragments(beam.PTransform):
                 ORDER BY ssvid, timestamp
             )
             """
-            logging.info(f"Emitting read fragments query:\n{query}")
+            logger.debug(f"Emitting read fragments query: \n{query}")
+
             yield query
             start_date = next_start_date
 

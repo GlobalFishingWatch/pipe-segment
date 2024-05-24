@@ -8,7 +8,7 @@ import functools
 from apache_beam import PTransform, io
 from google.api_core.exceptions import (NotFound, BadRequest)
 from google.cloud import bigquery
-from pipe_segment.utils.ver import get_pipe_ver
+from pipe_segment.version import __version__
 
 
 def remove_satellite_offsets_content(
@@ -190,7 +190,7 @@ class SatelliteOffsetsWrite(PTransform):
             cloud_opts.project, dataset_id).table(table_name)
 
         self.schema = make_schema()
-        self.ver = get_pipe_ver()
+        self.ver = __version__
 
     def expand(self, xs):
         return xs | "WriteSatOffsets" >> io.WriteToBigQuery(

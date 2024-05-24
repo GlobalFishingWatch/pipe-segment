@@ -9,7 +9,6 @@ from ..tools import datetimeFromTimestamp, timestampFromDatetime
 from .fragment_implementation import FragmentImplementation
 
 logger = logging.getLogger(__file__)
-logger.setLevel(logging.DEBUG)
 
 
 def none_to_inf(x):

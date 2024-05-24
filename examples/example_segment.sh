@@ -18,8 +18,10 @@ docker compose run dev segment \
     --labels=version=v3 \
     --labels=step=segment \
     --labels=stage=productive \
-    --runner=direct \
+    --runner=DirectRunner \
     --project=world-fishing-827 \
     --temp_location=gs://pipe-temp-us-central-ttl7/dataflow_temp \
     --staging_location=gs://pipe-temp-us-central-ttl7/dataflow_staging \
-    --ssvid_filter_query='"226013750","226010660","226014030"'
+    --ssvid_filter_query='"226013750","226010660","226014030"' \
+    # --defaultWorkerLogLevel=OFF \
+    # --workerLogLevelOverrides={"apache_beam.io.gcp":"WARNING"}

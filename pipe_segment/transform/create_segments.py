@@ -5,7 +5,6 @@ from apache_beam import FlatMap, PTransform
 from .util import by_day
 
 logger = logging.getLogger(__file__)
-logger.setLevel(logging.DEBUG)
 
 
 def idents2dict(key, cnt):

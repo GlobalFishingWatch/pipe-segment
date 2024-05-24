@@ -8,7 +8,6 @@ import pytz
 from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
 from apache_beam.testing.util import BeamAssertException, open_shards
 from json_dict_coder import JSONDictCoder
-from pipe_segment.options.segment import SegmentOptions
 from pipe_segment.tools import (as_timestamp, datetimeFromTimestamp,
                                 timestampFromDatetime)
 from pipe_segment.transform.fragment import Fragment
@@ -162,15 +161,7 @@ class TestTransforms:
         messages_in = fill_in_missing_fields(messages_in)
         # print(messages_in)
 
-        args = [
-            f"--source={messages_in}",
-            f"--msg_dest={messages_file}",
-            f"--segment_dest={segments_file}",
-            "--fragment_tbl=UNUSED",
-        ]
-        segop = SegmentOptions(args)
-
-        with _TestPipeline(options=segop) as p:
+        with _TestPipeline() as p:
             messages = (
                 p
                 | "CreateMessages" >> beam.Create(messages_in)

@@ -6,7 +6,6 @@ from apache_beam import PTransform
 from ..tools import datetimeFromTimestamp
 
 logger = logging.getLogger(__file__)
-logger.setLevel(logging.DEBUG)
 
 
 class FilterBadSatelliteTimes(PTransform):

@@ -1,30 +1,35 @@
 import logging
 from datetime import datetime, timedelta
 
-import apache_beam as beam
+
 import pytz
 import ujson
-from apache_beam.options.pipeline_options import (GoogleCloudOptions,
-                                                  StandardOptions)
+import apache_beam as beam
+
+from apache_beam.options.pipeline_options import (
+    PipelineOptions, GoogleCloudOptions, StandardOptions
+)
 from apache_beam.runners import PipelineState
+
+from .tools import as_timestamp, datetimeFromTimestamp
+
 from pipe_segment import message_schema, segment_schema
-from pipe_segment.options.segment import SegmentOptions
+
 from pipe_segment.transform.create_segment_map import CreateSegmentMap
 from pipe_segment.transform.create_segments import CreateSegments
-from pipe_segment.transform.filter_bad_satellite_times import \
-    FilterBadSatelliteTimes
+from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
 from pipe_segment.transform.fragment import Fragment
 from pipe_segment.transform.invalid_values import filter_invalid_values
 from pipe_segment.transform.read_fragments import ReadFragments
 from pipe_segment.transform.read_messages import ReadMessages
 from pipe_segment.transform.satellite_offsets import SatelliteOffsets, SatelliteOffsetsWrite
-from pipe_segment.transform.tag_with_fragid_and_timebin import \
-    TagWithFragIdAndTimeBin
+from pipe_segment.transform.tag_with_fragid_and_timebin import TagWithFragIdAndTimeBin
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
 from pipe_segment.transform.write_date_sharded import WriteDateSharded
 from pipe_segment.transform.whitelist_messages_segmented import WhitelistFields
+from pipe_segment.transform.satellite_offsets import remove_satellite_offsets_content
 
-from .tools import as_timestamp, datetimeFromTimestamp
+logger = logging.getLogger(__name__)
 
 
 def timestamp_to_date(ts: float) -> datetime.date:
@@ -55,9 +60,10 @@ def time_bin_key(x, time_bins):
 
 
 class SegmentPipeline:
-    def __init__(self, options):
-        self.cloud_options = options.view_as(GoogleCloudOptions)
-        self.options = options.view_as(SegmentOptions)
+    def __init__(self, options, beam_options: PipelineOptions):
+        self.options = options
+        self.beam_options = beam_options
+        self.cloud_options = beam_options.view_as(GoogleCloudOptions)
         self.date_range = parse_date_range(self.options.date_range)
         self.satellite_offsets_writer = None
 
@@ -75,7 +81,7 @@ class SegmentPipeline:
 
     # TODO: consider breaking up
     def pipeline(self):
-        pipeline = beam.Pipeline(options=self.options)
+        pipeline = beam.Pipeline(options=self.beam_options)
 
         start_date = safe_date(self.date_range[0])
         end_date = safe_date(self.date_range[1])
@@ -206,20 +212,39 @@ class SegmentPipeline:
         return pipeline
 
     def run(self):
-        return self.pipeline().run()
+        if self.options.sat_offset_dest:
+            remove_satellite_offsets_content(
+                self.options.sat_offset_dest,
+                self.options.date_range,
+                self.cloud_options.labels,
+                self.cloud_options.project)
+
+        logger.info("Building pipeline graph...")
+        pipeline = self.pipeline()
+
+        logger.info("Running pipeline...")
+        result = pipeline.run()
+
+        return result
 
 
-def run(options):
+def run(options, beam_args: list):
+    logger.info("Instantiating configuration...")
+    beam_options = PipelineOptions(beam_args)
 
-    pipeline = SegmentPipeline(options)
+    logger.info("Instantiating pipeline...")
+    pipeline = SegmentPipeline(options, beam_options)
+
     result = pipeline.run()
 
+    logger.info("Finished running pipeline.")
     success_states = set([PipelineState.DONE])
 
     if (
-        pipeline.options.wait_for_job
-        or options.view_as(StandardOptions).runner == "DirectRunner"
+        options.wait_for_job
+        or beam_options.view_as(StandardOptions).runner == "DirectRunner"
     ):
+        logger.info("Waiting for JOB to finish...")
         result.wait_until_finish()
         if (result.state == PipelineState.DONE and pipeline.satellite_offsets_writer):
             pipeline.satellite_offsets_writer.update_table_description()
@@ -230,5 +255,6 @@ def run(options):
         success_states.add(PipelineState.UNKNOWN)
         success_states.add(PipelineState.PENDING)
 
-    logging.info("returning with result.state=%s" % result.state)
+    logging.info("Returning with result.state=%s" % result.state)
+
     return 0 if result.state in success_states else 1

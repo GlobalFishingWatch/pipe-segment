@@ -6,7 +6,6 @@ import pytz
 from gpsdio_segment.segmenter import Segmenter as Fragmenter
 
 logger = logging.getLogger(__file__)
-logger.setLevel(logging.INFO)
 
 
 class FragmentImplementation(object):

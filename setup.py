@@ -29,7 +29,7 @@ setuptools.setup(
     ],
     entry_points={
         'console_scripts': [
-            'pipe = pipe_segment.cli:main',
+            'pipe = pipe_segment.cli.cli:main',
         ]
     },
     install_requires=[

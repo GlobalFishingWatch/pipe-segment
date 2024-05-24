@@ -24,6 +24,7 @@ def validate_options(args: list, option_classes: list):
     # add args for all the options classes that we are using
     for opt in option_classes:
         opt._add_argparse_args(parser)
+
     StandardOptions._add_argparse_args(parser.add_argument_group("Dataflow Runner"))
 
     if help or not local:
