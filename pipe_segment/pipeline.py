@@ -3,15 +3,16 @@ import datetime
 import logging
 import pytz
 import ujson
+from apache_beam.options.pipeline_options import (
+    GoogleCloudOptions, StandardOptions, PipelineOptions
+)
 
-from apache_beam.options.pipeline_options import (GoogleCloudOptions, StandardOptions)
 from apache_beam.runners import PipelineState
 
 from datetime import timedelta
 
 from pipe_segment import message_schema, segment_schema
 from pipe_segment.models.bigquery_message_source import BigQueryMessagesSource
-from pipe_segment.options.segment import SegmentOptions
 from pipe_segment.transform.create_segment_map import CreateSegmentMap
 from pipe_segment.transform.create_segments import CreateSegments
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
@@ -20,12 +21,13 @@ from pipe_segment.transform.invalid_values import filter_invalid_values
 from pipe_segment.transform.read_fragments import ReadFragments
 from pipe_segment.transform.read_messages import ReadMessages
 from pipe_segment.transform.satellite_offsets import SatelliteOffsets, SatelliteOffsetsWrite
+from pipe_segment.transform.satellite_offsets import remove_satellite_offsets_content
 from pipe_segment.transform.tag_with_fragid_and_timebin import TagWithFragIdAndTimeBin
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
 from pipe_segment.transform.write_sink import WriteSink
 from pipe_segment.transform.whitelist_messages_segmented import WhitelistFields
 from pipe_segment.utils.bqtools import BigQueryTools
-from pipe_segment.utils.ver import get_pipe_ver
+from pipe_segment.version import __version__
 
 from typing import List
 
@@ -60,9 +62,10 @@ def time_bin_key(x, time_bins):
 
 
 class SegmentPipeline:
-    def __init__(self, options):
-        self.cloud_options = options.view_as(GoogleCloudOptions)
-        self.options = options.view_as(SegmentOptions)
+    def __init__(self, options, beam_options):
+        self.options = options
+        self.beam_options = beam_options
+        self.cloud_options = beam_options.view_as(GoogleCloudOptions)
         self.date_range = parse_date_range(self.options.date_range)
         self.satellite_offsets_writer = None
         self.bqtools = BigQueryTools(project=self.cloud_options.project)
@@ -82,7 +85,7 @@ class SegmentPipeline:
 
     @property
     def destination_tables(self):
-        ver = get_pipe_ver()
+        ver = __version__
         return dict(
             messages={
                 "table": self.options.msg_dest,
@@ -125,7 +128,7 @@ class SegmentPipeline:
 
     # TODO: consider breaking up
     def pipeline(self):
-        pipeline = beam.Pipeline(options=self.options)
+        pipeline = beam.Pipeline(options=self.beam_options)
 
         start_date = safe_date(self.date_range[0])
         end_date = safe_date(self.date_range[1])
@@ -246,29 +249,41 @@ class SegmentPipeline:
         return pipeline
 
     def run(self):
-        return self.pipeline().run()
+        result = self.pipeline().run()
+
+        success_states = set([PipelineState.DONE])
+
+        if (
+            self.options.wait_for_job
+            or self.beam_options.view_as(StandardOptions).runner == "DirectRunner"
+        ):
+            result.wait_until_finish()
+            if (result.state == PipelineState.DONE and self.satellite_offsets_writer):
+                self.satellite_offsets_writer.update_table_description()
+                self.satellite_offsets_writer.update_labels()
+
+        else:
+            success_states.add(PipelineState.RUNNING)
+            success_states.add(PipelineState.UNKNOWN)
+            success_states.add(PipelineState.PENDING)
+
+        logging.info("returning with result.state=%s" % result.state)
+
+        return 0 if result.state in success_states else 1
 
 
-def run(options):
+def run(options, beam_args):
 
-    pipeline = SegmentPipeline(options)
-    result = pipeline.run()
+    beam_options = PipelineOptions(beam_args)
 
-    success_states = set([PipelineState.DONE])
+    gcloud_options = beam_options.view_as(GoogleCloudOptions)
+    if options.sat_offset_dest:
+        remove_satellite_offsets_content(
+            options.sat_offset_dest,
+            options.date_range,
+            gcloud_options.labels,
+            gcloud_options.project)
 
-    if (
-        pipeline.options.wait_for_job
-        or options.view_as(StandardOptions).runner == "DirectRunner"
-    ):
-        result.wait_until_finish()
-        if (result.state == PipelineState.DONE and pipeline.satellite_offsets_writer):
-            pipeline.satellite_offsets_writer.update_table_description()
-            pipeline.satellite_offsets_writer.update_labels()
+    pipeline = SegmentPipeline(options, beam_options)
 
-    else:
-        success_states.add(PipelineState.RUNNING)
-        success_states.add(PipelineState.UNKNOWN)
-        success_states.add(PipelineState.PENDING)
-
-    logging.info("returning with result.state=%s" % result.state)
-    return 0 if result.state in success_states else 1
+    return pipeline.run()
