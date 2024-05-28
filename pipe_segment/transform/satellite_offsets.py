@@ -3,16 +3,23 @@ from importlib import resources
 from jinja2 import Template
 
 import apache_beam as beam
-import logging, functools
+import logging
+import functools
 from apache_beam import PTransform, io
 from google.api_core.exceptions import (NotFound, BadRequest)
 from google.cloud import bigquery
 from pipe_segment.utils.ver import get_pipe_ver
 
 
-def remove_satellite_offsets_content(destination_table:str, date_range:str, labels_list: list, project:str):
+def remove_satellite_offsets_content(
+        destination_table: str,
+        date_range: str,
+        labels_list: list,
+        project: str):
     """
-    The satellite offset table is now a partitioned table. It removes the content of the satellite offeset table for the period of date range to let the DF job generate the new data.
+    The satellite offset table is now a partitioned table.
+    It removes the content of the satellite offeset table for the period of date range
+    to let the DF job generate the new data.
     :param destination_table: The destination table from where to delete the content.
     :type destination_table: str.
     :param date_range: The date start and end to delete the content.
@@ -26,13 +33,14 @@ def remove_satellite_offsets_content(destination_table:str, date_range:str, labe
     destination_table_ds, destination_table_tb = destination_table.split('.')
     destination_dataset_ref = bigquery.DatasetReference(client.project, destination_table_ds)
     destination_table_ref = destination_dataset_ref.table(destination_table_tb)
-    date_from, date_to = list(map(lambda x:x.strip(), date_range.split(',')))
-    labels = functools.reduce(lambda x,y: dict(x,**{y.split('=')[0]: y.split('=')[1]}), labels_list, dict())
+    date_from, date_to = list(map(lambda x: x.strip(), date_range.split(',')))
+    labels = functools.reduce(lambda x, y: dict(
+        x, **{y.split('=')[0]: y.split('=')[1]}), labels_list, dict())
 
     try:
-        table = client.get_table(destination_table_ref) #API request
+        table = client.get_table(destination_table_ref)  # API request
         logging.info(f'Ensures the table [{table}] exists.')
-        #deletes the content
+        # deletes the content
         query_job = client.query(
             f"""
                DELETE FROM `{ destination_table }`
@@ -46,13 +54,15 @@ def remove_satellite_offsets_content(destination_table:str, date_range:str, labe
         )
         logging.info(f'Delete Job {query_job.job_id} is currently in state {query_job.state}')
         result = query_job.result()
-        logging.info(f'Date range [{date_from},{date_to}] cleaned in table {destination_table}: {result}')
+        logging.info(
+            f'Date range [{date_from},{date_to}] cleaned in table {destination_table}: {result}')
 
-    except NotFound as nferr:
+    except NotFound:
         logging.warn(f'Table {destination_table} NOT FOUND. We can go on.')
 
     except BadRequest as err:
         logging.error(f'Bad request received {err}.')
+
 
 def make_schema():
     schema = {"fields": []}
@@ -67,17 +77,49 @@ def make_schema():
             )
         )
 
-    add_field("hour", "TIMESTAMP", description="Timestamp with hour resolution. This row applies starting from `hour` till `hour` plus sixty minutes.")
+    add_field(
+        "hour",
+        "TIMESTAMP",
+        description=(
+            "Timestamp with hour resolution. "
+            "This row applies starting from `hour` till `hour` plus sixty minutes.")
+    )
     add_field("receiver", "STRING", description="The name of the satellite.")
-    add_field("dt", "FLOAT", "NULLABLE", description="How much the satellite clock is offset (in seconds) from the consensus (median) of all satellite clocks.")
-    add_field("pings", "INTEGER", "NULLABLE", description="Number of pings used in computing the clock offset. Lower values mean the result is likely to be less reliable.")
-    add_field("avg_distance_from_sat_km", "FLOAT", "NULLABLE", description="Average distance of vessels from the satellite during a given hour. Anomalously large values are another way to infer that the satellite clocks are off, however this has been superseded by the dt field.")
-    add_field("med_dist_from_sat_km", "FLOAT", "NULLABLE", description="Median distance of vessels from the satellite during a given hour. Anomalously large values are another way to infer that the satellite clocks are off, however this has been superseded by the dt field.")
-
+    add_field(
+        "dt",
+        "FLOAT",
+        "NULLABLE",
+        description=(
+            "How much the satellite clock is offset (in seconds)"
+            "from the consensus (median) of all satellite clocks.")
+        )
+    add_field(
+        "pings",
+        "INTEGER",
+        "NULLABLE",
+        description=(
+            "Number of pings used in computing the clock offset. "
+            "Lower values mean the result is likely to be less reliable.")
+        )
+    add_field(
+        "avg_distance_from_sat_km",
+        "FLOAT",
+        "NULLABLE",
+        description=(
+            "Average distance of vessels from the satellite during a given hour. "
+            "Anomalously large values are another way to infer that the satellite clocks are off, "
+            "however this has been superseded by the dt field.")
+        )
+    add_field(
+        "med_dist_from_sat_km",
+        "FLOAT",
+        "NULLABLE",
+        description=(
+            "Median distance of vessels from the satellite during a given hour. "
+            "Anomalously large values are another way to infer that the satellite clocks are off, "
+            "however this has been superseded by the dt field.")
+        )
     return schema
-
-
-
 
 
 class SatelliteOffsets(PTransform):
@@ -89,8 +131,8 @@ class SatelliteOffsets(PTransform):
         offsets = pipesline | SatelliteOffsets(start_date, end_date)
     """
 
-    def __init__(self, source_table, norad_to_receiver_tbl, sat_positions_tbl, 
-                start_date, end_date):
+    def __init__(self, source_table, norad_to_receiver_tbl, sat_positions_tbl,
+                 start_date, end_date):
         self.source_table = source_table
         self.norad_to_receiver_tbl = norad_to_receiver_tbl
         self.sat_positions_tbl = sat_positions_tbl
@@ -103,7 +145,9 @@ class SatelliteOffsets(PTransform):
         ] | "MergeSatOffsets" >> beam.Flatten()
 
     def _sat_offset_iter(self):
-        with resources.path('pipe_segment.transform.assets', 'satellite_offsets.sql.j2') as template_filepath:
+        with resources.path(
+            'pipe_segment.transform.assets', 'satellite_offsets.sql.j2'
+        ) as template_filepath:
             with open(template_filepath) as f:
                 template = Template(f.read())
 
@@ -126,9 +170,9 @@ class SatelliteOffsets(PTransform):
             start_window = end_window + timedelta(days=1)
 
 
+def list_to_dict(labels):
+    return {x.split('=')[0]: x.split('=')[1] for x in labels}
 
-
-list_to_dict = lambda labels: {x.split('=')[0]:x.split('=')[1] for x in labels}
 
 class SatelliteOffsetsWrite(PTransform):
 
@@ -137,12 +181,13 @@ class SatelliteOffsetsWrite(PTransform):
         self.source_table = options.sat_source
         self.source_norad = options.norad_to_receiver_tbl
         self.source_sat_positions = options.sat_positions_tbl
-        _,self.end_date = options.date_range.split(',')
+        _, self.end_date = options.date_range.split(',')
         self.labels = list_to_dict(cloud_opts.labels)
 
         self.dest_table = options.sat_offset_dest
-        dataset_id,table_name = self.dest_table.split('.')
-        self.table_ref = bigquery.DatasetReference(cloud_opts.project, dataset_id).table(table_name)
+        dataset_id, table_name = self.dest_table.split('.')
+        self.table_ref = bigquery.DatasetReference(
+            cloud_opts.project, dataset_id).table(table_name)
 
         self.schema = make_schema()
         self.ver = get_pipe_ver()
@@ -156,10 +201,10 @@ class SatelliteOffsetsWrite(PTransform):
             additional_bq_parameters={
                 'timePartitioning': {
                     'type': 'MONTH',
-                    'field' : 'hour',
+                    'field': 'hour',
                     'requirePartitionFilter': False
                 }, 'clustering': {
-                    'fields': [ 'hour' ]
+                    'fields': ['hour']
                 }
             }
         )
@@ -168,7 +213,9 @@ class SatelliteOffsetsWrite(PTransform):
         table = self.bqclient.get_table(self.table_ref)  # API request
         table.description = f"""
     Created by the pipe-segment: {self.ver}
-    * It identifies, at the hourly level, how much time a given satellite's clock differs from the median of all the other satellites' clocks.
+    * It identifies, at the hourly level,
+    * how much time a given satellite's clock differs
+    * from the median of all the other satellite's clocks.
     * https://github.com/GlobalFishingWatch/pipe-segment
     * Source Satellite: {self.source_table}
     * Source Norad: {self.source_norad}
@@ -184,4 +231,3 @@ class SatelliteOffsetsWrite(PTransform):
         table.labels = self.labels
         self.bqclient.update_table(table, ["labels"])  # API request
         logging.info(f"Update labels to output table <{self.dest_table}>")
-

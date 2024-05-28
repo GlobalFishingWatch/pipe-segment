@@ -31,7 +31,8 @@ class ReadFragments(beam.PTransform):
             )
             return None
         else:
-            return datetime.strptime(row.min_suffix, "%Y%m%d").date() if row.min_suffix != None else None
+            return datetime.strptime(row.min_suffix,
+                                     "%Y%m%d").date() if row.min_suffix is not None else None
 
     def query_condition(self, start_date, end_date):
         if start_date is None:
@@ -59,8 +60,8 @@ class ReadFragments(beam.PTransform):
                   CAST(UNIX_MICROS(last_msg_timestamp) AS FLOAT64) / 1000000
                         AS last_msg_timestamp,
                     * except (
-                            timestamp, 
-                            first_msg_timestamp, 
+                            timestamp,
+                            first_msg_timestamp,
                             last_msg_timestamp
                         )
                 FROM `{self.source}*`

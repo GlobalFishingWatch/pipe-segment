@@ -61,15 +61,9 @@ class SegmentOptions(PipelineOptions):
             "--max_timing_offset_s",
             type=int,
             default=30,
-            help="maximum number of seconds a satellite clock can be off before we drop its messages",
+            help="max. number of seconds a satellite clock can be off before we drop its messages",
         )
-        # optional.add_argument(
-        #     "--source_schema",
-        #     help="JSON schema for the source messages (bigquery).  This is ignored for tables or file sources. "
-        #     "See examples/message-schema.json for an example.  This must match the fields included in the "
-        #     'query or bq table.   You can use "@path/to/file.json" to load this from a file.',
-        #     action=ReadFileAction,
-        # )
+
         optional.add_argument(
             "--date_range",
             help="Range of dates to read from source. format YYYY-MM-DD,YYYY-MM-DD",
@@ -82,7 +76,7 @@ class SegmentOptions(PipelineOptions):
         )
         optional.add_argument(
             "--segmenter_params",
-            help="Pass a json object with parameters to pass to the fragmenter, or supply a file name to read with "
+            help="JSON object with fragmenter parameters, or filepath "
             "@path/to/file.json.   For Example:"
             ""
             "{"
@@ -92,12 +86,10 @@ class SegmentOptions(PipelineOptions):
             '  "reported_speed_multiplier": 1.1,'
             '  "max_speed_multiplier": 15,'
             '  "max_speed_exponent": 1.3,'
-            "}",
-            default="{}",
-        )
+            "}", default="{}",)
         optional.add_argument(
             "--merge_params",
-            help="Pass a json object with parameters to pass to the fragmenter, or supply a file name to read with "
+            help="JSON object with fragmenter parameters, or filepath "
             "@path/to/file.json.   For Example:"
             ""
             "{"

@@ -1,0 +1,34 @@
+#!/bin/bash
+
+docker compose run dev segment \
+    --date_range='2024-04-12,2024-04-12' \
+    --segmenter_params='{"max_hours": 24}' \
+    --source=world-fishing-827.pipe_ais_sources_v20220628.pipe_nmea_normalized_ \
+    --msg_dest=scratch_tomas_ttl30d.messages_segmented_ \
+    --segment_dest=scratch_tomas_ttl30d.segments_ \
+    --fragment_tbl=scratch_tomas_ttl30d.fragments_ \
+    --sat_source=pipe_ais_sources_v20220628.pipe_nmea_normalized_ \
+    --sat_offset_dest=scratch_tomas_ttl30d.satellite_timing_offsets \
+    --norad_to_receiver_tbl=pipe_static.norad_to_receiver_v20230510 \
+    --sat_positions_tbl=satellite_positions_v20190208.satellite_positions_one_second_resolution_ \
+    --setup_file=./setup.py \
+    --labels=environment=production \
+    --labels=resource_creator=gcp-composer \
+    --labels=project=core_pipeline \
+    --labels=version=v3 \
+    --labels=step=segment \
+    --labels=stage=productive \
+    --runner=dataflow \
+    --wait_for_job \
+    --project=world-fishing-827 \
+    --temp_location=gs://pipe-temp-us-central-ttl7/dataflow_temp \
+    --staging_location=gs://pipe-temp-us-central-ttl7/dataflow_staging \
+    --region=us-central1 \
+    --max_num_workers=600 \
+    --worker_machine_type=custom-1-65536-ext \
+    --disk_size_gb=50 \
+    --job_name=tom-test-segment-segment--20240423 \
+    --experiments=use_runner_v2 \
+    --no_use_public_ips \
+    --network=gfw-internal-network \
+    --subnetwork=regions/us-central1/subnetworks/gfw-internal-us-central1 \
