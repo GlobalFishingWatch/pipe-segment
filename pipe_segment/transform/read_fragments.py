@@ -6,6 +6,9 @@ from google.api_core.exceptions import BadRequest
 from google.cloud import bigquery
 
 
+logger = logging.getLogger(__name__)
+
+
 class ReadFragments(beam.PTransform):
     def __init__(
         self, source, start_date, end_date, create_if_missing=False, project=None
@@ -19,14 +22,18 @@ class ReadFragments(beam.PTransform):
     def first_table_date(self):
         client = bigquery.Client(self.project)
         condition = self.query_condition(self.start_date, self.end_date)
-        query = f"""SELECT MIN(_TABLE_SUFFIX) min_suffix FROM `{self.source}*`
-                     WHERE {condition}"""
-        logging.info(f"QUERY:\n{query}")
+        query = f"""
+            SELECT MIN(_TABLE_SUFFIX) min_suffix FROM `{self.source}*`
+            WHERE {condition}"""
+
+        logger.info("Performing query to get first table date...")
+        logger.debug(f"QUERY:\n{query}")
+
         request = client.query(query)
         try:
             [row] = request.result()
         except BadRequest as err:
-            logging.info(
+            logger.info(
                 f"Could not query existing table. Ignore if this is first run: {err}"
             )
             return None
@@ -69,7 +76,8 @@ class ReadFragments(beam.PTransform):
                 ORDER BY ssvid, timestamp
             )
             """
-            logging.info(f"Emitting read fragments query:\n{query}")
+            logger.debug(f"Emitting read fragments query:\n{query}")
+
             yield query
             start_date = next_start_date
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-docker compose run dev segment \
+docker compose run --entrypoint pipe dev segment \
     --date_range='2024-04-12,2024-04-12' \
     --segmenter_params='{"max_hours": 24}' \
     --source=world-fishing-827.pipe_ais_sources_v20220628.pipe_nmea_normalized_ \
