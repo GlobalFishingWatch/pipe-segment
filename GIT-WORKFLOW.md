@@ -61,12 +61,10 @@ These are quick **PATCH** increments done only to current **MAJOR** release:
 These are **PATCH** increments to previous **MAJOR** releases:
 
 1. Create a branch named **patch/my-patch** from **support/x.y**.
-2. Work on the fix.
-3. If this fix is also needed in the current **MAJOR release**:
-	a. Rebase **patch/my-patch** on top of **develop**.
-	b. Merge to **develop**.
-	c. Rebase **patch/my-patch** on top of **support/x.y**.
-4. Perform steps needed to make a release.
-5. Merge to **support/x.y**.
-5. Tag **support/x.y**. 
+2. Work on the fix. Perform steps needed to make a release.
+3. Merge to **support/x.y**.
+4. Tag **support/x.y**. 
 
+If you need also this fix in the current **MAJOR**,
+you will have to re-work the fix to be compatible with the new API.
+You can work it in a [feature branch](#feature-branches) or make a [hotfix](#hotfix-branches).
