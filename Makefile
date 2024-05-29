@@ -27,12 +27,12 @@ build:
 dockershell:
 	docker compose run --entrypoint /bin/bash -it dev
 
-requirements-worker: requirements/worker.in
+requirements-worker:
 	docker compose run --entrypoint /bin/bash -it dev -c \
 		'pip-compile -o ${REQS_WORKER}.txt ${REQS_WORKER}.in -v && \
 		pip-compile -o ${REQS_SCHEDULER}.txt ${REQS_SCHEDULER}.in -v' \
 
-requirements-scheduler: requirements/scheduler.in
+requirements-scheduler:
 	docker compose run --entrypoint /bin/bash -it dev -c \
 		'pip-compile -o ${REQS_SCHEDULER}.txt ${REQS_SCHEDULER}.in -v'
 
@@ -60,4 +60,4 @@ testdocker-all:
 	docker compose run --entrypoint "pytest --runslow" dev
 
 
-PHONY: help install requirements requirements-upgrade requirements-worker requirements-scheduler test testdocker testdocker-all
+.PHONY: help install requirements requirements-upgrade requirements-worker requirements-scheduler test testdocker testdocker-all
