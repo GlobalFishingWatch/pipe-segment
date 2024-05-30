@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta
+from typing import List
 
 import apache_beam as beam
 import pytz
@@ -8,6 +9,7 @@ from apache_beam.options.pipeline_options import (GoogleCloudOptions,
                                                   StandardOptions)
 from apache_beam.runners import PipelineState
 from pipe_segment import message_schema, segment_schema
+from pipe_segment.models.bigquery_message_source import BigQueryMessagesSource
 from pipe_segment.options.segment import SegmentOptions
 from pipe_segment.transform.create_segment_map import CreateSegmentMap
 from pipe_segment.transform.create_segments import CreateSegments
@@ -70,8 +72,9 @@ class SegmentPipeline:
         return ujson.loads(self.options.segmenter_params)
 
     @property
-    def source_tables(self):
-        return self.options.source.split(",")
+    def source_tables(self) -> List[BigQueryMessagesSource]:
+        return [BigQueryMessagesSource(table_id=source)
+                for source in self.options.source.split(",")]
 
     # TODO: consider breaking up
     def pipeline(self):
