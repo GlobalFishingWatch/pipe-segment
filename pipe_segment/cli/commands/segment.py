@@ -1,10 +1,9 @@
 import json
 import logging
 import argparse
-from abc import ABC, abstractmethod
 
 from pipe_segment import pipeline
-
+from pipe_segment.cli.commands.base import Command
 
 logger = logging.getLogger(__name__)
 
@@ -19,18 +18,6 @@ EXAMPLE_SEGMENTER_PARAMS = {
 }
 
 EXAMPLE_MERGE_PARAMS = dict(buffer_hours=0.5)
-
-
-class Command(ABC):
-    @classmethod
-    @abstractmethod
-    def add_to_subparsers(cls, subparsers):
-        pass
-
-    @classmethod
-    @abstractmethod
-    def run(cls, **kwargs):
-        pass
 
 
 class Segment(Command):
