@@ -4,6 +4,7 @@ from jinja2 import Template
 
 from pipe_segment.utils.bq import get_bq_table
 
+
 class BigQueryMessagesSource:
 
     def __init__(
@@ -13,10 +14,12 @@ class BigQueryMessagesSource:
     ):
         self.table_id = table_id
         self.filter_template = filter_template
-        
+
         # Checks whether the provided table is date sharded or partitioned
         try:
-            project_id, dataset_id, table_name = table_id.replace("bq://", "").replace(":", ".").split(".")
+            project_id, dataset_id, table_name = table_id.replace("bq://", "") \
+                .replace(":", ".") \
+                .split(".")
             self._table_suffix = ''
             # When the table is found as provided in the arguments is partitioned
             self._table = get_bq_table(project_id, dataset_id, table_name)
@@ -32,11 +35,13 @@ class BigQueryMessagesSource:
             self._date_format = "%Y-%m-%d"
         except Exception as e:
             if "Not found" in str(e):
-                logging.info(f'Table {table_id} does not exists, checking if it\'s a sharded table')
+                logging.info(
+                    f'Table {table_id} does not exists, checking if it\'s a sharded table')
                 # Ensure the table is sharded
                 self._table_suffix = '*'
                 try:
-                    self._table = get_bq_table(project_id, dataset_id, f"{table_name}{self._table_suffix}")
+                    self._table = get_bq_table(project_id, dataset_id,
+                                               f"{table_name}{self._table_suffix}")
                     self._filtering_field = "_TABLE_SUFFIX"
                     self._date_format = "%Y%m%d"
                     logging.info(f'Table {table_id}* is date sharded')
@@ -50,7 +55,9 @@ class BigQueryMessagesSource:
     def filter_messages(self, start_date: datetime, end_date: datetime) -> str:
         template = self.filter_template
         if template is None:
-          template = "{{ filter_field }} BETWEEN '{{ start_date.strftime(date_format) }}' AND '{{ end_date.strftime(date_format) }}'"
+            template = "{{ filter_field }} " + \
+                "BETWEEN '{{ start_date.strftime(date_format) }}' " + \
+                " AND '{{ end_date.strftime(date_format) }}'"
 
         filter = Template(template).render({'start_date': start_date,
                                             'end_date': end_date,

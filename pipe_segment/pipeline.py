@@ -75,7 +75,8 @@ class SegmentPipeline:
 
     @property
     def source_tables(self) -> List[BigQueryMessagesSource]:
-        return [BigQueryMessagesSource(table_id=source) for source in self.options.source.split(",")]
+        return [BigQueryMessagesSource(table_id=source)
+                for source in self.options.source.split(",")]
 
     @property
     def destination_tables(self):
