@@ -8,26 +8,26 @@ from pipe_segment.segment_identity.read_source import ReadSource
 from pipe_segment.segment_identity.transforms import (rename_timestamp,
                                                       summarize_identifiers,
                                                       write_sink)
-from pipe_segment.utils.bqtools import BigQueryTools, build_sink_table_descriptor
+from pipe_segment.utils.bqtools import BigQueryTools
+from pipe_segment.utils.ver import get_pipe_ver
 
-from ..tools import as_timestamp
+from ..tools import as_timestamp, datetimeFromTimestamp
 
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
     return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
 
 
-timezoneToDatetime = lambda ts: dt.datetime.fromtimestamp(ts, tz=dt.timezone.utc)
-
-
 class SegmentIdentityPipeline:
     def __init__(self, options):
         self.options = options.view_as(SegmentIdentityOptions)
+        self.cloud_options = options.view_as(GoogleCloudOptions)
         self.date_range = parse_date_range(self.options.date_range)
+        self.bqtools = BigQueryTools(project=self.cloud_options.project)
 
     @property
     def temp_gcs_location(self):
-        return self.options.view_as(GoogleCloudOptions).temp_location
+        return self.cloud_options.temp_location
 
     @property
     def dest_segment_identity_schema(self):
@@ -269,43 +269,27 @@ class SegmentIdentityPipeline:
         return beam.Map(rename_timestamp)
 
     @property
-    def dest_segment_identity(self):
-        from_ts, to_ts = self.date_range
-        return write_sink(
-            self.options.dest_segment_identity,
-            self.dest_segment_identity_schema,
-            "Daily segments identity processed in segment step."
-        )
+    def destination_tables(self):
+        return dict(
+            segment_identity={
+                "table": self.options.dest_segment_identity,
+                "schema": self.dest_segment_identity_schema,
+                "description": f"Created by the pipe-segment: {get_pipe_ver()}. Daily segments identity processed in segment step.",
+            })
 
     @property
-    def ensure_sharded_creation(self):
-        # Ensure sharded tables are created for all dates
-        logging.info('Ensure sharded tables are created for all dates')
-        start_date, end_date = [timezoneToDatetime(ts) for ts in self.date_range]
-        destination_tables = [{
-            "table": self.options.dest_segment_identity,
-            "schema": self.dest_segment_identity_schema,
-            "description": "Daily segments identity processed in segment step.",
-        }]
-        # Create list of days between start_date and end_date including the start_date.
-        days = ([start_date]+[start_date+dt.timedelta(days=x) for x in range((end_date-start_date).days)])
-        for dt in days:
-            shard = dt.strftime("%Y%m%d")
-
-            for dst in destination_tables:
-                sink_table_descriptor = build_sink_table_descriptor(table_id=f"{dst['table']}{shard}",
-                                                                    schema=dst['schema']["fields"],
-                                                                    description=dst['description'])
-                bqtools = BigQueryTools(project=sink_table_descriptor.project)
-                sink_table = bqtools.ensure_table_exists(sink_table_descriptor)
-                # force to clear all records in the shard
-                bqtools.clear_records(sink_table, f"'{dt:%Y-%m-%d}'", dt, dt)
-
+    def dest_segment_identity(self):
+        return write_sink(
+            self.destination_tables["segment_identity"]["table"],
+            self.destination_tables["segment_identity"]["schema"],
+            self.destination_tables["segment_identity"]["description"]
+        )
 
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.options)
 
-        self.ensure_sharded_creation()
+        start_dt, end_dt = [datetimeFromTimestamp(ts) for ts in self.date_range]
+        self.bqtools.ensure_sharded_tables_creation(start_dt, end_dt, self.destination_tables, key="summary_timestamp")
 
         (
             pipeline
