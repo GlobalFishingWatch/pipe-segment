@@ -4,7 +4,7 @@ from ..tools import datetimeFromTimestamp
 
 class WriteSink(beam.PTransform):
     def __init__(self, sink_table, schema, description=None, key="timestamp"):
-        self.sink_table = sink_table.replace('bq://','')
+        self.sink_table = sink_table.replace('bq://', '')
         self.schema = schema
         self.description = description
         self.key = key
@@ -16,7 +16,7 @@ class WriteSink(beam.PTransform):
         )
 
     def write_sink(self):
-        bq_params_cp = {"destinationTableProperties":{"description": self.description}}
+        bq_params_cp = {"destinationTableProperties": {"description": self.description}}
 
         def compute_table(message):
             table_suffix = datetimeFromTimestamp(message[self.key]).strftime("%Y%m%d")

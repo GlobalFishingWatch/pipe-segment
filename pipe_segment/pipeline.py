@@ -41,9 +41,11 @@ def safe_date(ts):
         return None
     return datetimeFromTimestamp(ts).date()
 
+
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
     return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
+
 
 def time_bin_ndx(dtime, time_bins):
     reltime = dtime - datetime.datetime(dtime.year, dtime.month, dtime.day, tzinfo=pytz.UTC)
@@ -85,19 +87,21 @@ class SegmentPipeline:
             messages={
                 "table": self.options.msg_dest,
                 "schema": message_schema.message_output_schema,
-                "description": f"Created by the pipe-segment:{ver}. Daily satellite messages segmented processed in segment step.",
+                "description": f"""Created by the pipe-segment:{ver}.
+                Daily satellite messages segmented processed in segment step.""",
             },
             segments={
                 "table": self.options.segment_dest,
                 "schema": segment_schema.segment_schema,
-                "description": f"Created by the pipe-segment:{ver}. Daily segments processed in segment step.",
+                "description": f"""Created by the pipe-segment:{ver}.
+                Daily segments processed in segment step.""",
             },
             fragments={
                 "table": self.options.fragment_tbl,
                 "schema": Fragment.schema,
-                "description": f"Created by the pipe-segment:{ver}. Daily fragments processed in segment step.",
-            }
-        )
+                "description": f"""Created by the pipe-segment:{ver}.
+                Daily fragments processed in segment step.""",
+            })
 
     @property
     def write(self):
@@ -123,8 +127,8 @@ class SegmentPipeline:
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.options)
 
-        start_date=safe_date(self.date_range[0])
-        end_date=safe_date(self.date_range[1])
+        start_date = safe_date(self.date_range[0])
+        end_date = safe_date(self.date_range[1])
 
         self.bqtools.ensure_sharded_tables_creation(start_date, end_date, self.destination_tables)
 

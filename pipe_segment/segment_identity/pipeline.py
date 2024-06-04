@@ -1,5 +1,3 @@
-import datetime as dt
-
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 
@@ -231,7 +229,7 @@ DEST_SEGMENT_IDENTITY_SCHEMA = {
             "name": "length",
             "type": "RECORD",
             "description": "Array of all unique length for this segment for this day.",
-            },
+        },
         {
             "fields": [
                 {
@@ -298,7 +296,8 @@ class SegmentIdentityPipeline:
             segment_identity={
                 "table": self.options.dest_segment_identity,
                 "schema": self.dest_segment_identity_schema,
-                "description": f"Created by the pipe-segment: {get_pipe_ver()}. Daily segments identity processed in segment step.",
+                "description": f"""Created by the pipe-segment: {get_pipe_ver()}.
+                Daily segments identity processed in segment step.""",
             })
 
     @property
@@ -313,7 +312,8 @@ class SegmentIdentityPipeline:
         pipeline = beam.Pipeline(options=self.options)
 
         start_dt, end_dt = [datetimeFromTimestamp(ts) for ts in self.date_range]
-        self.bqtools.ensure_sharded_tables_creation(start_dt, end_dt, self.destination_tables, key="summary_timestamp")
+        self.bqtools.ensure_sharded_tables_creation(
+            start_dt, end_dt, self.destination_tables, key="summary_timestamp")
 
         (
             pipeline
