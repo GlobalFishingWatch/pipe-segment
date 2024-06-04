@@ -4,7 +4,7 @@ import argparse
 
 from rich.logging import RichHandler
 
-from .commands.segment import Segment
+from .commands import Segment, SegmentIdentity
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ class CLI:
         self._parse_args()
 
     def execute(self):
+        logger.info(f"Running pipe {self.command} command...")
         return self.execute_command(self.args, self.extra_args)
 
     def _add_commands(self):
@@ -46,6 +47,7 @@ class CLI:
             logging.getLogger().addHandler(logging.FileHandler(self.args.log_file))
 
         self.execute_command = self.args.func
+        self.command = self.args.command
 
         del self.args.verbose
         del self.args.log_file
@@ -72,7 +74,7 @@ class PIPE(CLI):
         "apache_beam.io.gcp",
     ]
 
-    COMMANDS = [Segment]
+    COMMANDS = [Segment, SegmentIdentity]
 
     @staticmethod
     def formatter():

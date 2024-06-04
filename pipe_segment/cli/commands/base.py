@@ -1,3 +1,4 @@
+import argparse
 from abc import ABC, abstractmethod
 
 
@@ -12,3 +13,10 @@ class Command(ABC):
     @abstractmethod
     def run(cls, **kwargs):
         """Runs the implemented command"""
+
+    @staticmethod
+    def formatter():
+        def argparse_formatter(prog):
+            return argparse.HelpFormatter(prog, max_help_position=50)
+
+        return argparse_formatter

@@ -1,6 +1,5 @@
 import json
 import logging
-import argparse
 
 from pipe_segment import pipeline
 from pipe_segment.cli.commands.base import Command
@@ -23,7 +22,7 @@ EXAMPLE_MERGE_PARAMS = dict(buffer_hours=0.5)
 class Segment(Command):
     NAME = "segment"
 
-    HELP = "segmenter pipeline."
+    HELP = "segment pipeline."
     HELP_SOURCE = "Table to read normalized messages."
     HELP_MSG_DEST = "Table to write segmented messages."
     HELP_FRAGMENT_TBL = "Table to read and write fragments."
@@ -35,7 +34,7 @@ class Segment(Command):
     HELP_BAD_HOUR = "Hours on either side of an hour with bad satellite timing to suppress."
     HELP_MAX_OFFSET = "Max. offset (in seconds) of a satellite clock before we drop its messages."
     HELP_DATE_RANGE = "Range of dates to read from source. Format 'YYYY-MM-DD,YYYY-MM-DD'."
-    HELP_WAIT = "Wait until the job finishes before returning."
+    HELP_WAIT_FOR_JOB = "Wait until the job finishes before returning."
 
     HELP_SEGMENTER_PARAMS = (
         "JSON object with fragmenter parameters, or filepath @path/to/file.json. "
@@ -80,7 +79,7 @@ class Segment(Command):
         add("--bad_hour_padding", type=int, default=1, metavar=' ', help=cls.HELP_BAD_HOUR)
         add("--max_timing_offset_s", type=int, default=30, metavar=' ', help=cls.HELP_MAX_OFFSET)
         add("--date_range", metavar=' ', help=cls.HELP_DATE_RANGE)
-        add("--wait_for_job", default=False, action="store_true", help=cls.HELP_WAIT)
+        add("--wait_for_job", action="store_true", help=cls.HELP_WAIT_FOR_JOB)
         add("--segmenter_params", default="{}", metavar=' ', help=cls.HELP_SEGMENTER_PARAMS)
         add("--merge_params", default="{}", metavar=' ', help=cls.HELP_MERGE_PARAMS)
         add("--ssvid_filter_query", metavar=' ', help=cls.HELP_SSVID_FILTER)
@@ -88,12 +87,4 @@ class Segment(Command):
 
     @classmethod
     def run(cls, args, extra_args):
-        logger.info("Running pipe segment command...")
         pipeline.run(args, extra_args)
-
-    @staticmethod
-    def formatter():
-        def argparse_formatter(prog):
-            return argparse.HelpFormatter(prog, max_help_position=50)
-
-        return argparse_formatter

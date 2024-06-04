@@ -1,6 +1,6 @@
 #!/bin/bash
 
-docker compose run dev segment_identity_daily \
+docker compose run --entrypoint pipe dev segment_identity \
 	--date_range='2024-04-12,2024-04-12' \
 	--source_segments=bq://world-fishing-827:scratch_tomas_ttl30d.segments_ \
 	--source_fragments=bq://world-fishing-827:scratch_tomas_ttl30d.fragments_ \

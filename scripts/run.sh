@@ -31,7 +31,7 @@ case $1 in
     ;;
 
   segment_identity_daily)
-    python -m pipe_segment.segment_identity "${@:2}"
+    pipe segment_identity "${@:2}"
   ;;
 
   segment_vessel_daily)
