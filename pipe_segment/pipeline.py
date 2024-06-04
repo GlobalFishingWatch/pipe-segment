@@ -1,30 +1,33 @@
-import logging
-from datetime import datetime, timedelta
-from typing import List
-
 import apache_beam as beam
+import datetime
+import logging
 import pytz
 import ujson
-from apache_beam.options.pipeline_options import (GoogleCloudOptions,
-                                                  StandardOptions)
+
+from apache_beam.options.pipeline_options import (GoogleCloudOptions, StandardOptions)
 from apache_beam.runners import PipelineState
+
+from datetime import timedelta
+
 from pipe_segment import message_schema, segment_schema
 from pipe_segment.models.bigquery_message_source import BigQueryMessagesSource
 from pipe_segment.options.segment import SegmentOptions
 from pipe_segment.transform.create_segment_map import CreateSegmentMap
 from pipe_segment.transform.create_segments import CreateSegments
-from pipe_segment.transform.filter_bad_satellite_times import \
-    FilterBadSatelliteTimes
+from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
 from pipe_segment.transform.fragment import Fragment
 from pipe_segment.transform.invalid_values import filter_invalid_values
 from pipe_segment.transform.read_fragments import ReadFragments
 from pipe_segment.transform.read_messages import ReadMessages
 from pipe_segment.transform.satellite_offsets import SatelliteOffsets, SatelliteOffsetsWrite
-from pipe_segment.transform.tag_with_fragid_and_timebin import \
-    TagWithFragIdAndTimeBin
+from pipe_segment.transform.tag_with_fragid_and_timebin import TagWithFragIdAndTimeBin
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
-from pipe_segment.transform.write_date_sharded import WriteDateSharded
+from pipe_segment.transform.write_sink import WriteSink
 from pipe_segment.transform.whitelist_messages_segmented import WhitelistFields
+from pipe_segment.utils.bqtools import BigQueryTools
+from pipe_segment.utils.ver import get_pipe_ver
+
+from typing import List
 
 from .tools import as_timestamp, datetimeFromTimestamp
 
@@ -38,14 +41,12 @@ def safe_date(ts):
         return None
     return datetimeFromTimestamp(ts).date()
 
-
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
     return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
 
-
 def time_bin_ndx(dtime, time_bins):
-    reltime = dtime - datetime(dtime.year, dtime.month, dtime.day, tzinfo=pytz.UTC)
+    reltime = dtime - datetime.datetime(dtime.year, dtime.month, dtime.day, tzinfo=pytz.UTC)
     ndx = int(time_bins * (reltime / timedelta(hours=24)))
     assert 0 <= ndx < time_bins
     return ndx
@@ -62,6 +63,7 @@ class SegmentPipeline:
         self.options = options.view_as(SegmentOptions)
         self.date_range = parse_date_range(self.options.date_range)
         self.satellite_offsets_writer = None
+        self.bqtools = BigQueryTools(project=self.cloud_options.project)
 
     @property
     def merge_params(self):
@@ -76,12 +78,55 @@ class SegmentPipeline:
         return [BigQueryMessagesSource(table_id=source)
                 for source in self.options.source.split(",")]
 
+    @property
+    def destination_tables(self):
+        ver = get_pipe_ver()
+        return dict(
+            messages={
+                "table": self.options.msg_dest,
+                "schema": message_schema.message_output_schema,
+                "description": f"Created by the pipe-segment:{ver}. Daily satellite messages segmented processed in segment step.",
+            },
+            segments={
+                "table": self.options.segment_dest,
+                "schema": segment_schema.segment_schema,
+                "description": f"Created by the pipe-segment:{ver}. Daily segments processed in segment step.",
+            },
+            fragments={
+                "table": self.options.fragment_tbl,
+                "schema": Fragment.schema,
+                "description": f"Created by the pipe-segment:{ver}. Daily fragments processed in segment step.",
+            }
+        )
+
+    @property
+    def write(self):
+        return dict(
+            messages=WriteSink(
+                self.destination_tables["messages"]["table"],
+                self.destination_tables["messages"]["schema"],
+                self.destination_tables["messages"]["description"]
+            ),
+            segments=WriteSink(
+                self.destination_tables["segments"]["table"],
+                self.destination_tables["segments"]["schema"],
+                self.destination_tables["segments"]["description"]
+            ),
+            fragments=WriteSink(
+                self.destination_tables["fragments"]["table"],
+                self.destination_tables["fragments"]["schema"],
+                self.destination_tables["fragments"]["description"]
+            ),
+        )
+
     # TODO: consider breaking up
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.options)
 
-        start_date = safe_date(self.date_range[0])
-        end_date = safe_date(self.date_range[1])
+        start_date=safe_date(self.date_range[0])
+        end_date=safe_date(self.date_range[1])
+
+        self.bqtools.ensure_sharded_tables_creation(start_date, end_date, self.destination_tables)
 
         messages = (
             pipeline
@@ -134,9 +179,7 @@ class SegmentPipeline:
         messages = fragmented[Fragment.OUTPUT_TAG_MESSAGES]
         new_fragments = fragmented[Fragment.OUTPUT_TAG_FRAGMENTS]
 
-        new_fragments | WriteDateSharded(
-            self.options.fragment_tbl, self.cloud_options.project, Fragment.schema
-        )
+        new_fragments | "WriteFragments" >> self.write["fragments"]
 
         existing_fragments = pipeline | ReadFragments(
             self.options.fragment_tbl,
@@ -171,12 +214,7 @@ class SegmentPipeline:
             | "GroupMsgsWithMap" >> beam.CoGroupByKey()
             | "TagMsgsWithSegId" >> TagWithSegId()
             | "WhitelistFields" >> WhitelistFields()
-            | "WriteMessages"
-            >> WriteDateSharded(
-                self.options.msg_dest,
-                self.cloud_options.project,
-                message_schema.message_output_schema,
-            )
+            | "WriteMessages" >> self.write["messages"]
         )
 
         frag_segmap = segmap_src | "AddFragidKey" >> beam.Map(
@@ -198,12 +236,7 @@ class SegmentPipeline:
             >> beam.Filter(
                 lambda x: start_date <= timestamp_to_date(x["timestamp"]) <= end_date
             )
-            | "WriteSegments"
-            >> WriteDateSharded(
-                self.options.segment_dest,
-                self.cloud_options.project,
-                segment_schema.segment_schema,
-            )
+            | "WriteSegments" >> self.write["segments"]
         )
 
         return pipeline
