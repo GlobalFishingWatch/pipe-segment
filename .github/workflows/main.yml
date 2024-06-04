@@ -2,7 +2,7 @@ name: main
 
 on:
   push:
-    branches: [main]
+    branches: [master, develop]
   pull_request:
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8"]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v4
@@ -35,12 +35,11 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-          # cache: 'pip' # fails if you don´t have requirements.txt on root.
+          # cache: 'pip' # fails if you don´t have requirements.txt or pyproject.toml on root dir.
   
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements/scheduler.txt
           pip install -r requirements/test.txt
           pip install -e .
     

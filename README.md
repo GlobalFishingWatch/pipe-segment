@@ -2,13 +2,15 @@
 
 <p align="center">
   <a href="https://codecov.io/gh/GlobalFishingWatch/pipe-segment">
-    <img alt="Coverage" src="https://codecov.io/gh/GlobalFishingWatch/pipe-segment/graph/badge.svg?token=OO2L9SXVG0">
+    <img alt="Coverage" src="https://codecov.io/gh/GlobalFishingWatch/pipe-segment/branch/develop/graph/badge.svg?token=OO2L9SXVG0">
   </a>
   <a>
-    <img alt="Python versions" src="https://img.shields.io/github/v/release/GlobalFishingWatch/pipe-segment">
+    <img alt="Python versions" src="https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue">
+  </a>
+  <a>
+    <img alt="Last release" src="https://img.shields.io/github/v/release/GlobalFishingWatch/pipe-segment">
   </a>
 </p>
-
 
 This repository contains the segment pipeline,
 a dataflow pipeline which divides vessel tracks into contiguous "segments",
@@ -25,7 +27,10 @@ which are broadcasting using the same MMSI at the same time.
 [pip-tools]: https://pip-tools.readthedocs.io/en/stable/
 [requirements/scheduler.in]: requirements/scheduler.in
 [requirements/worker.in]: requirements/worker.in
+[requirements/scheduler.txt]: requirements/scheduler.txt
+[requirements/worker.txt]: requirements/worker.txt
 [Semantic Versioning]: https://semver.org
+
 
 # How to run
 
@@ -90,13 +95,11 @@ docker compose run dev segment --help
 
 # How to contribute
 
-The pipeline is only tested on python 3.8 for the moment.
-Make sure you have that version installed.
 The [Makefile] should ease the development process.
 
 Create a virtual environment:
 ```shell
-python3.8 -m venv .venv
+make venv
 . .venv/bin/activate
 ```
 
@@ -127,11 +130,14 @@ Please refer to our [git workflow documentation] to know how to manage branches 
 
 ## Updating dependencies
 
-Requirements files are compiled with [pip-tools].
-Inside [requirements/scheduler.in] and [requirements/worker.in]
-production dependencies are specified with restrictions.
+We maintain two docker images with their own set of dependencies:
+- scheduler (launch environment): [requirements/scheduler.txt].
+- worker (runtime environment): [requirements/worker.txt].
 
-The [requirements/scheduler.in] is a superset of the [requirements/worker.in].
+The are compiled with [pip-tools] inside the docker container,
+using previously declared [requirements/scheduler.in] and [requirements/worker.in].
+
+The scheduler requirements are a superset of the worker requirements.
 Thus, if you changed something in [requirements/worker.in],
 you must also re-compile [requirements/scheduler.in].
 This is enforced using a unique Makefile command:
