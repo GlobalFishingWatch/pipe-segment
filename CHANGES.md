@@ -8,6 +8,40 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ## [UNRELEASED]
 
+## v3.4.1 - 2024-04-10
+
+* [PIPELINE-1875](https://globalfishingwatch.atlassian.net/browse/PIPELINE-1875): Ensure 
+  to set all fields mode None as NULLABLE
+
+## v3.4.0 - 2024-04-08
+
+* [PIPELINE-1875](https://globalfishingwatch.atlassian.net/browse/PIPELINE-1875): Ensure 
+  destination tables of pipe_segment steps are created even without data.
+
+## v3.3.0 - 2023-07-26
+
+### Added
+
+* [PIPELINE-1319](https://globalfishingwatch.atlassian.net/browse/PIPELINE-1319): Adds
+  support for runnig the code with `python-3.8` and updated the google sdk from
+  `2.40.0` to [2.49.0](https://github.com/apache/beam/releases/tag/v2.49.0).
+
+## v3.2.3 - 2022-08-02
+
+### Changed
+
+* [PIPELINE-946](https://globalfishingwatch.atlassian.net/browse/PIPELINE-946): Changes
+  how the `segment_identity_daily_` table was being saved. Issue detected when
+  running in back-fill mode, only saves one shard per backfill. Fix implies
+  saving one shard using `summary_timestamp` instead of from/to args.
+
+## v3.2.2 - 2022-07-21
+
+### Changed
+
+* [PIPELINE-914](https://globalfishingwatch.atlassian.net/browse/PIPELINE-914): Changes
+  version of `Apache Beam` from `2.35.0` to [2.40.0](https://beam.apache.org/blog/beam-2.40.0/).
+
 ## v3.2.1 - 2022-04-19
 
 ### Removed
