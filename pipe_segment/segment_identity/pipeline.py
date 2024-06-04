@@ -2,30 +2,32 @@ import datetime as dt
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import GoogleCloudOptions
+
 from pipe_segment.segment_identity.options import SegmentIdentityOptions
 from pipe_segment.segment_identity.read_source import ReadSource
 from pipe_segment.segment_identity.transforms import (rename_timestamp,
                                                       summarize_identifiers,
                                                       write_sink)
+from pipe_segment.utils.bqtools import BigQueryTools
+from pipe_segment.utils.ver import get_pipe_ver
 
-from ..tools import as_timestamp
+from ..tools import as_timestamp, datetimeFromTimestamp
 
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
     return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
 
 
-timezoneToDatetime = lambda ts: dt.datetime.fromtimestamp(ts, tz=dt.timezone.utc)
-
-
 class SegmentIdentityPipeline:
     def __init__(self, options):
         self.options = options.view_as(SegmentIdentityOptions)
+        self.cloud_options = options.view_as(GoogleCloudOptions)
         self.date_range = parse_date_range(self.options.date_range)
+        self.bqtools = BigQueryTools(project=self.cloud_options.project)
 
     @property
     def temp_gcs_location(self):
-        return self.options.view_as(GoogleCloudOptions).temp_location
+        return self.cloud_options.temp_location
 
     @property
     def dest_segment_identity_schema(self):
@@ -267,17 +269,27 @@ class SegmentIdentityPipeline:
         return beam.Map(rename_timestamp)
 
     @property
+    def destination_tables(self):
+        return dict(
+            segment_identity={
+                "table": self.options.dest_segment_identity,
+                "schema": self.dest_segment_identity_schema,
+                "description": f"Created by the pipe-segment: {get_pipe_ver()}. Daily segments identity processed in segment step.",
+            })
+
+    @property
     def dest_segment_identity(self):
-        from_ts, _ = self.date_range
         return write_sink(
-            self.options.dest_segment_identity,
-            self.dest_segment_identity_schema,
-            timezoneToDatetime(from_ts),
-            "Daily segments identity processed in segment step.",
+            self.destination_tables["segment_identity"]["table"],
+            self.destination_tables["segment_identity"]["schema"],
+            self.destination_tables["segment_identity"]["description"]
         )
 
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.options)
+
+        start_dt, end_dt = [datetimeFromTimestamp(ts) for ts in self.date_range]
+        self.bqtools.ensure_sharded_tables_creation(start_dt, end_dt, self.destination_tables, key="summary_timestamp")
 
         (
             pipeline

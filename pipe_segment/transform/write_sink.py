@@ -1,16 +1,12 @@
 import apache_beam as beam
-
-BQ_PARAMS = {
-    "destinationTableProperties": {
-        "description": "Daily satellite messages.",
-    },
-}
+from ..tools import datetimeFromTimestamp
 
 class WriteSink(beam.PTransform):
-    def __init__(self, sink_table, schema, description=None):
+    def __init__(self, sink_table, schema, description=None, key="timestamp"):
         self.sink_table = sink_table.replace('bq://','')
         self.schema = schema
         self.description = description
+        self.key = key
 
     def expand(self, pcoll):
         return (
@@ -19,12 +15,11 @@ class WriteSink(beam.PTransform):
         )
 
     def write_sink(self):
-        bq_params_cp = dict(BQ_PARAMS)
-        bq_params_cp['destinationTableProperties']['description'] = self.description
+        bq_params_cp = {"destinationTableProperties":{"description": self.description}}
 
         def compute_table(message):
-            table_suffix = message["timestamp"].strftime("%Y%m%d")
-            return "{}{}".format(self.sink_table, table_suffix)
+            table_suffix = datetimeFromTimestamp(message[self.key]).strftime("%Y%m%d")
+            return f"{self.sink_table}{table_suffix}"
 
         return beam.io.WriteToBigQuery(
             compute_table,
