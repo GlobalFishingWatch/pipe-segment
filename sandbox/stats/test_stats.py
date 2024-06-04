@@ -2,7 +2,7 @@ import pytest
 import itertools as it
 import collections
 
-from pipe_segment import stats
+import stats
 
 
 # recipe from itertools documentation
