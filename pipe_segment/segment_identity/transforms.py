@@ -112,7 +112,7 @@ def rename_timestamp(record):
     return result
 
 
-def write_sink(sink_table, schema, from_dt, description):
+def write_sink(sink_table, schema, description):
     sink_table = sink_table.replace("bq://", "")
 
     def compute_table(message):
