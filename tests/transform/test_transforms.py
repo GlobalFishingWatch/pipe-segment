@@ -246,7 +246,7 @@ class TestTransforms:
 
         messages_out, segments_out = self._run_segment(messages_in, temp_dir=temp_dir)
         seg_stats = set([(seg["seg_id"], seg["msg_count"]) for seg in segments_out])
-        print(segments_out)
+
         expected = {
             ("257666800-2017-11-15T11:14:32.000000Z-1", 1),
             ("257666800-2017-11-26T11:20:16.000000Z-1", 1),
