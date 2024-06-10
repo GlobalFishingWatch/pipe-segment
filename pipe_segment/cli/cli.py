@@ -57,7 +57,7 @@ class CLI:
     def _setup_logger(self):
         logging.basicConfig(
             level=logging.INFO,
-            format=self.LOG_FORMAT, handlers=[RichHandler(level="NOTSET")], force=False)
+            format=self.LOG_FORMAT, handlers=[RichHandler(level="NOTSET")], force=True)
         # force = True is needed because some other library is setting the root logger.
 
         for module in self.LOG_LEVEL_WARNING:
