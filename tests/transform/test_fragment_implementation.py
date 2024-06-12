@@ -1,10 +1,7 @@
-import sys
 import json
 from datetime import datetime, timezone
 
-print(sys.path)
-
-from pipe_segment.transform import fragment_implementation  # noqa: E402
+from pipe_segment.transform import fragment_implementation
 
 
 def read_json(path, ndx=0):
