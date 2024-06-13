@@ -14,10 +14,10 @@ def by_day(
     for x in items:
         new_day = datetimeFromTimestamp(x[key]).date()
         if new_day != day:
-            assert len(current) > 0
             yield day, current
+
             current = []
             day = new_day
         current.append(x)
-    assert len(current) > 0
+
     yield day, current
