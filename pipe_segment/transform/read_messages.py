@@ -14,7 +14,7 @@ class ReadMessages(beam.PTransform):
         sources,
         start_date,
         end_date,
-        ssvid_filter_query,
+        ssvid_filter_query=None,
     ):
         self.sources: List[BigQueryMessagesSource] = sources
         self.start_date = start_date
@@ -40,9 +40,9 @@ class ReadMessages(beam.PTransform):
         return query
 
     def expand(self, pcoll):
-        return (
+        return [
             pcoll
             | f"ReadFromSrc{i}"
             >> beam.io.ReadFromBigQuery(query=self.query(src), use_standard_sql=True)
             for i, src in enumerate(self.sources)
-        ) | beam.Flatten()
+        ] | beam.Flatten()
