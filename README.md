@@ -25,12 +25,13 @@ which are broadcasting using the same MMSI at the same time.
 [git workflow documentation]: GIT-WORKFLOW.md
 [Makefile]: Makefile
 [pip-tools]: https://pip-tools.readthedocs.io/en/stable/
-[requirements/scheduler.in]: requirements/scheduler.in
-[requirements/worker.in]: requirements/worker.in
-[requirements/scheduler.txt]: requirements/scheduler.txt
-[requirements/worker.txt]: requirements/worker.txt
+[requirements.txt]: requirements.txt
+[requirements/prod.in]: requirements/prod.in
 [Semantic Versioning]: https://semver.org
 
+
+If you are going to be contribuiting, jump directly to the [How to contribute](#how-to-contribute) section.
+If you just want to run the pipeline, use the following instructions.
 
 # How to run
 
@@ -45,26 +46,32 @@ git clone git@github.com:GlobalFishingWatch/pipe-segment.git
 Install Docker Engine using the [docker official instructions] (avoid snap packages)
 and the [docker compose plugin]. No other dependencies are required.
 
-## Building docker images
-
-To build the docker image, run:
-```bash
-docker compose build
-```
-
 ## Google Cloud setup
 
 The pipeline reads it's input from (and write its output to) BigQuery,
 so you need to first authenticate with your google cloud account inside the docker images.
-To do that, you need to run this command and follow the instructions:
+
+1. Create external volume to share GCP authentication across containers:
+```bash
+docker volume create --name=gcp
+```
+
+2. Run authentication service
 ```bash
 docker compose run gcloud auth application-default login
 ```
 
-You also need to configure the project:
+3. Configure the project:
 ```bash
 docker compose run gcloud config set project world-fishing-827
 docker compose run gcloud auth application-default set-quota-project world-fishing-827
+```
+
+## Building docker image
+
+To build the docker image, run:
+```bash
+docker compose build
 ```
 
 ## CLI
@@ -97,10 +104,21 @@ docker compose run dev segment --help
 
 The [Makefile] should ease the development process.
 
+## Git Workflow
+
+Please refer to our [git workflow documentation] to know how to manage branches in this repository.
+
+## Setup the environment
+
 Create a virtual environment:
 ```shell
 make venv
 . .venv/bin/activate
+```
+
+Authenticate to google cloud and set up project (not necessary if you already did it on this machine):
+```shell
+make gcp
 ```
 
 Install dependencies:
@@ -115,7 +133,7 @@ make test
 
 Alternatively, you can run the unit tests inside the docker container:
 ```shell
-docker compose build
+make build
 make testdocker
 ```
 
@@ -124,29 +142,17 @@ Run all tests in docker including ones that hit some GCP API (**currently failin
 make testdocker-all
 ```
 
-## Git Workflow
-
-Please refer to our [git workflow documentation] to know how to manage branches in this repository.
-
 ## Updating dependencies
 
-We maintain two docker images with their own set of dependencies:
-- scheduler (launch environment): [requirements/scheduler.txt].
-- worker (runtime environment): [requirements/worker.txt].
+The [requirements.txt] contains all transitive dependencies pinned to specific versions.
+This file is compiled automatically with [pip-tools], based on [requirements/prod.in].
 
-The are compiled with [pip-tools] inside the docker container,
-using previously declared [requirements/scheduler.in] and [requirements/worker.in].
+Use [requirements/prod.in] to specify high-level dependencies with restrictions.
+Do not modify [requirements.txt] manually.
 
-The scheduler requirements are a superset of the worker requirements.
-Thus, if you changed something in [requirements/worker.in],
-you must also re-compile [requirements/scheduler.in].
-This is enforced using a unique Makefile command:
+To re-compile dependencies, just run
 ```shell
-make requirements-worker
-```
-If you only modified something in [requirements/scheduler.in], you can just run
-```shell
-make requirements-scheduler
+make requirements
 ```
 
 If you want to upgrade all dependencies to latest available versions
