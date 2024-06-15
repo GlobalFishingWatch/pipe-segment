@@ -939,3 +939,9 @@ class TestInvalidData:
         actual = [filter_invalid_values(x) for x in source]
 
         assert expected == actual
+
+
+def test_no_validator():
+    element = {"type": "DUMMY"}
+
+    assert filter_invalid_values(element) == element
