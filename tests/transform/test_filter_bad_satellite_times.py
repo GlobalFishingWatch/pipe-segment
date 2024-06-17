@@ -223,7 +223,7 @@ def test_beam():
         },
     ]
     with TestPipeline() as p:
-        input_pcoll = p | beam.Create(messages)
         pcoll_sat_offsets = p | "CreateSatOffsets" >> beam.Create(satellite_offsets)
 
+        input_pcoll = p | beam.Create(messages)
         input_pcoll | FilterBadSatelliteTimes(pcoll_sat_offsets, 30, 1)

@@ -6,7 +6,7 @@ import apache_beam as beam
 import logging
 import functools
 from apache_beam import PTransform, io
-from google.api_core.exceptions import (NotFound, BadRequest)
+from google.api_core.exceptions import NotFound, BadRequest
 from google.cloud import bigquery
 from pipe_segment.version import __version__
 
@@ -128,7 +128,7 @@ class SatelliteOffsets(PTransform):
     Example
     -------
 
-        offsets = pipesline | SatelliteOffsets(start_date, end_date)
+        offsets = pipeline | SatelliteOffsets(start_date, end_date)
     """
 
     def __init__(self, source_table, norad_to_receiver_tbl, sat_positions_tbl,
