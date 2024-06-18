@@ -1,5 +1,3 @@
-import os
-import posixpath
 import pytest
 
 
@@ -22,12 +20,3 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "slow" in item.keywords:
             item.add_marker(skip_slow)
-
-
-TESTS_DIR = os.path.dirname(os.path.realpath(__file__))
-TEST_DATA_DIR = posixpath.join(TESTS_DIR, 'data')
-
-
-@pytest.fixture(scope='session')
-def test_data_dir():
-    return TEST_DATA_DIR

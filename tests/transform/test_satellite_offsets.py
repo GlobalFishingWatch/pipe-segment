@@ -73,13 +73,11 @@ class BigQueryClientMock:
 
 
 class OptionsMock:
-    sat_source = "dummy_table"
-    source_norad = "dummy_table"
-    source_sat_positions = "dummy_table"
-    sat_offset_dest = "project.dummy_table"
-    norad_to_receiver_tbl = "dummy_table"
-    sat_positions_tbl = "dummy_table"
     date_range = '2024-01-01, 2024-01-01'
+    in_normalized_sat_offset_messages_table = "project.dummy_table"
+    in_norad_to_receiver_table = "project.dummy_table"
+    in_sat_positions_table = "project.dummy_table"
+    out_sat_offsets_table = "project.dummy_table"
 
 
 class CloudOptionsMock:
@@ -93,7 +91,7 @@ def test_satellite_offsets(monkeypatch):
     monkeypatch.setattr(beam.io, "WriteToBigQuery", ReadFromBigQueryMock)
 
     remove_sat_offsets_config = dict(
-        destination_table=OptionsMock.sat_offset_dest,
+        destination_table=OptionsMock.out_sat_offsets_table,
         date_range=OptionsMock.date_range,
         project=CloudOptionsMock.project,
         labels_list=CloudOptionsMock.labels

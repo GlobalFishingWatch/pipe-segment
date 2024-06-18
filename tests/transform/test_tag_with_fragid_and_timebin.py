@@ -17,18 +17,21 @@ def test_tag_with_fragid_and_timebin():
     middle_date = date(2024, 1, 2)
 
     frag_id = 1234
+    ssvid = "44332211"
 
     op = TagWithFragIdAndTimeBin(
         start_date=start_date, end_date=end_date, bins_per_day=bins_per_day)
 
-    _input = {"frag_id": frag_id, "date": middle_date}
+    _input = {"ssvid": ssvid, "frag_id": frag_id, "date": middle_date}
 
     res = list(op.tag_frags(_input))
     for bin_idx in range(bins_per_day):
-        assert res[bin_idx] == ((frag_id, str(middle_date), bin_idx), _input)
+        assert res[bin_idx] == ((ssvid, frag_id, str(middle_date), bin_idx), _input)
 
     with pytest.raises(StopIteration):
-        _input_out_of_range = {"frag_id": frag_id, "date": start_date - timedelta(days=1)}
+        _input_out_of_range = {
+            "ssvid": ssvid, "frag_id": frag_id, "date": start_date - timedelta(days=1)}
+
         res = next(op.tag_frags(_input_out_of_range))
 
     # Beam
