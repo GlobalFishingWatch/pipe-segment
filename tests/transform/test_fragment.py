@@ -208,21 +208,21 @@ class TestTransforms:
             assert list_contains(messages, messages_in)
             return messages, segments
 
-    def test_segment_empty(self, temp_dir):
-        self._run_segment([], temp_dir=temp_dir)
+    def test_segment_empty(self, tmp_path):
+        self._run_segment([], temp_dir=tmp_path)
 
-    def test_segment_single(self, temp_dir):
+    def test_segment_single(self, tmp_path):
         messages_in = [{"ssvid": 1, "timestamp": self.ts, "type": "AIS.1"}]
-        messages_out, segments_out = self._run_segment(messages_in, temp_dir=temp_dir)
+        messages_out, segments_out = self._run_segment(messages_in, temp_dir=tmp_path)
 
-    def test_segment_segments_in(self, temp_dir):
+    def test_segment_segments_in(self, tmp_path):
         messages_in = [{"ssvid": "1", "timestamp": self.ts, "type": "AIS.1"}]
-        messages_out, segments_out = self._run_segment(messages_in, temp_dir=temp_dir)
+        messages_out, segments_out = self._run_segment(messages_in, temp_dir=tmp_path)
         assert (
             messages_out[0]["seg_id"] is None
         )  # No longer assign seg ids to noise segments
 
-    def test_expected_segments(self, temp_dir):
+    def test_expected_segments(self, tmp_path):
         messages_in = [
             {
                 "timestamp": as_timestamp("2017-11-15T11:14:32.000000Z"),
@@ -244,7 +244,7 @@ class TestTransforms:
             },
         ]
 
-        messages_out, segments_out = self._run_segment(messages_in, temp_dir=temp_dir)
+        messages_out, segments_out = self._run_segment(messages_in, temp_dir=tmp_path)
         seg_stats = set([(seg["seg_id"], seg["msg_count"]) for seg in segments_out])
 
         expected = {
@@ -253,7 +253,7 @@ class TestTransforms:
         }
         assert seg_stats == expected
 
-    def test_message_type(self, temp_dir):
+    def test_message_type(self, tmp_path):
         messages_in = [
             {
                 "timestamp": as_timestamp("2018-01-01 00:00"),
@@ -304,7 +304,7 @@ class TestTransforms:
             },
         ]
 
-        messages_out, segments_out = self._run_segment(messages_in, temp_dir=temp_dir)
+        messages_out, segments_out = self._run_segment(messages_in, temp_dir=tmp_path)
         seg_stats = {
             (
                 seg["seg_id"],
