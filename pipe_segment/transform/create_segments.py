@@ -70,4 +70,4 @@ class CreateSegments(beam.PTransform):
             yield seg
 
     def expand(self, xs):
-        return xs | beam.FlatMap(self.update_msgs) | beam.LogElements(level=logging.INFO)
+        return xs | beam.FlatMap(self.update_msgs)
