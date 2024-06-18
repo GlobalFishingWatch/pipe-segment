@@ -94,7 +94,6 @@ class CreateSegmentMap(beam.PTransform):
             ordered_scores = self.compute_ordered_scores(
                 open_segs.items(), new_fragments, frag_map
             )
-            #
             active_segs = {}
             stale_keys: Set[str] = set()
             while (item := get_next(ordered_scores, stale_keys)) is not None:
