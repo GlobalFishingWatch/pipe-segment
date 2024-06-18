@@ -11,7 +11,7 @@ from apache_beam.runners import PipelineState
 
 from datetime import timedelta
 
-from pipe_segment import message_schema, segment_schema
+from pipe_segment.schemas import message_schema, segment_schema
 from pipe_segment.models.bigquery_message_source import BigQueryMessagesSource
 from pipe_segment.transform.create_segment_map import CreateSegmentMap
 from pipe_segment.transform.create_segments import CreateSegments
