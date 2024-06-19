@@ -1,15 +1,14 @@
-import apache_beam as beam
-import datetime
-import logging
-import pytz
+# import datetime
 import ujson
+import logging
+from datetime import date, timezone, datetime, timedelta
+
+import apache_beam as beam
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions, StandardOptions, PipelineOptions
 )
 
 from apache_beam.runners import PipelineState
-
-from datetime import timedelta
 
 from pipe_segment.schemas import message_schema, segment_schema
 from pipe_segment.models.bigquery_message_source import BigQueryMessagesSource
@@ -31,19 +30,19 @@ from pipe_segment.version import __version__
 
 from typing import List
 
-from .tools import as_timestamp, datetimeFromTimestamp
+from .tools import as_timestamp, datetime_from_timestamp
 
 logger = logging.getLogger(__name__)
 
 
-def timestamp_to_date(ts: float) -> datetime.date:
-    return datetimeFromTimestamp(ts).date()
+def timestamp_to_date(ts: float) -> date:
+    return datetime_from_timestamp(ts).date()
 
 
 def safe_date(ts):
     if ts is None:
         return None
-    return datetimeFromTimestamp(ts).date()
+    return datetime_from_timestamp(ts).date()
 
 
 def parse_date_range(s):
@@ -52,7 +51,7 @@ def parse_date_range(s):
 
 
 def time_bin_ndx(dtime, time_bins):
-    reltime = dtime - datetime.datetime(dtime.year, dtime.month, dtime.day, tzinfo=pytz.UTC)
+    reltime = dtime - datetime(dtime.year, dtime.month, dtime.day, tzinfo=timezone.utc)
     ndx = int(time_bins * (reltime / timedelta(hours=24)))
     assert 0 <= ndx < time_bins
     return ndx

@@ -1,8 +1,8 @@
-import datetime as dt
 import logging
+
+from datetime import datetime, timezone, time
 from collections import Counter
 
-import pytz
 from gpsdio_segment.segmenter import Segmenter as Fragmenter
 
 logger = logging.getLogger(__file__)
@@ -54,7 +54,7 @@ class FragmentImplementation(object):
 
     @staticmethod
     def _as_datetime(x):
-        return dt.datetime.combine(x, dt.time()).replace(tzinfo=pytz.utc)
+        return datetime.combine(x, time()).replace(tzinfo=timezone.utc)
 
     def _convert_messages_out(self, msg, frag_id):
         msg = msg.copy()

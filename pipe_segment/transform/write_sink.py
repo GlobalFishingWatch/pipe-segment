@@ -1,5 +1,5 @@
 import apache_beam as beam
-from ..tools import datetimeFromTimestamp
+from ..tools import datetime_from_timestamp
 
 
 class WriteSink(beam.PTransform):
@@ -19,7 +19,7 @@ class WriteSink(beam.PTransform):
         bq_params_cp = {"destinationTableProperties": {"description": self.description}}
 
         def compute_table(message):
-            table_suffix = datetimeFromTimestamp(message[self.key]).strftime("%Y%m%d")
+            table_suffix = datetime_from_timestamp(message[self.key]).strftime("%Y%m%d")
             return f"{self.sink_table}{table_suffix}"
 
         return beam.io.WriteToBigQuery(
