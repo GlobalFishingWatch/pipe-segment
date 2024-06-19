@@ -23,7 +23,7 @@ from pipe_segment.segment_identity.transforms import (rename_timestamp,
 from pipe_segment.utils.bqtools import BigQueryTools
 from pipe_segment.version import __version__
 
-from ..tools import as_timestamp, datetimeFromTimestamp
+from ..tools import as_timestamp, datetime_from_timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -335,7 +335,7 @@ class SegmentIdentityPipeline:
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.beam_options)
 
-        start_dt, end_dt = [datetimeFromTimestamp(ts) for ts in self.date_range]
+        start_dt, end_dt = [datetime_from_timestamp(ts) for ts in self.date_range]
         self.bqtools.ensure_sharded_tables_creation(
             start_dt, end_dt, self.destination_tables, key="summary_timestamp")
 

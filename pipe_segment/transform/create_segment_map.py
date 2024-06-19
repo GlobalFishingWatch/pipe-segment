@@ -4,7 +4,7 @@ import apache_beam as beam
 from gpsdio_segment.matcher import Matcher
 from typing import Iterable, Generator, Any, Optional, List, Tuple, Set, Dict
 
-from ..tools import datetimeFromTimestamp
+from ..tools import datetime_from_timestamp
 from .util import by_day
 
 
@@ -34,7 +34,7 @@ class CreateSegmentMap(beam.PTransform):
             k: frag[f"{end}_msg_{k}"]
             for k in ["timestamp", "lon", "lat", "speed", "course"]
         }
-        msg["timestamp"] = datetimeFromTimestamp(msg["timestamp"])
+        msg["timestamp"] = datetime_from_timestamp(msg["timestamp"])
         return msg
 
     def compute_pair_score(self, frag0, frag1):
