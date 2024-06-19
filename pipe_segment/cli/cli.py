@@ -57,8 +57,8 @@ class CLI:
             format=self.LOG_FORMAT, handlers=[RichHandler(level="NOTSET")], force=True)
         # force = True is needed because some other library is setting the root logger.
 
-        for module in self.SUPRESS_LOG:
-            logging.getLogger(module).setLevel(logging.ERROR)
+        for module in self.LOG_LEVEL_WARNING:
+            logging.getLogger(module).setLevel(logging.WARNING)
 
 
 class PIPE(CLI):
@@ -66,8 +66,8 @@ class PIPE(CLI):
     DESCRIPTION = 'Executes a GFW pipeline.'
     LOG_FORMAT = '%(name)s - %(message)s'
 
-    # packages / moudules for which to supress any log level except ERROR.
-    SUPRESS_LOG = [
+    # packages / moudules for which to set the log level as WARNING.
+    LOG_LEVEL_WARNING = [
         "apache_beam.io.gcp",
     ]
 
