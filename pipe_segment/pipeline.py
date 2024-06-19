@@ -297,6 +297,7 @@ class SegmentPipeline:
             self.options.wait_for_job
             or self.beam_options.view_as(StandardOptions).runner == "DirectRunner"
         ):
+            logger.info("Waiting until job is done")
             result.wait_until_finish()
             if (result.state == PipelineState.DONE and self.satellite_offsets_writer):
                 self.satellite_offsets_writer.update_table_description()

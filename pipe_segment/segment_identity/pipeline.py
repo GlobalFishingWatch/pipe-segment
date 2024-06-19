@@ -1,15 +1,32 @@
-import apache_beam as beam
-from apache_beam.options.pipeline_options import GoogleCloudOptions
+################################################################################
+# This file contains the segment identity pipeline. This is a hotfix for
+# pipeline 2.5, and we won't be porting this fix to pipeline 3.0 an onwards, so
+# I tried to make it self contained so that we don't have any merge conflicts
+# or problems deleting this in the future.
+#
+# The purpose of this pipeline is to take the data that comes out of the new
+# segmenter, which contains data per segment, and generate the
+# `segment_identity_daily` table, which summarizes identity information per
+# segment.
+################################################################################
+import logging
 
-from pipe_segment.segment_identity.options import SegmentIdentityOptions
+import apache_beam as beam
+from apache_beam.runners import PipelineState
+from apache_beam.options.pipeline_options import (
+    GoogleCloudOptions, StandardOptions, PipelineOptions)
+
 from pipe_segment.segment_identity.read_source import ReadSource
 from pipe_segment.segment_identity.transforms import (rename_timestamp,
                                                       summarize_identifiers,
                                                       write_sink)
 from pipe_segment.utils.bqtools import BigQueryTools
-from pipe_segment.utils.ver import get_pipe_ver
+from pipe_segment.version import __version__
 
 from ..tools import as_timestamp, datetimeFromTimestamp
+
+logger = logging.getLogger(__name__)
+
 
 DESCRIPTION_COUNT = "Number of times the unique field value occured for this segment for this day"
 DESCRIPTION_SHIPNAME = "Array of unique shipnames (unnormalized) for this segment for this day."
@@ -260,11 +277,18 @@ def parse_date_range(s):
 
 
 class SegmentIdentityPipeline:
-    def __init__(self, options):
-        self.options = options.view_as(SegmentIdentityOptions)
-        self.cloud_options = options.view_as(GoogleCloudOptions)
+    def __init__(self, options, beam_options):
+        self.options = options
+        self.beam_options = beam_options
+        self.cloud_options = beam_options.view_as(GoogleCloudOptions)
         self.date_range = parse_date_range(self.options.date_range)
         self.bqtools = BigQueryTools(project=self.cloud_options.project)
+
+    @classmethod
+    def build(cls, options, beam_args):
+        beam_options = PipelineOptions(beam_args)
+
+        return cls(options, beam_options)
 
     @property
     def temp_gcs_location(self):
@@ -296,7 +320,7 @@ class SegmentIdentityPipeline:
             segment_identity={
                 "table": self.options.dest_segment_identity,
                 "schema": self.dest_segment_identity_schema,
-                "description": f"""Created by the pipe-segment: {get_pipe_ver()}.
+                "description": f"""Created by the pipe-segment: {__version__}.
                 Daily segments identity processed in segment step.""",
             })
 
@@ -309,7 +333,7 @@ class SegmentIdentityPipeline:
         )
 
     def pipeline(self):
-        pipeline = beam.Pipeline(options=self.options)
+        pipeline = beam.Pipeline(options=self.beam_options)
 
         start_dt, end_dt = [datetimeFromTimestamp(ts) for ts in self.date_range]
         self.bqtools.ensure_sharded_tables_creation(
@@ -325,4 +349,29 @@ class SegmentIdentityPipeline:
         return pipeline
 
     def run(self):
-        return self.pipeline().run()
+        logger.info("Building pipeline...")
+        pipe = self.pipeline()
+
+        logger.info("Running pipeline...")
+        result = pipe.run()
+
+        success_states = set([PipelineState.DONE])
+
+        if (
+            self.options.wait_for_job
+            or self.beam_options.view_as(StandardOptions).runner == "DirectRunner"
+        ):
+            logger.info("Waiting until job is done")
+            result.wait_until_finish()
+        else:
+            success_states.add(PipelineState.RUNNING)
+            success_states.add(PipelineState.UNKNOWN)
+            success_states.add(PipelineState.PENDING)
+
+        logger.info("returning with result.state=%s" % result.state)
+
+        return 0 if result.state in success_states else 1
+
+
+def run(*args, **kwargs):
+    return SegmentIdentityPipeline.build(*args, **kwargs).run()
