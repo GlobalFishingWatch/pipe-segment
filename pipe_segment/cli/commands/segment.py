@@ -62,6 +62,8 @@ class Segment(Command):
         p = subparsers.add_parser(
             cls.NAME, help=cls.HELP, epilog=cls.EPILOG, formatter_class=cls.formatter())
 
+        p.set_defaults(func=cls.run)
+
         required = p.add_argument_group("Required")
         add = required.add_argument
         add("--source", required=True, metavar='\b', help=cls.HELP_SOURCE)

@@ -22,7 +22,7 @@ class CLI:
         self._parse_args()
 
     def execute(self):
-        return self.COMMANDS[self.command].run(self.args, self.extra_args)
+        return self.execute_command(self.args, self.extra_args)
 
     def _add_commands(self):
         self.parser = argparse.ArgumentParser(
@@ -33,7 +33,7 @@ class CLI:
 
         self.subparsers = self.parser.add_subparsers(dest='command', help='available commands')
 
-        for command in self.COMMANDS.values():
+        for command in self.COMMANDS:
             command.add_to_subparsers(self.subparsers)
 
     def _parse_args(self):
@@ -45,11 +45,12 @@ class CLI:
         if self.args.log_file:
             logging.getLogger().addHandler(logging.FileHandler(self.args.log_file))
 
-        self.command = self.args.command
+        self.execute_command = self.args.func
 
         del self.args.verbose
         del self.args.log_file
         del self.args.command
+        del self.args.func
 
     def _setup_logger(self):
         logging.basicConfig(
@@ -71,9 +72,7 @@ class PIPE(CLI):
         "apache_beam.io.gcp",
     ]
 
-    COMMANDS = {
-        Segment.NAME: Segment
-    }
+    COMMANDS = [Segment]
 
     @staticmethod
     def formatter():
