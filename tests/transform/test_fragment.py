@@ -1,15 +1,14 @@
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 
 import apache_beam as beam
 import newlinejson as nlj
 import posixpath as pp
 import pytest
-import pytz
 from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
 from apache_beam.testing.util import BeamAssertException, open_shards
 from json_dict_coder import JSONDictCoder
-from pipe_segment.tools import (as_timestamp, datetimeFromTimestamp,
-                                timestampFromDatetime)
+from pipe_segment.tools import (as_timestamp, datetime_from_timestamp,
+                                timestamp_from_datetime)
 from pipe_segment.transform.fragment import Fragment
 
 # rename the class to prevent py.test from trying to collect TestPipeline as a
@@ -29,9 +28,9 @@ from pipe_segment.transform.fragment import Fragment
 def safe_date(ts):
     if ts is None:
         return None
-    return timestampFromDatetime(
-        datetime.combine(datetimeFromTimestamp(ts).date(), time()).replace(
-            tzinfo=pytz.UTC
+    return timestamp_from_datetime(
+        datetime.combine(datetime_from_timestamp(ts).date(), time()).replace(
+            tzinfo=timezone.utc
         )
     )
 
@@ -85,13 +84,7 @@ DT_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 
 def strToDatetime(s):
-    return datetime.strptime(s, DT_FORMAT).replace(tzinfo=pytz.UTC)
-
-
-# shortStrToDatetime = lambda s: datetime.strptime(s, "%Y-%m-%d %H:%M").replace(
-#     second=0, microsecond=0, tzinfo=pytz.UTC
-# )
-# shiftDatetimeDays = lambda d, x: d + timedelta(seconds=x)
+    return datetime.strptime(s, DT_FORMAT).replace(tzinfo=timezone.utc)
 
 
 def stringFromDatetimeFields(d):
@@ -131,11 +124,11 @@ def list_contains(superset, subset):
 )
 @pytest.mark.filterwarnings("ignore:open_shards is experimental.:FutureWarning")
 class TestTransforms:
-    ts = timestampFromDatetime(datetime(2017, 1, 1, 0, 0, 0, tzinfo=pytz.UTC))
+    ts = timestamp_from_datetime(datetime(2017, 1, 1, 0, 0, 0, tzinfo=timezone.utc))
 
     @staticmethod
     def _seg_id(ssvid, ts):
-        ts = datetimeFromTimestamp(ts)
+        ts = datetime_from_timestamp(ts)
         return "{}-{:%Y-%m-%dT%H:%M:%S.%fZ}".format(ssvid, ts)
 
     @staticmethod
@@ -144,14 +137,14 @@ class TestTransforms:
 
     @staticmethod
     def convert_timestamp(msg):
-        msg["timestamp"] = timestampFromDatetime(
-            msg["timestamp"].replace(tzinfo=pytz.UTC)
+        msg["timestamp"] = timestamp_from_datetime(
+            msg["timestamp"].replace(tzinfo=timezone.utc)
         )
         return msg
 
     @staticmethod
     def unconvert_timestamp(msg):
-        msg["timestamp"] = datetimeFromTimestamp(msg["timestamp"])
+        msg["timestamp"] = datetime_from_timestamp(msg["timestamp"])
         return msg
 
     def _run_segment(self, messages_in, temp_dir):
