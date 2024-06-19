@@ -13,7 +13,7 @@ docker compose run dev segment_identity_daily \
 	--labels=version=v3 \
 	--labels=step=segment \
 	--labels=stage=productive \
-	--runner=direct \
+	--runner=DirectRunner \
     --project=world-fishing-827 \
     --temp_location=gs://pipe-temp-us-central-ttl7/dataflow_temp \
     --staging_location=gs://pipe-temp-us-central-ttl7/dataflow_staging

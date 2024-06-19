@@ -5,6 +5,9 @@ import apache_beam as beam
 from pipe_segment.models.bigquery_message_source import BigQueryMessagesSource
 
 
+logger = logging.getLogger(__name__)
+
+
 class ReadMessages(beam.PTransform):
     def __init__(
         self,
@@ -31,7 +34,9 @@ class ReadMessages(beam.PTransform):
         """
         if self.ssvid_filter_query is not None:
             query = f"{query} WHERE ssvid IN ({self.ssvid_filter_query})"
-        logging.info(f"QUERY:\n{query}")
+
+        logger.debug(f"QUERY:\n{query}")
+
         return query
 
     def expand(self, pcoll):

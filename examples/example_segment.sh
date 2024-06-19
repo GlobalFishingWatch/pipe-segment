@@ -1,6 +1,6 @@
 #!/bin/bash
 
-docker compose run dev segment \
+docker compose run --entrypoint pipe dev segment \
     --date_range='2024-04-12,2024-04-12' \
     --segmenter_params='{"max_hours": 24}' \
     --source=world-fishing-827.pipe_ais_sources_v20220628.pipe_nmea_normalized_ \
@@ -18,7 +18,7 @@ docker compose run dev segment \
     --labels=version=v3 \
     --labels=step=segment \
     --labels=stage=productive \
-    --runner=direct \
+    --runner=DirectRunner \
     --project=world-fishing-827 \
     --temp_location=gs://pipe-temp-us-central-ttl7/dataflow_temp \
     --staging_location=gs://pipe-temp-us-central-ttl7/dataflow_staging \

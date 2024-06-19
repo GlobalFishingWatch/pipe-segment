@@ -198,8 +198,12 @@ jsonschema==4.22.0
     # via apache-beam
 jsonschema-specifications==2023.12.1
     # via jsonschema
+markdown-it-py==3.0.0
+    # via rich
 markupsafe==2.1.5
     # via jinja2
+mdurl==0.1.2
+    # via markdown-it-py
 newlinejson==1.0
     # via -r requirements/prod.in
 numpy==1.24.4
@@ -280,6 +284,8 @@ pydantic-core==2.18.3
     # via pydantic
 pydot==1.4.2
     # via apache-beam
+pygments==2.18.0
+    # via rich
 pyjsparser==2.7.1
     # via js2py
 pymongo==4.7.2
@@ -313,6 +319,8 @@ requests==2.32.3
     #   google-cloud-bigquery
     #   google-cloud-storage
     #   hdfs
+rich==13.7.1
+    # via -r requirements/prod.in
 roman==4.2
     # via shipdataprocess
 rpds-py==0.18.1
@@ -345,6 +353,7 @@ typing-extensions==4.12.0
     #   apache-beam
     #   pydantic
     #   pydantic-core
+    #   rich
 tzlocal==5.2
     # via js2py
 ujson==5.10.0

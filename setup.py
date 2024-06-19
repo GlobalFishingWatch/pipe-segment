@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 
 import setuptools
+from pipe_segment.version import __version__
+
 
 setuptools.setup(
     name="pipe_segment",
-    version='4.3.0',
+    version=__version__,
     author="Global Fishing Watch.",
     # author_email="",
     # maintainer="",
@@ -35,7 +37,13 @@ setuptools.setup(
         'jinja2-cli<1',
         'newlinejson<2',
         'python-stdnum<2',
+        'rich<14',
         'shipdataprocess<1',
         'ujson<6',
-    ]
+    ],
+    entry_points={
+        'console_scripts': [
+            'pipe = pipe_segment.cli.cli:main',
+        ]
+    },
 )
