@@ -1,14 +1,18 @@
-from datetime import datetime, time, timezone
+import pytest
+from datetime import datetime, time
 
 import apache_beam as beam
 import newlinejson as nlj
-import posixpath as pp
-import pytest
+import posixpath
+
 from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
 from apache_beam.testing.util import BeamAssertException, open_shards
+
 from json_dict_coder import JSONDictCoder
-from pipe_segment.tools import (as_timestamp, datetime_from_timestamp,
-                                timestamp_from_datetime)
+
+from pipe_segment.tools import (
+    timestamp_from_string, datetime_from_timestamp, timestamp_from_datetime
+)
 from pipe_segment.transform.fragment import Fragment
 
 # rename the class to prevent py.test from trying to collect TestPipeline as a
@@ -28,11 +32,8 @@ from pipe_segment.transform.fragment import Fragment
 def safe_date(ts):
     if ts is None:
         return None
-    return timestamp_from_datetime(
-        datetime.combine(datetime_from_timestamp(ts).date(), time()).replace(
-            tzinfo=timezone.utc
-        )
-    )
+
+    return timestamp_from_datetime(datetime.combine(datetime_from_timestamp(ts).date(), time()))
 
 
 def fill_in_missing_fields(messages):
@@ -80,32 +81,6 @@ def contains(subset):
     return _contains
 
 
-DT_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
-
-
-def strToDatetime(s):
-    return datetime.strptime(s, DT_FORMAT).replace(tzinfo=timezone.utc)
-
-
-def stringFromDatetimeFields(d):
-    d_cp = dict(d)
-    for x in d_cp.keys():
-        if isinstance(d_cp[x], datetime):
-            d_cp[x] = d_cp[x].strftime(DT_FORMAT)
-    return d_cp
-
-
-def stringToDatetimeFields(time_fields, r):
-    rec = dict(r)
-    for k in time_fields:
-        if rec[k] is not None:
-            rec[k] = strToDatetime(rec[k])
-    return rec
-
-
-# _interpret_out = lambda x, y: stringToDatetimeFields(x, ast.literal_eval(y))
-
-
 def list_contains(superset, subset):
     for super, sub in zip(superset, subset):
         for k, v in sub.items():
@@ -124,7 +99,7 @@ def list_contains(superset, subset):
 )
 @pytest.mark.filterwarnings("ignore:open_shards is experimental.:FutureWarning")
 class TestTransforms:
-    ts = timestamp_from_datetime(datetime(2017, 1, 1, 0, 0, 0, tzinfo=timezone.utc))
+    ts = timestamp_from_datetime(datetime(2017, 1, 1, 0, 0, 0))
 
     @staticmethod
     def _seg_id(ssvid, ts):
@@ -137,9 +112,7 @@ class TestTransforms:
 
     @staticmethod
     def convert_timestamp(msg):
-        msg["timestamp"] = timestamp_from_datetime(
-            msg["timestamp"].replace(tzinfo=timezone.utc)
-        )
+        msg["timestamp"] = timestamp_from_datetime(msg["timestamp"])
         return msg
 
     @staticmethod
@@ -148,8 +121,8 @@ class TestTransforms:
         return msg
 
     def _run_segment(self, messages_in, temp_dir):
-        messages_file = pp.join(temp_dir, "_run_segment", "messages")
-        segments_file = pp.join(temp_dir, "_run_segment", "segments")
+        messages_file = posixpath.join(temp_dir, "_run_segment", "messages")
+        segments_file = posixpath.join(temp_dir, "_run_segment", "segments")
 
         messages_in = fill_in_missing_fields(messages_in)
         # print(messages_in)
@@ -218,7 +191,7 @@ class TestTransforms:
     def test_expected_segments(self, tmp_path):
         messages_in = [
             {
-                "timestamp": as_timestamp("2017-11-15T11:14:32.000000Z"),
+                "timestamp": timestamp_from_string("2017-11-15T11:14:32.000000Z"),
                 "ssvid": 257666800,
                 "lon": 5.3108466667,
                 "lat": 60.40065,
@@ -227,7 +200,7 @@ class TestTransforms:
                 "type": "AIS.1",
             },
             {
-                "timestamp": as_timestamp("2017-11-26T11:20:16.000000Z"),
+                "timestamp": timestamp_from_string("2017-11-26T11:20:16.000000Z"),
                 "ssvid": 257666800,
                 "lon": 5.32334,
                 "lat": 60.396235,
@@ -249,7 +222,7 @@ class TestTransforms:
     def test_message_type(self, tmp_path):
         messages_in = [
             {
-                "timestamp": as_timestamp("2018-01-01 00:00"),
+                "timestamp": timestamp_from_string("2018-01-01 00:00"),
                 "msgid": 0,
                 "ssvid": "123456789",
                 "type": "AIS.1",
@@ -259,7 +232,7 @@ class TestTransforms:
                 "speed": 0.001,
             },
             {
-                "timestamp": as_timestamp("2018-01-01 01:00"),
+                "timestamp": timestamp_from_string("2018-01-01 01:00"),
                 "msgid": 1,
                 "ssvid": "123456789",
                 "type": "AIS.18",
@@ -269,7 +242,7 @@ class TestTransforms:
                 "speed": 0.001,
             },
             {
-                "timestamp": as_timestamp("2018-01-01 02:00"),
+                "timestamp": timestamp_from_string("2018-01-01 02:00"),
                 "msgid": 2,
                 "ssvid": "123456789",
                 "type": "AIS.1",
@@ -279,7 +252,7 @@ class TestTransforms:
                 "speed": 0.001,
             },
             {
-                "timestamp": as_timestamp("2018-01-01 03:00"),
+                "timestamp": timestamp_from_string("2018-01-01 03:00"),
                 "msgid": 3,
                 "ssvid": "123456789",
                 "type": "AIS.18",
@@ -289,7 +262,7 @@ class TestTransforms:
                 "speed": 0.001,
             },
             {
-                "timestamp": as_timestamp("2018-01-01 04:00"),
+                "timestamp": timestamp_from_string("2018-01-01 04:00"),
                 "msgid": 4,
                 "ssvid": "123456789",
                 "type": "AIS.5",

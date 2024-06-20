@@ -23,7 +23,7 @@ from pipe_segment.segment_identity.transforms import (rename_timestamp,
 from pipe_segment.utils.bqtools import BigQueryTools
 from pipe_segment.version import __version__
 
-from ..tools import as_timestamp, datetime_from_timestamp
+from ..tools import timestamp_from_string, datetime_from_timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -273,7 +273,7 @@ DEST_SEGMENT_IDENTITY_SCHEMA = {
 
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
-    return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
+    return list(map(timestamp_from_string, s.split(",")) if s is not None else (None, None))
 
 
 class SegmentIdentityPipeline:
