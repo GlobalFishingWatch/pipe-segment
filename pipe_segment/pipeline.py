@@ -30,7 +30,7 @@ from pipe_segment.version import __version__
 
 from typing import List
 
-from .tools import as_timestamp, datetime_from_timestamp
+from .tools import timestamp_from_string, datetime_from_timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ def safe_date(ts):
 
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
-    return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
+    return list(map(timestamp_from_string, s.split(",")) if s is not None else (None, None))
 
 
 def time_bin_ndx(dtime, time_bins):
