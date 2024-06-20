@@ -6,7 +6,7 @@ import newlinejson as nlj
 import posixpath
 
 from apache_beam.testing.test_pipeline import TestPipeline as _TestPipeline
-from apache_beam.testing.util import BeamAssertException, open_shards
+from apache_beam.testing.util import open_shards
 
 from json_dict_coder import JSONDictCoder
 
@@ -15,18 +15,8 @@ from pipe_segment.tools import (
 )
 from pipe_segment.transform.fragment import Fragment
 
-# rename the class to prevent py.test from trying to collect TestPipeline as a
-# unit test class
-
-
 # >>> Note that cogroupByKey treats unicode and char values as distinct,
 # so tests can sometimes fail unless all ssvid are unicode.
-
-# for use with apache_beam.testing.util.assert_that
-# for pcollections that contain dicts
-#
-# for example
-# assert_that(pcoll, contains(expected))
 
 
 def safe_date(ts):
@@ -63,32 +53,11 @@ def fill_in_missing_fields(messages):
     return messages
 
 
-def contains(subset):
-    subset = list(subset)
-
-    def _contains(superset):
-        sorted_subset = sorted(subset)
-        sorted_superset = sorted(list(superset))
-        for sub, super in zip(sorted_subset, sorted_superset):
-            for k, v in sub.items():
-                if super.get(k) != v:
-                    raise BeamAssertException(
-                        "Failed assert: %s does not contain %s\n"
-                        'mismatch in key "%s"  %s != %s'
-                        % (super, sub, k, super.get(k), v)
-                    )
-
-    return _contains
-
-
-def list_contains(superset, subset):
+def is_subset(superset, subset):
     for super, sub in zip(superset, subset):
         for k, v in sub.items():
-            if super.get(k) != v:
-                raise BeamAssertException(
-                    "Failed assert: %s does not contain %s\n"
-                    'mismatch in key "%s"  %s != %s' % (super, sub, k, super.get(k), v)
-                )
+            return not super.get(k) != v
+
     return True
 
 
@@ -125,13 +94,11 @@ class TestTransforms:
         segments_file = posixpath.join(temp_dir, "_run_segment", "segments")
 
         messages_in = fill_in_missing_fields(messages_in)
-        # print(messages_in)
 
         with _TestPipeline() as p:
             messages = (
                 p
                 | "CreateMessages" >> beam.Create(messages_in)
-                # | "ConvertTimestamps" >> beam.Map(self.convert_timestamp)
                 | "AddKeyMessages" >> beam.Map(self.groupby_fn)
                 | "GroupByKey" >> beam.GroupByKey()
             )
@@ -149,30 +116,24 @@ class TestTransforms:
             ] | "AddSegIdToFrags" >> beam.Map(add_seg_id)
 
             (
-                messages
-                |  # "UnconvMsgTimes" >> beam.Map(
-                # self.unconvert_timestamp
-                # ) |
-                "WriteMessages"
+                messages | "WriteMessages"
                 >> beam.io.WriteToText(messages_file, coder=JSONDictCoder())
             )
             segments | "UnconvSegTimes" >> beam.Map(
                 self.unconvert_timestamp
-            ) | "WriteSegments" >> beam.io.WriteToText(
-                segments_file, coder=JSONDictCoder()
+            ) | "WriteSegments" >> beam.io.WriteToText(segments_file, coder=JSONDictCoder())
+
+        with open_shards("%s*" % messages_file) as output:
+            messages = sorted(
+                list(nlj.load(output)), key=lambda m: (m["ssvid"], m["timestamp"])
             )
 
-            p.run()
+        with open_shards("%s*" % segments_file) as output:
+            segments = list(nlj.load(output))
 
-            with open_shards("%s*" % messages_file) as output:
-                messages = sorted(
-                    list(nlj.load(output)), key=lambda m: (m["ssvid"], m["timestamp"])
-                )
-            with open_shards("%s*" % segments_file) as output:
-                segments = list(nlj.load(output))
+        assert is_subset(messages, messages_in)
 
-            assert list_contains(messages, messages_in)
-            return messages, segments
+        return messages, segments
 
     def test_segment_empty(self, tmp_path):
         self._run_segment([], temp_dir=tmp_path)
@@ -184,9 +145,7 @@ class TestTransforms:
     def test_segment_segments_in(self, tmp_path):
         messages_in = [{"ssvid": "1", "timestamp": self.ts, "type": "AIS.1"}]
         messages_out, segments_out = self._run_segment(messages_in, temp_dir=tmp_path)
-        assert (
-            messages_out[0]["seg_id"] is None
-        )  # No longer assign seg ids to noise segments
+        assert messages_out[0]["seg_id"] is None  # No longer assign seg ids to noise segments.
 
     def test_expected_segments(self, tmp_path):
         messages_in = [
