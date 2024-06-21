@@ -58,7 +58,7 @@ def time_bin_ndx(dtime, time_bins):
 
 
 def time_bin_key(x, time_bins):
-    dtime = datetimeFromTimestamp(x["timestamp"])
+    dtime = datetime_from_timestamp(x["timestamp"])
     return x["ssvid"], x["frag_id"], str(dtime.date()), time_bin_ndx(dtime, time_bins)
 
 
