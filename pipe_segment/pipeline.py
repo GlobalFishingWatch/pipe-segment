@@ -76,7 +76,7 @@ class SegmentPipeline:
         self.cloud_options = beam_options.view_as(GoogleCloudOptions)
         self.date_range = parse_date_range(self.options.date_range)
         self.satellite_offsets_writer = None
-        self.bqtools = BigQueryTools(project=self.cloud_options.project)
+        self.bqtools = BigQueryTools.build(project=self.cloud_options.project)
 
         if self.options.out_sat_offsets_table:
             remove_satellite_offsets_content(
@@ -155,7 +155,7 @@ class SegmentPipeline:
         start_date = safe_date(self.date_range[0])
         end_date = safe_date(self.date_range[1])
 
-        self.bqtools.ensure_sharded_tables_creation(start_date, end_date, self.destination_tables)
+        self.bqtools.create_or_clear_tables(self.destination_tables, start_date, end_date)
 
         logger.info("Adding ReadMessages transform...")
         messages = (

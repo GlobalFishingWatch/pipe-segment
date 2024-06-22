@@ -282,7 +282,7 @@ class SegmentIdentityPipeline:
         self.beam_options = beam_options
         self.cloud_options = beam_options.view_as(GoogleCloudOptions)
         self.date_range = parse_date_range(self.options.date_range)
-        self.bqtools = BigQueryTools(project=self.cloud_options.project)
+        self.bqtools = BigQueryTools.build(project=self.cloud_options.project)
 
     @classmethod
     def build(cls, options, beam_args):
@@ -336,8 +336,10 @@ class SegmentIdentityPipeline:
         pipeline = beam.Pipeline(options=self.beam_options)
 
         start_dt, end_dt = [datetime_from_timestamp(ts) for ts in self.date_range]
-        self.bqtools.ensure_sharded_tables_creation(
-            start_dt, end_dt, self.destination_tables, key="summary_timestamp")
+        self.bqtools.create_or_clear_tables(
+            self.destination_tables, start_dt.date(), end_dt.date(),
+            date_field="summary_timestamp"
+        )
 
         (
             pipeline
