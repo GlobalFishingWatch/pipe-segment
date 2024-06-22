@@ -47,9 +47,29 @@ jobs:
     
       - name: Test with pytest
         run: |
-          pytest
+          make testintegration
 
+      # Remove this step when this is done in tests-in-docker job.
       - name: Upload coverage reports to Codecov
+        if: ${{ matrix.python-version == '3.8' }}
         uses: codecov/codecov-action@v4.0.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+# Use this job when base docker image is not pulled from GFW gcr.
+# tests-in-docker:
+#   runs-on: ubuntu-latest
+#   steps:
+#     - uses: actions/checkout@v4
+#     - name: Set up Python ${{ matrix.python-version }}
+#       uses: actions/setup-python@v4
+
+#     - name: Test with pytest in docker
+#       run: |
+#         docker volume create --name=gcp
+#         docker compose run test
+
+#     - name: Upload coverage reports to Codecov
+#       uses: codecov/codecov-action@v4.0.1
+#       with:
+#         token: ${{ secrets.CODECOV_TOKEN }}
