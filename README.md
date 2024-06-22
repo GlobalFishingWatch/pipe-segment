@@ -17,6 +17,7 @@ a dataflow pipeline which divides vessel tracks into contiguous "segments",
 separating out noise and signals that may come from two or more vessels
 which are broadcasting using the same MMSI at the same time.
 
+[bigquery-emulator]: https://github.com/goccy/bigquery-emulator
 [configure a SSH-key for GitHub]: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account
 [docker official instructions]: https://docs.docker.com/engine/install/
 [docker compose plugin]: https://docs.docker.com/compose/install/linux/
@@ -131,15 +132,14 @@ Run unit tests:
 make test
 ```
 
-Alternatively, you can run the unit tests inside the docker container:
+Run unit tests & integration tests (uses [bigquery-emulator]):
 ```shell
-make build
-make testdocker
+make testintegration
 ```
 
-Run all tests in docker including ones that hit some GCP API (**currently failing**).
+Run unit tests and integration inside docker container:
 ```shell
-make testdocker-all
+make testindocker
 ```
 
 ## Updating dependencies
