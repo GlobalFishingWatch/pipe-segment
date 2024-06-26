@@ -30,6 +30,12 @@ class BigQueryTools:
         """
         return cls(bigquery.Client(project=project, **kwargs))
 
+    def get_table(self, dataset_id, table_id) -> bigquery.Table:
+        dataset_ref = self.client.dataset(dataset_id)
+        table_ref = dataset_ref.table(table_id)
+
+        return self.client.get_table(table_ref)
+
     def create_or_clear_tables(self, tables, start_date, end_date=None, date_field="timestamp"):
         """Creates sharded tables. If they already exist, deletes their records.
 

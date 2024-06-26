@@ -57,24 +57,25 @@ def test_bigquery_integration():
         credentials=AnonymousCredentials(),
     )
 
-    bq_tools = BigQueryTools(client)
+    bqtools = BigQueryTools(client)
 
-    table = bq_tools.create_table(
+    table = bqtools.create_table(
         table_ref=TABLE_FULL_ID,
         schema=TABLE_SCHEMA,
         description=TABLE_DESCRIPTION
     )
 
     assert isinstance(table, bigquery.Table)
-    assert client.get_table(TABLE_NAME)  # table exists.
+    dataset, table = TABLE_NAME.split(".")
+    assert bqtools.get_table(dataset, table)  # table exists.
     assert len(list(client.list_rows(TABLE_NAME))) == 0
 
     start_date = datetime(2024, 1, 1).date()
     end_date = start_date
-    bq_tools.create_or_clear_tables(DESTINATION_TABLES, start_date, end_date)
+    bqtools.create_or_clear_tables(DESTINATION_TABLES, start_date, end_date)
 
     end_date = start_date + timedelta(days=1)
-    bq_tools.create_or_clear_tables(DESTINATION_TABLES, start_date, end_date)
+    bqtools.create_or_clear_tables(DESTINATION_TABLES, start_date, end_date)
 
-    bq_tools = BigQueryTools.build(
+    bqtools = BigQueryTools.build(
         project=PROJECT, client_options=client_options, credentials=AnonymousCredentials())
