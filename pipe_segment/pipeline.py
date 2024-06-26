@@ -11,7 +11,6 @@ from apache_beam.options.pipeline_options import (
 from apache_beam.runners import PipelineState
 
 from pipe_segment.schemas import message_schema, segment_schema
-from pipe_segment.models.bigquery_message_source import BigQueryMessagesSource
 from pipe_segment.transform.create_segment_map import CreateSegmentMap
 from pipe_segment.transform.create_segments import CreateSegments
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
@@ -100,10 +99,8 @@ class SegmentPipeline:
         return ujson.loads(self.options.segmenter_params)
 
     @property
-    def source_tables(self) -> List[BigQueryMessagesSource]:
-        return [
-            BigQueryMessagesSource(self.bqtools, table_id=source)
-            for source in self.options.in_normalized_messages_table.split(",")]
+    def source_tables(self) -> List[str]:
+        return self.options.source.split(",")
 
     @property
     def destination_tables(self):
@@ -162,6 +159,7 @@ class SegmentPipeline:
         messages = (
             pipeline
             | ReadMessages(
+                bqtools=self.bqtools,
                 sources=self.source_tables,
                 start_date=start_date,
                 end_date=end_date,
