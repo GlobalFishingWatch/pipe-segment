@@ -7,7 +7,7 @@ fieldnames = list(map(lambda x: x['name'], mos['fields']))
 class WhitelistFields(beam.PTransform):
 
     def whitelist(self, elem):
-        return {field: elem[field] for field in fieldnames}
+        return {field: elem[field] for field in fieldnames if field in elem}
 
     def expand(self, xs):
         return xs | beam.Map(self.whitelist)
