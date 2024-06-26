@@ -1,6 +1,0 @@
-FROM apache/beam_python3.8_sdk:2.49.0
-
-# Setup local application dependencies
-COPY ./requirements-worker.txt ./
-RUN pip install -r requirements-worker.txt
-

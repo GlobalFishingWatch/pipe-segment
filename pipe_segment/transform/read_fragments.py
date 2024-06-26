@@ -6,6 +6,9 @@ from google.api_core.exceptions import BadRequest
 from google.cloud import bigquery
 
 
+logger = logging.getLogger(__name__)
+
+
 class ReadFragments(beam.PTransform):
     def __init__(
         self, source, start_date, end_date, create_if_missing=False, project=None
@@ -19,19 +22,24 @@ class ReadFragments(beam.PTransform):
     def first_table_date(self):
         client = bigquery.Client(self.project)
         condition = self.query_condition(self.start_date, self.end_date)
-        query = f"""SELECT MIN(_TABLE_SUFFIX) min_suffix FROM `{self.source}*`
-                     WHERE {condition}"""
-        logging.info(f"QUERY:\n{query}")
+        query = f"""
+            SELECT MIN(_TABLE_SUFFIX) min_suffix FROM `{self.source}*`
+            WHERE {condition}"""
+
+        logger.info("Performing query to get first table date...")
+        logger.debug(f"QUERY:\n{query}")
+
         request = client.query(query)
         try:
             [row] = request.result()
         except BadRequest as err:
-            logging.info(
+            logger.info(
                 f"Could not query existing table. Ignore if this is first run: {err}"
             )
             return None
         else:
-            return datetime.strptime(row.min_suffix, "%Y%m%d").date() if row.min_suffix != None else None
+            return datetime.strptime(row.min_suffix,
+                                     "%Y%m%d").date() if row.min_suffix is not None else None
 
     def query_condition(self, start_date, end_date):
         if start_date is None:
@@ -59,8 +67,8 @@ class ReadFragments(beam.PTransform):
                   CAST(UNIX_MICROS(last_msg_timestamp) AS FLOAT64) / 1000000
                         AS last_msg_timestamp,
                     * except (
-                            timestamp, 
-                            first_msg_timestamp, 
+                            timestamp,
+                            first_msg_timestamp,
                             last_msg_timestamp
                         )
                 FROM `{self.source}*`
@@ -68,7 +76,8 @@ class ReadFragments(beam.PTransform):
                 ORDER BY ssvid, timestamp
             )
             """
-            logging.info(f"Emitting read fragments query:\n{query}")
+            logger.debug(f"Emitting read fragments query:\n{query}")
+
             yield query
             start_date = next_start_date
 

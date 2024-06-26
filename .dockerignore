@@ -4,3 +4,7 @@ docker-compose.yaml
 example
 dev-temp
 scripts/samples
+
+examples
+.venv
+venv

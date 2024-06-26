@@ -1,0 +1,10 @@
+apache-beam[gcp]==2.56.0
+backports.zoneinfo~=0.2;python_version<"3.9"
+gpsdio-segment @ https://codeload.github.com/GlobalFishingWatch/gpsdio-segment/tar.gz/v3.0.0
+jinja2~=3.1
+jinja2-cli~=0.8
+newlinejson~=1.0
+python-stdnum~=1.17
+rich~=13.7
+shipdataprocess~=0.7
+ujson~=5.9
