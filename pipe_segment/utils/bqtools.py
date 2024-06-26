@@ -7,7 +7,9 @@ from google.cloud import bigquery
 from pipe_segment import tools
 
 
-DELETE_BETWEEN_DATES_QUERY = "DELETE FROM `{table}` WHERE DATE({field}) BETWEEN '{start}' AND '{end}'"
+DELETE_BETWEEN_DATES_QUERY = """
+DELETE FROM `{table}` WHERE DATE({field}) BETWEEN '{start}' AND '{end}'
+"""
 
 
 class BigQueryTools:
