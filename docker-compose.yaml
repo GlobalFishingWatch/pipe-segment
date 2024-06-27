@@ -1,22 +1,17 @@
 services:
-  base: &base
-    image: gfw/pipe-segment-base
+  dev:
+    image: gfw/pipe-segment-dev
     build:
       context: .
       dockerfile: Dockerfile
       target: dev
-
-  dev:
-    <<: *base
-    image: gfw/pipe-segment-dev
     volumes:
       - ".:/opt/project"
       - "gcp:/root/.config/"
     entrypoint: "./scripts/run.sh"
 
   test:
-    image: gfw/pipe-segment-test
-    <<: *base
+    image: gfw/pipe-segment-dev
     environment:
       BIGQUERY_HOST: bigquery
       INTEGRATION_TESTS: true
@@ -41,3 +36,4 @@ services:
 # Volume to hold GCP authentication
 volumes:
   gcp:
+    external: true
