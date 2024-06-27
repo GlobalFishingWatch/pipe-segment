@@ -24,7 +24,7 @@ from pipe_segment.transform.tag_with_fragid_and_timebin import TagWithFragIdAndT
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
 from pipe_segment.transform.write_sink import WriteSink
 from pipe_segment.transform.whitelist_messages_segmented import WhitelistFields
-from pipe_segment.utils.bqtools import BigQueryTools
+from pipe_segment.utils.bq_tools import BigQueryTools
 from pipe_segment.version import __version__
 
 from typing import List
@@ -159,7 +159,7 @@ class SegmentPipeline:
         messages = (
             pipeline
             | ReadMessages(
-                bqtools=self.bqtools,
+                bqclient=self.bqtools.client,
                 sources=self.source_tables,
                 start_date=start_date,
                 end_date=end_date,
