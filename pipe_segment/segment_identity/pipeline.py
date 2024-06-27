@@ -20,7 +20,7 @@ from pipe_segment.segment_identity.read_source import ReadSource
 from pipe_segment.segment_identity.transforms import (rename_timestamp,
                                                       summarize_identifiers,
                                                       write_sink)
-from pipe_segment.utils.bqtools import BigQueryTools
+from pipe_segment.utils.bq_tools import BigQueryTools
 from pipe_segment.version import __version__
 
 from ..tools import timestamp_from_string, datetime_from_timestamp
