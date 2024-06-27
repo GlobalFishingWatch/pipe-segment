@@ -139,7 +139,7 @@ make testintegration
 
 Run unit tests and integration inside docker container:
 ```shell
-make testindocker
+make testdocker
 ```
 
 ## Updating dependencies
@@ -152,13 +152,13 @@ Do not modify [requirements.txt] manually.
 
 To re-compile dependencies, just run
 ```shell
-make requirements
+make reqs
 ```
 
 If you want to upgrade all dependencies to latest available versions
 (compatible with restrictions declared), just run:
 ```shell
-make upgrade-requirements
+make upgrade-reqs
 ```
 
 ## Schema
