@@ -7,7 +7,7 @@ from google.api_core.client_options import ClientOptions
 from google.auth.credentials import AnonymousCredentials
 from google.cloud import bigquery
 
-from pipe_segment.utils.bqtools import BigQueryTools
+from pipe_segment.utils.bq_tools import BigQueryTools
 
 TABLE_SCHEMA = {
     "fields": [
@@ -66,8 +66,7 @@ def test_bigquery_integration():
     )
 
     assert isinstance(table, bigquery.Table)
-    dataset, table = TABLE_NAME.split(".")
-    assert bqtools.get_table(dataset, table)  # table exists.
+    assert client.get_table(TABLE_NAME)  # table exists.
     assert len(list(client.list_rows(TABLE_NAME))) == 0
 
     start_date = datetime(2024, 1, 1).date()
