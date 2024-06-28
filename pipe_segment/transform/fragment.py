@@ -5,7 +5,7 @@ from apache_beam import FlatMap, PTransform
 from apache_beam.pvalue import TaggedOutput
 from gpsdio_segment.msg_processor import Destination, Identity
 
-from ..tools import datetimeFromTimestamp, timestampFromDatetime
+from ..tools import datetime_from_timestamp, timestamp_from_datetime
 from .fragment_implementation import FragmentImplementation
 
 logger = logging.getLogger(__file__)
@@ -88,7 +88,7 @@ class Fragment(PTransform):
     def _convert_message_in(msg):
         msg = msg.copy()
         msg["raw_timestamp"] = msg["timestamp"]
-        msg["timestamp"] = datetimeFromTimestamp(msg["raw_timestamp"])
+        msg["timestamp"] = datetime_from_timestamp(msg["raw_timestamp"])
         return msg
 
     @staticmethod
@@ -107,7 +107,7 @@ class Fragment(PTransform):
         ]:
             assert k in frag, frag
             if k in frag and not frag[k] is None:
-                frag[k] = timestampFromDatetime(frag[k])
+                frag[k] = timestamp_from_datetime(frag[k])
         return frag
 
     def fragment(self, item):

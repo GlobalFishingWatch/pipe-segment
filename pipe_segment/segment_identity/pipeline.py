@@ -20,10 +20,10 @@ from pipe_segment.segment_identity.read_source import ReadSource
 from pipe_segment.segment_identity.transforms import (rename_timestamp,
                                                       summarize_identifiers,
                                                       write_sink)
-from pipe_segment.utils.bqtools import BigQueryTools
+from pipe_segment.utils.bq_tools import BigQueryTools
 from pipe_segment.version import __version__
 
-from ..tools import as_timestamp, datetimeFromTimestamp
+from ..tools import timestamp_from_string, datetime_from_timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -273,7 +273,7 @@ DEST_SEGMENT_IDENTITY_SCHEMA = {
 
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
-    return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
+    return list(map(timestamp_from_string, s.split(",")) if s is not None else (None, None))
 
 
 class SegmentIdentityPipeline:
@@ -282,7 +282,7 @@ class SegmentIdentityPipeline:
         self.beam_options = beam_options
         self.cloud_options = beam_options.view_as(GoogleCloudOptions)
         self.date_range = parse_date_range(self.options.date_range)
-        self.bqtools = BigQueryTools(project=self.cloud_options.project)
+        self.bqtools = BigQueryTools.build(project=self.cloud_options.project)
 
     @classmethod
     def build(cls, options, beam_args):
@@ -335,9 +335,11 @@ class SegmentIdentityPipeline:
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.beam_options)
 
-        start_dt, end_dt = [datetimeFromTimestamp(ts) for ts in self.date_range]
-        self.bqtools.ensure_sharded_tables_creation(
-            start_dt, end_dt, self.destination_tables, key="summary_timestamp")
+        start_dt, end_dt = [datetime_from_timestamp(ts) for ts in self.date_range]
+        self.bqtools.create_or_clear_tables(
+            self.destination_tables, start_dt.date(), end_dt.date(),
+            date_field="summary_timestamp"
+        )
 
         (
             pipeline
