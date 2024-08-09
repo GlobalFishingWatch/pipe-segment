@@ -51,7 +51,7 @@ def time_bin_ndx(dtime, time_bins):
 
 def time_bin_key(x, time_bins):
     dtime = datetimeFromTimestamp(x["timestamp"])
-    return x["frag_id"], str(dtime.date()), time_bin_ndx(dtime, time_bins)
+    return x['ssvid'], x["frag_id"], str(dtime.date()), time_bin_ndx(dtime, time_bins)
 
 
 class SegmentPipeline:
