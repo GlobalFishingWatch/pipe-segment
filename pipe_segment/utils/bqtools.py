@@ -1,6 +1,7 @@
 import logging
-from google.cloud import bigquery
 from datetime import timedelta
+
+from google.cloud import bigquery
 
 
 def build_sink_table_descriptor(table_id, schema, description):
@@ -29,7 +30,7 @@ class BigQueryTools():
         query_job = self.client.query(
             f"""
                DELETE FROM `{table.project}.{table.dataset_id}.{table.table_id}`
-               WHERE {date_field} BETWEEN '{date_from:%Y-%m-%d}' AND '{date_to:%Y-%m-%d}'
+               WHERE DATE({date_field}) BETWEEN '{date_from:%Y-%m-%d}' AND '{date_to:%Y-%m-%d}'
             """,
             bigquery.QueryJobConfig(
                 use_legacy_sql=False,
