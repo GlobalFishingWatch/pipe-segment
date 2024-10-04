@@ -1,5 +1,6 @@
-from datetime import datetime
 import logging
+from datetime import datetime
+
 from jinja2 import Template
 
 from pipe_segment.utils.bq import get_bq_table
@@ -55,7 +56,7 @@ class BigQueryMessagesSource:
     def filter_messages(self, start_date: datetime, end_date: datetime) -> str:
         template = self.filter_template
         if template is None:
-            template = "{{ filter_field }} " + \
+            template = "DATE({{ filter_field }}) " + \
                 "BETWEEN '{{ start_date.strftime(date_format) }}' " + \
                 " AND '{{ end_date.strftime(date_format) }}'"
 
