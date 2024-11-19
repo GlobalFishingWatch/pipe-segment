@@ -1,4 +1,4 @@
-from ..tools import datetimeFromTimestamp
+from pipe_segment.tools import datetimeFromTimestamp
 
 
 def by_day(items, key="timestamp"):
