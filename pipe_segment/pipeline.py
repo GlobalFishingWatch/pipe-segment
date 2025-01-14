@@ -63,6 +63,13 @@ def time_bin_key(x, time_bins):
     return x["frag_id"], str(dtime.date()), time_bin_ndx(dtime, time_bins)
 
 
+def strip_identity_and_destination(fragment):
+    x = fragment.copy()
+    x["identities"] = []
+    x["destinations"] = []
+    return x
+
+
 class SegmentPipeline:
     def __init__(self, options, beam_options):
         self.options = options
@@ -228,6 +235,7 @@ class SegmentPipeline:
 
         segmap_src = (
             all_fragments
+            | "StripIdentity" >> beam.Map(strip_identity_and_destination)
             | "AddSsvidKey" >> beam.Map(lambda x: (x["ssvid"], x))
             | "GroupBySsvid" >> beam.GroupByKey()
             | CreateSegmentMap(self.merge_params)
