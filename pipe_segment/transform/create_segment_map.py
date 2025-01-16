@@ -2,9 +2,21 @@ from datetime import date
 
 import apache_beam as beam
 from gpsdio_segment.matcher import Matcher
+from typing import Iterable, Generator, Any, Optional, List, Tuple, Set, Dict
 
 from ..tools import datetimeFromTimestamp
 from .util import by_day
+
+def get_next(
+    ordered: List[Tuple[float, str, str]], stale_keys: Set[str]
+) -> Optional[tuple]:
+    """return the next item in the queue, skipping items with stale keys"""
+    while ordered:
+        item = ordered.pop()
+        _, id1, id2 = item
+        if id1 in stale_keys or id2 in stale_keys:
+            return item
+    return None
 
 
 class CreateSegmentMap(beam.PTransform):
@@ -33,6 +45,33 @@ class CreateSegmentMap(beam.PTransform):
         discrepancy = self.matcher.compute_discrepancy(msg0, msg1, penalized_hours)
         return self.matcher.compute_metric(discrepancy, hours)
 
+
+    def compute_ordered_scores(
+            self,
+            existing_fragments: Iterable[str],
+            new_fragments: Iterable[str],
+            frag_map: Dict[str, dict],
+        ) -> List[Tuple[float, str, str]]:
+        """
+        Args:
+            existing_fragments:
+            frag_ids:
+            frag_map: mapping of frag_id to fragments
+        Returns
+        -------
+        Sorted list of (score, segment_id, frag_id). Note highest scores
+        are last for easy access in order of highest score
+        """
+        scores = []
+        for frag_id_0 in existing_fragments:
+            frag0 = frag_map[frag_id_0]
+            for frag_id_1 in new_fragments:
+                frag1 = frag_map[frag_id_1]
+                score = self.compute_pair_score(frag0, frag1)
+                scores.append((score, frag_id_0, frag_id_1))
+        scores.sort()  # This puts highest scores last
+        return scores
+
     def compute_scores(self, segs, frag_ids, frag_map):
         """
         Parameters
@@ -50,28 +89,35 @@ class CreateSegmentMap(beam.PTransform):
                 scores[sid, fid] = self.compute_pair_score(frag0, frag1)
         return scores
 
-    def frags_by_day(self, frags):
+    def frags_by_day(
+        self, frags: Iterable[dict]
+    ) -> Generator[Tuple[date, Set[dict]], None, None]:
         for day, frags_by_day in by_day(frags):
-            yield day, [x["frag_id"] for x in frags_by_day]
+            yield day, {x["frag_id"] for x in frags_by_day}
 
-    def merge_fragments(self, item):
-        key, frags = item
+    def merge_fragments(
+        self, item: Tuple[Any, Iterable[Dict]]
+    ) -> Generator[Dict, None, None]:
+        _, frags = item
         frag_map = {x["frag_id"]: x for x in frags}
         open_segs = {}
-        for day, daily_fids in self.frags_by_day(frags):
+        for day, new_fragments in self.frags_by_day(frags):
 
             # Compute how well fragments from today match earlier segments
             # A score of zero means do not match.
-            scores = self.compute_scores(open_segs, daily_fids, frag_map)
+            existing_fragments = open_segs.values()
+            # scores = self.compute_scores(open_segs, new_fragments, frag_map)
+            ordered_scores = self.compute_ordered_scores(existing_fragments, new_fragments, frag_map)
             #
             active_segs = {}
-            while scores:
-                (sid, fid) = max(scores, key=lambda k: (scores[k], k))
-                if scores[sid, fid] == 0:
+            stale_keys = set()
+            while (item := get_next(ordered_scores, stale_keys)) is not None:
+                score, seg_id, frag_id = item
+                if score == 0:
                     break
-                assert sid not in active_segs
-                active_segs[sid] = [(day, fid)]
-                daily_fids.remove(fid)
+                assert seg_id not in active_segs
+                active_segs[seg_id] = frag_id
+                new_fragments.remove(frag_id)
                 # We used to update scores as we added fragments,
                 # which allows joining within a single day[*]. While
                 # this still seems like a good idea in principle,
@@ -83,34 +129,26 @@ class CreateSegmentMap(beam.PTransform):
                 #
                 # [*] This happens by two fragments from the next day
                 # joining the same segment from the previous day.
-                for k in list(scores.keys()):
-                    k_sid, k_fid = k
-                    is_stale = (k_sid == sid) or (k_fid == fid)
-                    if is_stale:
-                        scores.pop(k)
+                stale_keys.add(seg_id)
+                stale_keys.add(frag_id)
 
             # Yield all segments where we match to an existing segment
-            for sid, seg_fids in active_segs.items():
-                assert len(seg_fids) == 1
-                for frag_day, fid in seg_fids:
-                    assert isinstance(frag_day, date), (frag_day, sid, fid)
-                    assert frag_day == day
-                    yield {"seg_id": sid, "date": frag_day, "frag_id": fid}
+            for seg_id, frag_id in active_segs.items():
+                yield {"date": day, "seg_id": seg_id, "frag_id": frag_id}
 
             # Create new segments where we do NOT match to a segment and
             # yield them
             open_segs = {}
-            for fid in daily_fids:
-                sid = fid
-                open_segs[sid] = [(day, fid)]
-                yield {"seg_id": sid, "date": day, "frag_id": fid}
+            for frag_id in new_fragments:
+                # The new segment takes its ID from the first frag_id
+                seg_id = frag_id
+                open_segs[seg_id] = frag_id
+                yield {"date": day, "seg_id": seg_id, "frag_id": frag_id}
 
             # Add any active segs to open_segs
-            for k, v in active_segs.items():
-                assert k not in open_segs, "open_segs and active shouldn't overlap"
-                assert len(v) == 1, "should only be one item in active values"
-                assert v[0][0] == day
-                open_segs[k] = v
+            for seg_id, frag_id in active_segs.items():
+                assert seg_id not in open_segs, "open_segs and active shouldn't overlap"
+                open_segs[seg_id] = frag_id
 
     def expand(self, xs):
-        return xs | beam.FlatMap(self.merge_fragments)
+        return xs | beam.FlatMap(self.merge_fragments_improvement)
