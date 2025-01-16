@@ -14,7 +14,7 @@ def get_next(
     while ordered:
         item = ordered.pop()
         _, id1, id2 = item
-        if id1 in stale_keys or id2 in stale_keys:
+        if id1 not in stale_keys and id2 not in stale_keys:
             return item
     return None
 
@@ -151,4 +151,4 @@ class CreateSegmentMap(beam.PTransform):
                 open_segs[seg_id] = frag_id
 
     def expand(self, xs):
-        return xs | beam.FlatMap(self.merge_fragments_improvement)
+        return xs | beam.FlatMap(self.merge_fragments)
