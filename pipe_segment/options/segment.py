@@ -45,7 +45,7 @@ class SegmentOptions(PipelineOptions):
         required.add_argument(
             "--fragment_tbl",
             required=True,
-            help="Bigquery table to read and write fragments",
+            help="Bigquery table to read fragments",
         )
         required.add_argument(
             "--segment_dest",
@@ -116,4 +116,9 @@ class SegmentOptions(PipelineOptions):
             "--bins_per_day",
             default=4,
             help="Amount of containers per day to tag fragments and messages.",
+        )
+        optional.add_argument(
+            "--output_fragment_tbl",
+            help="Bigquery table to write fragments",
+            default=None
         )

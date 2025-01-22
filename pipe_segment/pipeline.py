@@ -60,6 +60,10 @@ class SegmentPipeline:
         self.options = options.view_as(SegmentOptions)
         self.date_range = parse_date_range(self.options.date_range)
         self.satellite_offsets_writer = None
+        if self.options.output_fragment_tbl is None:
+            self.options.output_fragment_tbl = self.options.fragment_tbl
+            logging.info("The output_fragment_tbl defaults to = %s" % self.options.fragment_tbl)
+
 
     @property
     def merge_params(self):
@@ -131,7 +135,7 @@ class SegmentPipeline:
         new_fragments = fragmented[Fragment.OUTPUT_TAG_FRAGMENTS]
 
         new_fragments | WriteDateSharded(
-            self.options.fragment_tbl, self.cloud_options.project, Fragment.schema
+            self.options.output_fragment_tbl, self.cloud_options.project, Fragment.schema
         )
 
         existing_fragments = pipeline | ReadFragments(
