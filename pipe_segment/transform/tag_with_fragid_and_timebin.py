@@ -16,7 +16,7 @@ class TagWithFragIdAndTimeBin(PTransform):
     def tag_frags(self, x):
         if self.start_date <= x["date"] <= self.end_date:
             for sub_bin in range(self.bins_per_day):
-                yield ((x["frag_id"], str(x["date"]), sub_bin), x)
+                yield ((x["ssvid"], x["frag_id"], str(x["date"]), sub_bin), x)
 
     def expand(self, xs):
         return xs | FlatMap(self.tag_frags)
