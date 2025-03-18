@@ -96,7 +96,7 @@ class CreateSegmentMap(beam.PTransform):
                 for frag_day, fid in seg_fids:
                     assert isinstance(frag_day, date), (frag_day, sid, fid)
                     assert frag_day == day
-                    yield {"seg_id": sid, "date": frag_day, "frag_id": fid}
+                    yield {"ssvid": frag_map[fid]["ssvid"], "seg_id": sid, "date": frag_day, "frag_id": fid}
 
             # Create new segments where we do NOT match to a segment and
             # yield them
@@ -104,7 +104,7 @@ class CreateSegmentMap(beam.PTransform):
             for fid in daily_fids:
                 sid = fid
                 open_segs[sid] = [(day, fid)]
-                yield {"seg_id": sid, "date": day, "frag_id": fid}
+                yield {"ssvid": frag_map[fid]["ssvid"], "seg_id": sid, "date": day, "frag_id": fid}
 
             # Add any active segs to open_segs
             for k, v in active_segs.items():
