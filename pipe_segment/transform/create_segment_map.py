@@ -98,7 +98,7 @@ class CreateSegmentMap(beam.PTransform):
     def merge_fragments(
         self, item: Tuple[Any, Iterable[Dict]]
     ) -> Generator[Dict, None, None]:
-        _, frags = item
+        ssvid, frags = item
         frag_map = {x["frag_id"]: x for x in frags}
         open_segs = {}
         for day, new_fragments in self.frags_by_day(frags):
@@ -134,7 +134,7 @@ class CreateSegmentMap(beam.PTransform):
 
             # Yield all segments where we match to an existing segment
             for seg_id, frag_id in active_segs.items():
-                yield {"date": day, "seg_id": seg_id, "frag_id": frag_id}
+                yield {"ssvid": ssvid, "date": day, "seg_id": seg_id, "frag_id": frag_id}
 
             # Create new segments where we do NOT match to a segment and
             # yield them
@@ -143,7 +143,7 @@ class CreateSegmentMap(beam.PTransform):
                 # The new segment takes its ID from the first frag_id
                 seg_id = frag_id
                 open_segs[seg_id] = frag_id
-                yield {"date": day, "seg_id": seg_id, "frag_id": frag_id}
+                yield {"ssvid": ssvid, "date": day, "seg_id": seg_id, "frag_id": frag_id}
 
             # Add any active segs to open_segs
             for seg_id, frag_id in active_segs.items():
