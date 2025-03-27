@@ -79,10 +79,10 @@ class SegmentPipeline:
         self.satellite_offsets_writer = None
         self.bqtools = BigQueryTools(project=self.cloud_options.project)
 
-        if self.options.sat_offset_dest:
+        if self.options.out_sat_offsets_table:
             remove_satellite_offsets_content(
-                options.sat_offset_dest,
-                options.date_range,
+                self.options.out_sat_offsets_table,
+                self.options.date_range,
                 self.cloud_options.labels,
                 self.cloud_options.project)
 
@@ -103,26 +103,26 @@ class SegmentPipeline:
     @property
     def source_tables(self) -> List[BigQueryMessagesSource]:
         return [BigQueryMessagesSource(table_id=source)
-                for source in self.options.source.split(",")]
+                for source in self.options.in_normalized_messages_table.split(",")]
 
     @property
     def destination_tables(self):
         ver = __version__
         return dict(
             messages={
-                "table": self.options.msg_dest,
+                "table": self.options.out_segmented_messages_table,
                 "schema": message_schema.message_output_schema,
                 "description": f"""Created by the pipe-segment:{ver}.
                 Daily satellite messages segmented processed in segment step.""",
             },
             segments={
-                "table": self.options.segment_dest,
+                "table": self.options.out_segments_table,
                 "schema": segment_schema.segment_schema,
                 "description": f"""Created by the pipe-segment:{ver}.
                 Daily segments processed in segment step.""",
             },
             fragments={
-                "table": self.options.fragment_tbl,
+                "table": self.options.out_fragments_table or self.options.fragments_table,
                 "schema": Fragment.schema,
                 "description": f"""Created by the pipe-segment:{ver}.
                 Daily fragments processed in segment step.""",
@@ -171,21 +171,21 @@ class SegmentPipeline:
         )
 
         if (
-            self.options.sat_source
-            and self.options.norad_to_receiver_tbl
-            and self.options.sat_positions_tbl
+            self.options.in_normalized_sat_offset_messages_table
+            and self.options.in_norad_to_receiver_table
+            and self.options.in_sat_positions_table
         ):
             logger.info("Adding SatelliteOffsets transform...")
 
             satellite_offsets = pipeline | SatelliteOffsets(
-                self.options.sat_source,
-                self.options.norad_to_receiver_tbl,
-                self.options.sat_positions_tbl,
+                self.options.in_normalized_sat_offset_messages_table,
+                self.options.in_norad_to_receiver_table,
+                self.options.in_sat_positions_table,
                 start_date,
                 end_date,
             )
 
-            if self.options.sat_offset_dest:
+            if self.options.out_sat_offsets_table:
                 logger.info("Adding SatelliteOffsetsWrite transform...")
 
                 self.satellite_offsets_writer = SatelliteOffsetsWrite(
@@ -222,7 +222,7 @@ class SegmentPipeline:
 
         logger.info("Adding ReadFragments transform...")
         existing_fragments = pipeline | ReadFragments(
-            self.options.fragment_tbl,
+            self.options.fragments_table,
             project=self.cloud_options.project,
             # TODO should be able to use single lookback, but would have to
             # lookback at fragments not segments or something otherwise complicated

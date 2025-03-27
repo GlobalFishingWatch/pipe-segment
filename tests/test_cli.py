@@ -18,10 +18,10 @@ def test_cli(monkeypatch, tmp_path):
         '-v',
         '--log_file', log_file,
         'segment',
-        '--source', dummy_table,
-        '--msg_dest', dummy_table,
-        '--fragment_tbl', dummy_table,
-        '--segment_dest', dummy_table
+        '--in_normalized_messages_table', dummy_table,
+        '--out_segmented_messages_table', dummy_table,
+        '--fragments_table', dummy_table,
+        '--out_segments_table', dummy_table
     ])
 
     assert os.path.exists(log_file)

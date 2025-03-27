@@ -178,13 +178,13 @@ class SatelliteOffsetsWrite(PTransform):
 
     def __init__(self, options, cloud_opts):
         self.bqclient = bigquery.Client(cloud_opts.project)
-        self.source_table = options.sat_source
-        self.source_norad = options.norad_to_receiver_tbl
-        self.source_sat_positions = options.sat_positions_tbl
+        self.source_table = options.in_normalized_sat_offset_messages_table
+        self.source_norad = options.in_norad_to_receiver_table
+        self.source_sat_positions = options.in_sat_positions_table
         _, self.end_date = options.date_range.split(',')
         self.labels = list_to_dict(cloud_opts.labels)
 
-        self.dest_table = options.sat_offset_dest
+        self.dest_table = options.out_sat_offsets_table
         dataset_id, table_name = self.dest_table.split('.')
         self.table_ref = bigquery.DatasetReference(
             cloud_opts.project, dataset_id).table(table_name)

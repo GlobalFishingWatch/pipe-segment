@@ -45,8 +45,8 @@ python -m pipe_segment \
     --disk_size_gb=100 \
     --worker_machine_type=custom-1-16384-ext \
     --project=world-fishing-827 \
-    --source=bq://world-fishing-827:pipe_ais_sources_v20190222.normalized_spire_ \
-    --sat_source bq://world-fishing-827:pipe_ais_sources_v20190222.normalized_spire_ \
+    --in_normalized_messages_table=bq://world-fishing-827:pipe_ais_sources_v20190222.normalized_spire_ \
+    --in_normalized_sat_offset_messages_table bq://world-fishing-827:pipe_ais_sources_v20190222.normalized_spire_ \
     --runner=DataflowRunner \
     --labels=airflow-version=v1-10-2 \
     --temp_shards_per_day=100 \
@@ -58,9 +58,9 @@ python -m pipe_segment \
     --job_name=pytest-segmenter \
     --look_ahead=1 \
     --max_timing_offset_s {max_timing_offset_s} \
-    --sat_offset_dest bq://world-fishing-827:0_ttl24h.segmenter_test_sat_offsets_ \
-    --seg_dest=bq://world-fishing-827:0_ttl24h.segmenter_test_segments_ \
-    --msg_dest=bq://world-fishing-827:0_ttl24h.segmenter_test_messages_ \
+    --out_sat_offsets_table bq://world-fishing-827:0_ttl24h.segmenter_test_sat_offsets_ \
+    --out_segments_table=bq://world-fishing-827:0_ttl24h.segmenter_test_segments_ \
+    --out_segmented_messages_table=bq://world-fishing-827:0_ttl24h.segmenter_test_messages_ \
     --date_range=2018-07-01,2018-07-01 \
     --wait_for_job \
     --ssvid_filter_query 'select ssvid from unnest([{mmsi_str}]) as ssvid'"""
@@ -75,7 +75,7 @@ python -m pipe_segment \
     --disk_size_gb=100 \
     --worker_machine_type=custom-1-16384-ext \
     --project=world-fishing-827 \
-    --source=bq://world-fishing-827:pipe_ais_sources_v20190222.normalized_spire_ \
+    --in_normalized_messages_table=bq://world-fishing-827:pipe_ais_sources_v20190222.normalized_spire_ \
     --runner=DataflowRunner \
     --labels=airflow-version=v1-10-2 \
     --temp_shards_per_day=100 \
@@ -87,8 +87,8 @@ python -m pipe_segment \
     --job_name=pytest-segmenter-nosat \
     --look_ahead=1 \
     --max_timing_offset_s {max_timing_offset_s} \
-    --seg_dest=bq://world-fishing-827:0_ttl24h.segmenter_test_nosat_segments_ \
-    --msg_dest=bq://world-fishing-827:0_ttl24h.segmenter_test_nosat_messages_ \
+    --out_segments_table=bq://world-fishing-827:0_ttl24h.segmenter_test_nosat_segments_ \
+    --out_segmented_messages_table=bq://world-fishing-827:0_ttl24h.segmenter_test_nosat_messages_ \
     --date_range=2018-07-01,2018-07-01 \
     --wait_for_job \
     --ssvid_filter_query 'select ssvid from unnest([{mmsi_str}]) as ssvid'"""
