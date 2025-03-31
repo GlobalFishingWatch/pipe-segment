@@ -8,7 +8,7 @@ def by_day(
 ) -> Generator[Tuple[date, List[dict]], None, None]:
     """Yield items grouped by date with the groups in date order"""
     items = sorted(items, key=lambda x: x[key])
-    current = []
+    current: List[dict] = []
     day = datetimeFromTimestamp(items[0][key]).date()
     for x in items:
         new_day = datetimeFromTimestamp(x[key]).date()

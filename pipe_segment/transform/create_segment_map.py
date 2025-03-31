@@ -7,9 +7,10 @@ from typing import Iterable, Generator, Any, Optional, List, Tuple, Set, Dict
 from ..tools import datetimeFromTimestamp
 from .util import by_day
 
+
 def get_next(
     ordered: List[Tuple[float, str, str]], stale_keys: Set[str]
-) -> Optional[tuple]:
+) -> Optional[Tuple[Any, str, str]]:
     """return the next item in the queue, skipping items with stale keys"""
     while ordered:
         item = ordered.pop()
@@ -45,13 +46,12 @@ class CreateSegmentMap(beam.PTransform):
         discrepancy = self.matcher.compute_discrepancy(msg0, msg1, penalized_hours)
         return self.matcher.compute_metric(discrepancy, hours)
 
-
     def compute_ordered_scores(
-            self,
-            existing_fragments: Iterable[str],
-            new_fragments: Iterable[str],
-            frag_map: Dict[str, dict],
-        ) -> List[Tuple[float, str, str]]:
+        self,
+        existing_fragments: Iterable[Tuple[str, str]],
+        new_fragments: Iterable[str],
+        frag_map: Dict[str, dict],
+    ) -> List[Tuple[float, str, str]]:
         """
         Args:
             existing_fragments:
@@ -63,54 +63,37 @@ class CreateSegmentMap(beam.PTransform):
         are last for easy access in order of highest score
         """
         scores = []
-        for frag_id_0 in existing_fragments:
+        for seg_id, frag_id_0 in existing_fragments:
             frag0 = frag_map[frag_id_0]
             for frag_id_1 in new_fragments:
                 frag1 = frag_map[frag_id_1]
                 score = self.compute_pair_score(frag0, frag1)
-                scores.append((score, frag_id_0, frag_id_1))
+                scores.append((score, seg_id, frag_id_1))
         scores.sort()  # This puts highest scores last
-        return scores
-
-    def compute_scores(self, segs, frag_ids, frag_map):
-        """
-        Parameters
-        ----------
-        segs : dict mapping seg_id (str) to list of frag_ids (str)
-        frag_ids : list of str
-        frag_map : dict mapping str (frag_id) to dict
-        """
-        scores = {}
-        for sid, dated_fids in segs.items():
-            _, fid0 = dated_fids[-1]
-            frag0 = frag_map[fid0]
-            for fid in frag_ids:
-                frag1 = frag_map[fid]
-                scores[sid, fid] = self.compute_pair_score(frag0, frag1)
         return scores
 
     def frags_by_day(
         self, frags: Iterable[dict]
-    ) -> Generator[Tuple[date, Set[dict]], None, None]:
+    ) -> Generator[Tuple[date, Set[str]], None, None]:
         for day, frags_by_day in by_day(frags):
             yield day, {x["frag_id"] for x in frags_by_day}
 
     def merge_fragments(
-        self, item: Tuple[Any, Iterable[Dict]]
+        self, ssvid_frags: Tuple[Any, Iterable[Dict]]
     ) -> Generator[Dict, None, None]:
-        ssvid, frags = item
+        ssvid, frags = ssvid_frags
         frag_map = {x["frag_id"]: x for x in frags}
-        open_segs = {}
+        open_segs: Dict[str, str] = {}
+        new_fragments: Set[str]
         for day, new_fragments in self.frags_by_day(frags):
-
             # Compute how well fragments from today match earlier segments
             # A score of zero means do not match.
-            existing_fragments = open_segs.values()
-            # scores = self.compute_scores(open_segs, new_fragments, frag_map)
-            ordered_scores = self.compute_ordered_scores(existing_fragments, new_fragments, frag_map)
+            ordered_scores = self.compute_ordered_scores(
+                open_segs.items(), new_fragments, frag_map
+            )
             #
             active_segs = {}
-            stale_keys = set()
+            stale_keys: Set[str] = set()
             while (item := get_next(ordered_scores, stale_keys)) is not None:
                 score, seg_id, frag_id = item
                 if score == 0:
@@ -134,7 +117,12 @@ class CreateSegmentMap(beam.PTransform):
 
             # Yield all segments where we match to an existing segment
             for seg_id, frag_id in active_segs.items():
-                yield {"ssvid": ssvid, "date": day, "seg_id": seg_id, "frag_id": frag_id}
+                yield {
+                    "ssvid": ssvid,
+                    "date": day,
+                    "seg_id": seg_id,
+                    "frag_id": frag_id,
+                }
 
             # Create new segments where we do NOT match to a segment and
             # yield them
@@ -143,7 +131,12 @@ class CreateSegmentMap(beam.PTransform):
                 # The new segment takes its ID from the first frag_id
                 seg_id = frag_id
                 open_segs[seg_id] = frag_id
-                yield {"ssvid": ssvid, "date": day, "seg_id": seg_id, "frag_id": frag_id}
+                yield {
+                    "ssvid": ssvid,
+                    "date": day,
+                    "seg_id": seg_id,
+                    "frag_id": frag_id,
+                }
 
             # Add any active segs to open_segs
             for seg_id, frag_id in active_segs.items():
