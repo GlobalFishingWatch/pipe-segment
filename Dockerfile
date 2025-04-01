@@ -20,7 +20,10 @@ RUN pip install --no-cache-dir -r dev.txt
 
 # Setup local packages
 COPY . /opt/project
-RUN pip install -e .
+
+ENV PYTHONPATH /opt/project
+RUN cd /usr/local/lib/python3.8/site-packages && \
+    python /opt/project/setup.py develop
 
 # Set the entrypoint to Apache Beam SDK launcher.
 ENTRYPOINT ["/opt/apache/beam/boot"]
