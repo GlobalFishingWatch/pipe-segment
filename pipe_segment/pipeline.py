@@ -21,7 +21,6 @@ from pipe_segment.transform.invalid_values import filter_invalid_values
 from pipe_segment.transform.read_fragments import ReadFragments
 from pipe_segment.transform.read_messages import ReadMessages
 from pipe_segment.transform.satellite_offsets import SatelliteOffsets, SatelliteOffsetsWrite
-from pipe_segment.transform.satellite_offsets import remove_satellite_offsets_content
 from pipe_segment.transform.tag_with_fragid_and_timebin import TagWithFragIdAndTimeBin
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
 from pipe_segment.transform.write_sink import WriteSink
@@ -70,6 +69,11 @@ def strip_identity_and_destination(fragment):
     return x
 
 
+def clean_for_fresh_start(table_key: list, date_range: str, labels: list, bqt: BigQueryTools):
+    for table, key in table_key:
+        bqt.remove_content(table, date_range, labels, key)
+
+
 class SegmentPipeline:
     def __init__(self, options, beam_options):
         self.options = options
@@ -79,12 +83,23 @@ class SegmentPipeline:
         self.satellite_offsets_writer = None
         self.bqtools = BigQueryTools(project=self.cloud_options.project)
 
+        # Clean each table content to start fresh
+        table_key = [
+            (self.options.out_segmented_messages_table, "timestamp"),
+            (self.options.out_segmented_messages_table, "sharded_date"),
+            ((self.options.out_fragments_table if
+                self.options.out_fragments_table else
+                self.options.fragments_table), "sharded_date"),
+        ]
         if self.options.out_sat_offsets_table:
-            remove_satellite_offsets_content(
-                self.options.out_sat_offsets_table,
-                self.options.date_range,
-                self.cloud_options.labels,
-                self.cloud_options.project)
+            table_key.append((self.options.out_sat_offsets_table, "hour"))
+
+        clean_for_fresh_start(
+            table_key,
+            self.options.date_range,
+            self.cloud_options.labels,
+            self.bqtools
+        )
 
     @classmethod
     def build(cls, options, beam_args):
@@ -155,8 +170,6 @@ class SegmentPipeline:
 
         start_date = safe_date(self.date_range[0])
         end_date = safe_date(self.date_range[1])
-
-        self.bqtools.ensure_sharded_tables_creation(start_date, end_date, self.destination_tables)
 
         logger.info("Adding ReadMessages transform...")
         messages = (
