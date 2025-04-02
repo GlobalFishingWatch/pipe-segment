@@ -336,8 +336,6 @@ class SegmentIdentityPipeline:
         pipeline = beam.Pipeline(options=self.beam_options)
 
         start_dt, end_dt = [datetimeFromTimestamp(ts) for ts in self.date_range]
-        self.bqtools.ensure_sharded_tables_creation(
-            start_dt, end_dt, self.destination_tables, key="summary_timestamp")
 
         (
             pipeline

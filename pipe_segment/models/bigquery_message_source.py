@@ -3,7 +3,7 @@ from datetime import datetime
 
 from jinja2 import Template
 
-from pipe_segment.utils.bq import get_bq_table
+from pipe_segment.utils.bqtools import BigQueryTools
 
 
 class BigQueryMessagesSource:
@@ -21,9 +21,10 @@ class BigQueryMessagesSource:
             project_id, dataset_id, table_name = table_id.replace("bq://", "") \
                 .replace(":", ".") \
                 .split(".")
+            self.bqt = BigQueryTools(project_id)
             self._table_suffix = ''
             # When the table is found as provided in the arguments is partitioned
-            self._table = get_bq_table(project_id, dataset_id, table_name)
+            self._table = self.bqt.get_bq_table(dataset_id, table_name)
 
             if self._table.time_partitioning:
                 partitioning_field = self._table.time_partitioning.field
@@ -41,7 +42,7 @@ class BigQueryMessagesSource:
                 # Ensure the table is sharded
                 self._table_suffix = '*'
                 try:
-                    self._table = get_bq_table(project_id, dataset_id,
+                    self._table = self.bqt.get_bq_table(dataset_id,
                                                f"{table_name}{self._table_suffix}")
                     self._filtering_field = "_TABLE_SUFFIX"
                     self._date_format = "%Y%m%d"
