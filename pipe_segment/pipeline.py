@@ -223,12 +223,8 @@ class SegmentPipeline:
         logger.info("Adding ReadFragments transform...")
         existing_fragments = pipeline | ReadFragments(
             self.options.fragments_table,
-            project=self.cloud_options.project,
-            # TODO should be able to use single lookback, but would have to
-            # lookback at fragments not segments or something otherwise complicated
-            start_date=None,  # start_date - timedelta(days=1),
             end_date=start_date - timedelta(days=1),
-            create_if_missing=True,
+            ssvid_filter_query=self.options.ssvid_filter_query,
         )
 
         all_fragments = (new_fragments, existing_fragments) | beam.Flatten()
