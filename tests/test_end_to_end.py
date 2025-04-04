@@ -63,7 +63,7 @@ python -m pipe_segment \
     --out_segmented_messages_table=bq://world-fishing-827:0_ttl24h.segmenter_test_messages_ \
     --date_range=2018-07-01,2018-07-01 \
     --wait_for_job \
-    --ssvid_filter_query 'select ssvid from unnest([{mmsi_str}]) as ssvid'"""
+    --ssvid_filter_query 'select ssvid from unnest([{mmsi_str}]) as ssvid'"""  # noqa: E501
 
 pipeline_cmd = shlex.split(pipeline_cmd_str.strip())
 
@@ -91,7 +91,7 @@ python -m pipe_segment \
     --out_segmented_messages_table=bq://world-fishing-827:0_ttl24h.segmenter_test_nosat_messages_ \
     --date_range=2018-07-01,2018-07-01 \
     --wait_for_job \
-    --ssvid_filter_query 'select ssvid from unnest([{mmsi_str}]) as ssvid'"""
+    --ssvid_filter_query 'select ssvid from unnest([{mmsi_str}]) as ssvid'"""  # noqa E501
 
 pipeline_cmd_nosat = shlex.split(pipeline_cmd_nosat_str.strip())
 
