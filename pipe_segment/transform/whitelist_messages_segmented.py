@@ -1,5 +1,5 @@
 import apache_beam as beam
-from pipe_segment import message_schema
+from pipe_segment.schemas import message_schema
 
 
 class WhitelistFields(beam.PTransform):

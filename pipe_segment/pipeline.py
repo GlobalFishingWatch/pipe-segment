@@ -1,18 +1,16 @@
-import apache_beam as beam
-import datetime
-import logging
-import pytz
+# import datetime
 import ujson
+import logging
+from datetime import date, timezone, datetime, timedelta
+
+import apache_beam as beam
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions, StandardOptions, PipelineOptions
 )
 
 from apache_beam.runners import PipelineState
 
-from datetime import timedelta
-
-from pipe_segment import message_schema, segment_schema
-from pipe_segment.models.bigquery_message_source import BigQueryMessagesSource
+from pipe_segment.schemas import message_schema, segment_schema
 from pipe_segment.transform.create_segment_map import CreateSegmentMap
 from pipe_segment.transform.create_segments import CreateSegments
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
@@ -26,40 +24,40 @@ from pipe_segment.transform.tag_with_fragid_and_timebin import TagWithFragIdAndT
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
 from pipe_segment.transform.write_sink import WriteSink
 from pipe_segment.transform.whitelist_messages_segmented import WhitelistFields
-from pipe_segment.utils.bqtools import BigQueryTools
+from pipe_segment.utils.bq_tools import BigQueryTools
 from pipe_segment.version import __version__
 
 from typing import List
 
-from .tools import as_timestamp, datetimeFromTimestamp
+from .tools import timestamp_from_string, datetime_from_timestamp
 
 logger = logging.getLogger(__name__)
 
 
-def timestamp_to_date(ts: float) -> datetime.date:
-    return datetimeFromTimestamp(ts).date()
+def timestamp_to_date(ts: float) -> date:
+    return datetime_from_timestamp(ts).date()
 
 
 def safe_date(ts):
     if ts is None:
         return None
-    return datetimeFromTimestamp(ts).date()
+    return datetime_from_timestamp(ts).date()
 
 
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
-    return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
+    return list(map(timestamp_from_string, s.split(",")) if s is not None else (None, None))
 
 
 def time_bin_ndx(dtime, time_bins):
-    reltime = dtime - datetime.datetime(dtime.year, dtime.month, dtime.day, tzinfo=pytz.UTC)
+    reltime = dtime - datetime(dtime.year, dtime.month, dtime.day, tzinfo=timezone.utc)
     ndx = int(time_bins * (reltime / timedelta(hours=24)))
     assert 0 <= ndx < time_bins
     return ndx
 
 
 def time_bin_key(x, time_bins):
-    dtime = datetimeFromTimestamp(x["timestamp"])
+    dtime = datetime_from_timestamp(x["timestamp"])
     return x["ssvid"], x["frag_id"], str(dtime.date()), time_bin_ndx(dtime, time_bins)
 
 
@@ -77,7 +75,7 @@ class SegmentPipeline:
         self.cloud_options = beam_options.view_as(GoogleCloudOptions)
         self.date_range = parse_date_range(self.options.date_range)
         self.satellite_offsets_writer = None
-        self.bqtools = BigQueryTools(project=self.cloud_options.project)
+        self.bqtools = BigQueryTools.build(project=self.cloud_options.project)
 
         if self.options.out_sat_offsets_table:
             remove_satellite_offsets_content(
@@ -101,9 +99,8 @@ class SegmentPipeline:
         return ujson.loads(self.options.segmenter_params)
 
     @property
-    def source_tables(self) -> List[BigQueryMessagesSource]:
-        return [BigQueryMessagesSource(table_id=source)
-                for source in self.options.in_normalized_messages_table.split(",")]
+    def source_tables(self) -> List[str]:
+        return self.options.source.split(",")
 
     @property
     def destination_tables(self):
@@ -156,12 +153,13 @@ class SegmentPipeline:
         start_date = safe_date(self.date_range[0])
         end_date = safe_date(self.date_range[1])
 
-        self.bqtools.ensure_sharded_tables_creation(start_date, end_date, self.destination_tables)
+        self.bqtools.create_or_clear_tables(self.destination_tables, start_date, end_date)
 
         logger.info("Adding ReadMessages transform...")
         messages = (
             pipeline
             | ReadMessages(
+                bqclient=self.bqtools.client,
                 sources=self.source_tables,
                 start_date=start_date,
                 end_date=end_date,

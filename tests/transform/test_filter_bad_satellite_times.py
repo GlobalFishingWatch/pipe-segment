@@ -1,12 +1,11 @@
 import pytest
-from datetime import datetime
-from pytz import UTC
+from datetime import datetime, timezone as tz
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
-from pipe_segment.tools import timestampFromDatetime
+from pipe_segment.tools import timestamp_from_datetime
 
 
 @pytest.mark.parametrize(
@@ -23,7 +22,7 @@ from pipe_segment.tools import timestampFromDatetime
 def test_make_sat_key(hour, offset, expected):
     tx = FilterBadSatelliteTimes(None, None, None)
     assert (
-        tx.make_sat_key("rcvr", timestampFromDatetime(hour.replace(tzinfo=UTC)), offset)
+        tx.make_sat_key("rcvr", timestamp_from_datetime(hour.replace(tzinfo=tz.utc)), offset)
         == expected
     )
 
@@ -34,7 +33,7 @@ def test_make_sat_key(hour, offset, expected):
         (
             {
                 "receiver": "rcvr1",
-                "hour": timestampFromDatetime(datetime(2020, 1, 1, 23, tzinfo=UTC)),
+                "hour": timestamp_from_datetime(datetime(2020, 1, 1, 23, tzinfo=tz.utc)),
             },
             1,
             ["rcvr1-2020-1-1-22", "rcvr1-2020-1-1-23", "rcvr1-2020-1-2-0"],
@@ -42,7 +41,7 @@ def test_make_sat_key(hour, offset, expected):
         (
             {
                 "receiver": "rcvr2",
-                "hour": timestampFromDatetime(datetime(2020, 1, 2, 0, tzinfo=UTC)),
+                "hour": timestamp_from_datetime(datetime(2020, 1, 2, 0, tzinfo=tz.utc)),
             },
             1,
             ["rcvr2-2020-1-1-23", "rcvr2-2020-1-2-0", "rcvr2-2020-1-2-1"],
@@ -50,7 +49,7 @@ def test_make_sat_key(hour, offset, expected):
         (
             {
                 "receiver": "rcvr1",
-                "hour": timestampFromDatetime(datetime(2020, 1, 1, 23, tzinfo=UTC)),
+                "hour": timestamp_from_datetime(datetime(2020, 1, 1, 23, tzinfo=tz.utc)),
             },
             2,
             [
@@ -74,8 +73,8 @@ def test_make_offset_sat_key_set(msg, padding, expected):
         (
             {
                 "receiver": "rcvr1",
-                "timestamp": timestampFromDatetime(
-                    datetime(2020, 1, 1, 23, 37, tzinfo=UTC)
+                "timestamp": timestamp_from_datetime(
+                    datetime(2020, 1, 1, 23, 37, tzinfo=tz.utc)
                 ),
             },
             False,
@@ -83,8 +82,8 @@ def test_make_offset_sat_key_set(msg, padding, expected):
         (
             {
                 "receiver": "rcvr1",
-                "timestamp": timestampFromDatetime(
-                    datetime(2020, 1, 2, 0, 0, tzinfo=UTC)
+                "timestamp": timestamp_from_datetime(
+                    datetime(2020, 1, 2, 0, 0, tzinfo=tz.utc)
                 ),
             },
             False,
@@ -92,8 +91,8 @@ def test_make_offset_sat_key_set(msg, padding, expected):
         (
             {
                 "receiver": "rcvr1",
-                "timestamp": timestampFromDatetime(
-                    datetime(2020, 1, 1, 22, 47, tzinfo=UTC)
+                "timestamp": timestamp_from_datetime(
+                    datetime(2020, 1, 1, 22, 47, tzinfo=tz.utc)
                 ),
             },
             False,
@@ -101,8 +100,8 @@ def test_make_offset_sat_key_set(msg, padding, expected):
         (
             {
                 "receiver": "rcvr2",
-                "timestamp": timestampFromDatetime(
-                    datetime(2020, 1, 2, 0, 0, tzinfo=UTC)
+                "timestamp": timestamp_from_datetime(
+                    datetime(2020, 1, 2, 0, 0, tzinfo=tz.utc)
                 ),
             },
             True,
@@ -110,8 +109,8 @@ def test_make_offset_sat_key_set(msg, padding, expected):
         (
             {
                 "receiver": "rcvr1",
-                "timestamp": timestampFromDatetime(
-                    datetime(2020, 1, 2, 1, 22, tzinfo=UTC)
+                "timestamp": timestamp_from_datetime(
+                    datetime(2020, 1, 2, 1, 22, tzinfo=tz.utc)
                 ),
             },
             True,
@@ -119,8 +118,8 @@ def test_make_offset_sat_key_set(msg, padding, expected):
         (
             {
                 "receiver": "rcvr1",
-                "timestamp": timestampFromDatetime(
-                    datetime(2020, 1, 1, 21, 22, tzinfo=UTC)
+                "timestamp": timestamp_from_datetime(
+                    datetime(2020, 1, 1, 21, 22, tzinfo=tz.utc)
                 ),
             },
             True,
@@ -131,7 +130,7 @@ def test_not_during_bad_hour(msg, expected):
     tx = FilterBadSatelliteTimes(None, None, bad_hour_padding=1)
     bad_hours_list = tx.make_offset_sat_key_set({
         "receiver": "rcvr1",
-        "hour": timestampFromDatetime(datetime(2020, 1, 1, 23, tzinfo=UTC)),
+        "hour": timestamp_from_datetime(datetime(2020, 1, 1, 23, tzinfo=tz.utc)),
     })
 
     bad_hours = dict((x, x) for x in bad_hours_list)
