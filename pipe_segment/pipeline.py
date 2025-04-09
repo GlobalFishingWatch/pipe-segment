@@ -39,7 +39,7 @@ def timestamp_to_date(ts: float) -> datetime.date:
     return datetimeFromTimestamp(ts).date()
 
 
-def safe_date(ts):
+def safe_date(ts: float) -> datetime.date:
     if ts is None:
         return None
     return datetimeFromTimestamp(ts).date()
@@ -69,9 +69,11 @@ def strip_identity_and_destination(fragment):
     return x
 
 
-def clean_for_fresh_start(table_key: list, date_range: str, labels: list, bqt: BigQueryTools):
-    for table, key in table_key:
-        bqt.remove_content(table, date_range, labels, key)
+def set_sharded_date(elem):
+    x = elem.copy()
+    dtime = datetimeFromTimestamp(elem["timestamp"])
+    x["sharded_date"] = dtime.date()
+    return x
 
 
 class SegmentPipeline:
@@ -83,23 +85,24 @@ class SegmentPipeline:
         self.satellite_offsets_writer = None
         self.bqtools = BigQueryTools(project=self.cloud_options.project)
 
-        # Clean each table content to start fresh
-        table_key = [
-            (self.options.out_segmented_messages_table, "timestamp"),
-            (self.options.out_segmented_messages_table, "sharded_date"),
-            ((self.options.out_fragments_table if
-                self.options.out_fragments_table else
-                self.options.fragments_table), "sharded_date"),
-        ]
-        if self.options.out_sat_offsets_table:
-            table_key.append((self.options.out_sat_offsets_table, "hour"))
-
-        clean_for_fresh_start(
-            table_key,
-            self.options.date_range,
-            self.cloud_options.labels,
-            self.bqtools
-        )
+        for key in self.destination_tables:
+            dtable = self.destination_tables[key]
+            # Ensure the tables exists
+            # self.bqtools.ensure_table_exists(
+            #     table_path = dtable["table"],
+            #     schema = dtable["schema"]["fields"],
+            #     partition_field = dtable["partition_field"],
+            #     description = dtable["description"],
+            #     clustering_fields=dtable["clustering_fields"],
+            #     labels = self.cloud_options.labels,
+            # )
+            # Clean each table content to start fresh
+            self.bqtools.remove_content(
+                table = dtable["table"],
+                date_range = self.options.date_range,
+                labels = self.cloud_options.labels,
+                partition_field = dtable["partition_field"],
+            )
 
     @classmethod
     def build(cls, options, beam_args):
@@ -123,25 +126,41 @@ class SegmentPipeline:
     @property
     def destination_tables(self):
         ver = __version__
-        return dict(
+        result = dict(
             messages={
                 "table": self.options.out_segmented_messages_table,
                 "schema": message_schema.message_output_schema,
                 "description": f"""Created by the pipe-segment:{ver}.
                 Daily satellite messages segmented processed in segment step.""",
+                "partition_field": "timestamp",
+                "clustering_fields": ["ssvid"],
             },
             segments={
                 "table": self.options.out_segments_table,
                 "schema": segment_schema.segment_schema,
                 "description": f"""Created by the pipe-segment:{ver}.
                 Daily segments processed in segment step.""",
+                "partition_field": "sharded_date",
+                "clustering_fields": ["ssvid"],
             },
             fragments={
                 "table": self.options.out_fragments_table or self.options.fragments_table,
                 "schema": Fragment.schema,
                 "description": f"""Created by the pipe-segment:{ver}.
                 Daily fragments processed in segment step.""",
+                "partition_field": "sharded_date",
+                "clustering_fields": ["ssvid"],
             })
+
+        if self.options.out_sat_offsets_table:
+            result["sat_offset"] = {
+                "table": self.options.out_sat_offsets_table,
+                "schema": SatelliteOffsetsWrite.schema,
+                "description": "Init satellite offset description",
+                "partition_field": "hour",
+                "clustering_fields": [],
+            }
+        return result
 
     @property
     def write(self):
@@ -241,7 +260,7 @@ class SegmentPipeline:
             # lookback at fragments not segments or something otherwise complicated
             start_date=None,  # start_date - timedelta(days=1),
             end_date=start_date - timedelta(days=1),
-            create_if_missing=True,
+            labels=self.cloud_options.labels,
         )
 
         all_fragments = (new_fragments, existing_fragments) | beam.Flatten()
@@ -300,6 +319,7 @@ class SegmentPipeline:
             >> beam.Filter(
                 lambda x: start_date <= timestamp_to_date(x["timestamp"]) <= end_date
             )
+            | "Set sharded date" >> beam.Map(set_sharded_date)
             | "WriteSegments" >> self.write["segments"]
         )
 

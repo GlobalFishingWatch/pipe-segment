@@ -267,6 +267,12 @@ DEST_SEGMENT_IDENTITY_SCHEMA = {
             "type": "RECORD",
             "description": "Array of all unique width for this segment for this day.",
         },
+        {
+            "mode": "NULLABLE",
+            "name": "sharded_date",
+            "type": "DATE",
+            "description": "Date that process what was received that sharded date.",
+        },
     ]
 }
 
@@ -274,6 +280,13 @@ DEST_SEGMENT_IDENTITY_SCHEMA = {
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
     return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
+
+
+def set_sharded_date(elem):
+    x = elem.copy()
+    dtime = datetimeFromTimestamp(elem["timestamp"])
+    x["sharded_date"] = dtime.date()
+    return x
 
 
 class SegmentIdentityPipeline:
@@ -342,6 +355,7 @@ class SegmentIdentityPipeline:
             | "ReadDailySegments" >> self.source_segments()
             | "SummarizeIdentifiers" >> self.summarize_identifiers
             | "RenameTimestamp" >> self.rename_timestamp
+            | "AddsShardedDate" >> beam.Map(set_sharded_date)
             | "WriteSegmentIdentity" >> self.dest_segment_identity
         )
         return pipeline

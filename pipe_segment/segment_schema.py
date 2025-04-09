@@ -39,6 +39,7 @@ def make_schema():
     add_field("cumulative_msg_count", "INTEGER")
     add_ident_field("cumulative_identities", Identity)
     add_ident_field("cumulative_destinations", Destination)
+    add_field("sharded_date", "DATE")
 
     return schema
 

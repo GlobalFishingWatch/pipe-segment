@@ -63,6 +63,7 @@ def make_schema():
             )
         schema["fields"].append(field)
 
+    add_field("sharded_date", "DATE")
     add_ident_field(
         "identities", Identity, type_map={"length": "FLOAT", "width": "FLOAT"}
     )
@@ -100,13 +101,15 @@ class Fragment(PTransform):
     @staticmethod
     def _convert_fragment_out(frag):
         frag = dict(frag.items())
+        if frag["timestamp"] is not None:
+            frag["sharded_date"] = frag["timestamp"].date()
         for k in [
             "timestamp",
             "first_msg_timestamp",
             "last_msg_timestamp",
         ]:
             assert k in frag, frag
-            if k in frag and not frag[k] is None:
+            if not frag[k] is None:
                 frag[k] = timestampFromDatetime(frag[k])
         return frag
 

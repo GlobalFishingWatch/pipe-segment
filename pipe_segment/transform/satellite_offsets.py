@@ -136,13 +136,12 @@ class SatelliteOffsetsWrite(PTransform):
         self.table_ref = bigquery.DatasetReference(
             cloud_opts.project, dataset_id).table(table_name)
 
-        self.schema = make_schema()
         self.ver = __version__
 
     def expand(self, xs):
         return xs | "WriteSatOffsets" >> io.WriteToBigQuery(
             self.dest_table,
-            schema=self.schema,
+            schema=SatelliteOffsetsWrite.schema,
             write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             additional_bq_parameters={
@@ -178,3 +177,5 @@ class SatelliteOffsetsWrite(PTransform):
         table.labels = self.labels
         self.bqclient.update_table(table, ["labels"])  # API request
         logging.info(f"Update labels to output table <{self.dest_table}>")
+
+    schema = make_schema()
