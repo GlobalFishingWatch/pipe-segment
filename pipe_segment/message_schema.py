@@ -144,3 +144,6 @@ message_output_schema["fields"].extend(
         {"name": "frag_id", "type": "STRING", "mode": "NULLABLE"},
     ]
 )
+
+
+fieldnames = list(map(lambda x: x['name'], message_output_schema['fields']))

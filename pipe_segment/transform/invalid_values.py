@@ -151,7 +151,7 @@ INVALID_VALUE_RULES_BY_MESSAGE_TYPE = {
 def filter_invalid_values(element):
     field_validators = INVALID_VALUE_RULES_BY_MESSAGE_TYPE.get(element["type"])
 
-    if not field_validators:
+    if field_validators is None:
         return element
 
     for field, validator in field_validators.items():
