@@ -43,7 +43,7 @@ done
 # Force that the destination table exists
 ################################################################################
 YYYYMMDD=$(yyyymmdd ${PROCESS_DATE})
-DEST_TABLE=${DEST_TABLE}${YYYYMMDD}
+DEST_TABLE=${DEST_TABLE}
 
 echo "Ensuring table ${DEST_TABLE} exists"
 TABLE_DESC=(
@@ -57,6 +57,9 @@ TABLE_DESC=$( IFS=$'\n'; echo "${TABLE_DESC[*]}" )
 SCHEMA=${ASSETS}/${PROCESS}.schema.json
 bq mk --force \
   --description "${TABLE_DESC}" \
+  --time_partitioning_type MONTH \
+  --time_partitioning_field sharded_date \
+  --clustering_fields 'sharded_date,ssvid' \
   ${DEST_TABLE} \
   ${SCHEMA}
 

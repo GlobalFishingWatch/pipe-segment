@@ -25,22 +25,22 @@ help:
 gcp:
 	docker compose pull gcloud
 	docker volume create --name=gcp
-	docker compose run gcloud auth application-default login
-	docker compose run gcloud config set project world-fishing-827
-	docker compose run gcloud auth application-default set-quota-project world-fishing-827
+	docker compose run --rm gcloud auth application-default login
+	docker compose run --rm gcloud config set project world-fishing-827
+	docker compose run --rm gcloud auth application-default set-quota-project world-fishing-827
 
 build:
 	docker compose build
 
 dockershell:
-	docker compose run --entrypoint /bin/bash -it dev
+	docker compose run --rm --entrypoint /bin/bash -it dev
 
 requirements:
-	docker compose run --entrypoint /bin/bash -it dev -c \
+	docker compose run --rm --entrypoint /bin/bash -it dev -c \
 		'pip-compile -o ${REQS_PROD_TXT} ${REQS_PROD_IN} -v'
 
 upgrade-requirements:
-	docker compose run --entrypoint /bin/bash -it dev -c \
+	docker compose run --rm --entrypoint /bin/bash -it dev -c \
 	'pip-compile -o ${REQS_PROD_TXT} -U ${REQS_PROD_IN} -v'
 
 venv:
@@ -56,10 +56,10 @@ test:
 	pytest
 
 testdocker:
-	docker compose run --entrypoint pytest dev
+	docker compose run --rm --entrypoint pytest dev
 
 testdocker-all:
-	docker compose run --entrypoint "pytest --runslow" dev
+	docker compose run --rm --entrypoint "pytest --runslow" dev
 
 
 .PHONY: help gcp build dockersheel requirements upgrade-requirements venv venv3.8 install test testdocker testdocker-all
