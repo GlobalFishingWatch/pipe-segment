@@ -37,6 +37,15 @@ from .tools import as_timestamp, datetimeFromTimestamp
 
 logger = logging.getLogger(__name__)
 
+DESCRIPTION_TABLE_MESSAGES = f"""
+Created by the pipe-segment:{__version__}.
+Daily satellite messages segmented processed in segment step."""
+DESCRIPTION_TABLE_SEGMENTS = f"""
+Created by the pipe-segment:{__version__}.
+Daily segments processed in segment step."""
+DESCRIPTION_TABLE_FRAGMENTS = f"""Created by the pipe-segment:{__version__}.
+Daily fragments processed in segment step."""
+
 
 def timestamp_to_date(ts: float) -> datetime.date:
     return datetimeFromTimestamp(ts).date()
@@ -111,27 +120,23 @@ class SegmentPipeline:
 
     @property
     def destination_tables(self):
-        ver = __version__
         result = dict(
             messages={
                 "table": self.options.out_segmented_messages_table,
                 "schema": message_schema.message_output_schema,
-                "description": f"""Created by the pipe-segment:{ver}.
-                Daily satellite messages segmented processed in segment step.""",
+                "description": DESCRIPTION_TABLE_MESSAGES,
                 "partition_field": "timestamp",
             },
             segments={
                 "table": self.options.out_segments_table,
                 "schema": segment_schema.segment_schema,
-                "description": f"""Created by the pipe-segment:{ver}.
-                Daily segments processed in segment step.""",
+                "description": DESCRIPTION_TABLE_SEGMENTS,
                 "partition_field": "timestamp",
             },
             fragments={
                 "table": self.options.out_fragments_table or self.options.fragments_table,
                 "schema": Fragment.schema,
-                "description": f"""Created by the pipe-segment:{ver}.
-                Daily fragments processed in segment step.""",
+                "description": DESCRIPTION_TABLE_FRAGMENTS,
                 "partition_field": "timestamp",
             })
 
@@ -139,7 +144,7 @@ class SegmentPipeline:
             result["sat_offset"] = {
                 "table": self.options.out_sat_offsets_table,
                 "schema": SatelliteOffsets.schema,
-                "description": satellite_offsets_description(self.options, ver),
+                "description": satellite_offsets_description(self.options, __version__),
                 "partition_field": "hour",
             }
         return result
