@@ -160,6 +160,7 @@ WITH
 
 
 SELECT
-  *
+  *,
+  processDate() as sharded_date
 FROM
    segment_vessel_day
