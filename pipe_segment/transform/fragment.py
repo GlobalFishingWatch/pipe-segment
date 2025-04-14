@@ -106,7 +106,7 @@ class Fragment(PTransform):
             "last_msg_timestamp",
         ]:
             assert k in frag, frag
-            if k in frag and not frag[k] is None:
+            if not frag[k] is None:
                 frag[k] = timestampFromDatetime(frag[k])
         return frag
 
