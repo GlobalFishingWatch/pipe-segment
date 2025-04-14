@@ -10,7 +10,7 @@ WITH
     vessel_id,
     day
   FROM
-    `{{ segment_vessel_daily }}*`
+    `{{ segment_vessel_daily }}`
   ),
   seg_vessel_ssvid as (
     SELECT
