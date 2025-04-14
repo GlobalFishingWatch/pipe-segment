@@ -3,12 +3,21 @@ from importlib import resources
 from jinja2 import Template
 
 import apache_beam as beam
-import logging
-import functools
 from apache_beam import PTransform, io
-from google.api_core.exceptions import NotFound, BadRequest
-from google.cloud import bigquery
-from pipe_segment.version import __version__
+
+
+def get_description(options: dict, ver: str) -> str:
+    return f"""
+    Created by the pipe-segment: {ver}
+    * It identifies, at the hourly level,
+    * how much time a given satellite's clock differs
+    * from the median of all the other satellite's clocks.
+    * https://github.com/GlobalFishingWatch/pipe-segment
+    * Source Satellite: {options.in_normalized_sat_offset_messages_table}
+    * Source Norad: {options.in_norad_to_receiver_table}
+    * Source Satellite Positions: {options.in_sat_positions_table}
+    * Date: {options.date_range.split(",")[1]}
+     """
 
 
 def make_schema():
@@ -116,65 +125,4 @@ class SatelliteOffsets(PTransform):
             yield start_window, end_window
             start_window = end_window + timedelta(days=1)
 
-
-def list_to_dict(labels):
-    return {x.split('=')[0]: x.split('=')[1] for x in labels}
-
-
-class SatelliteOffsetsWrite(PTransform):
-
-    def __init__(self, options, cloud_opts):
-        self.bqclient = bigquery.Client(cloud_opts.project)
-        self.source_table = options.in_normalized_sat_offset_messages_table
-        self.source_norad = options.in_norad_to_receiver_table
-        self.source_sat_positions = options.in_sat_positions_table
-        _, self.end_date = options.date_range.split(',')
-        self.labels = list_to_dict(cloud_opts.labels)
-
-        self.dest_table = options.out_sat_offsets_table
-        dataset_id, table_name = self.dest_table.split('.')
-        self.table_ref = bigquery.DatasetReference(
-            cloud_opts.project, dataset_id).table(table_name)
-
-        self.schema = make_schema()
-        self.ver = __version__
-
-    def expand(self, xs):
-        return xs | "WriteSatOffsets" >> io.WriteToBigQuery(
-            self.dest_table,
-            schema=self.schema,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            additional_bq_parameters={
-                'timePartitioning': {
-                    'type': 'MONTH',
-                    'field': 'hour',
-                    'requirePartitionFilter': False
-                }, 'clustering': {
-                    'fields': ['hour']
-                }
-            }
-        )
-
-    def update_table_description(self):
-        table = self.bqclient.get_table(self.table_ref)  # API request
-        table.description = f"""
-    Created by the pipe-segment: {self.ver}
-    * It identifies, at the hourly level,
-    * how much time a given satellite's clock differs
-    * from the median of all the other satellite's clocks.
-    * https://github.com/GlobalFishingWatch/pipe-segment
-    * Source Satellite: {self.source_table}
-    * Source Norad: {self.source_norad}
-    * Source Satellite Positions: {self.source_sat_positions}
-    * Date: {self.end_date}
-        """
-        table_updated = self.bqclient.update_table(table, ["description"])  # API request
-        assert table_updated.description == table.description
-        logging.info(f"Update descriptions to output table <{self.dest_table}>")
-
-    def update_labels(self):
-        table = self.bqclient.get_table(self.table_ref)  # API request
-        table.labels = self.labels
-        self.bqclient.update_table(table, ["labels"])  # API request
-        logging.info(f"Update labels to output table <{self.dest_table}>")
+    schema = make_schema()

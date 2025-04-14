@@ -1,13 +1,19 @@
 import apache_beam as beam
-from ..tools import datetimeFromTimestamp
 
 
 class WriteSink(beam.PTransform):
-    def __init__(self, sink_table, schema, description=None, key="timestamp"):
+    """Writes the partitioned tables specifing each property."""
+    def __init__(
+        self,
+        sink_table: str,
+        schema: dict,
+        description: str = None,
+        partition_field: str = "timestamp"
+    ):
         self.sink_table = sink_table.replace('bq://', '')
         self.schema = schema
         self.description = description
-        self.key = key
+        self.partition_field = partition_field
 
     def expand(self, pcoll):
         return (
@@ -16,16 +22,18 @@ class WriteSink(beam.PTransform):
         )
 
     def write_sink(self):
-        bq_params_cp = {"destinationTableProperties": {"description": self.description}}
-
-        def compute_table(message):
-            table_suffix = datetimeFromTimestamp(message[self.key]).strftime("%Y%m%d")
-            return f"{self.sink_table}{table_suffix}"
-
         return beam.io.WriteToBigQuery(
-            compute_table,
+            table=self.sink_table,
             schema=self.schema,
-            additional_bq_parameters=bq_params_cp,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            additional_bq_parameters={
+                "timePartitioning": {
+                    "type": "MONTH",
+                    "field": self.partition_field,
+                    "requirePartitionFilter": False
+                }, "clustering": {
+                    "fields": [self.partition_field]
+                }
+            }
         )
