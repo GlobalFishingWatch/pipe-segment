@@ -27,6 +27,9 @@ from ..tools import as_timestamp, datetimeFromTimestamp
 
 logger = logging.getLogger(__name__)
 
+DESCRIPTION_TABLE = f"""
+Created by the pipe-segment: {__version__}.
+Daily segments identity processed in segment step."""
 
 DESCRIPTION_COUNT = "Number of times the unique field value occured for this segment for this day"
 DESCRIPTION_SHIPNAME = "Array of unique shipnames (unnormalized) for this segment for this day."
@@ -284,6 +287,13 @@ class SegmentIdentityPipeline:
         self.date_range = parse_date_range(self.options.date_range)
         self.bqtools = BigQueryTools(project=self.cloud_options.project)
 
+        self.bqtools.remove_content(
+            table=self.destination_table["table"],
+            date_range=self.options.date_range,
+            labels=self.cloud_options.labels,
+            partition_field=self.destination_table["partition_field"],
+        )
+
     @classmethod
     def build(cls, options, beam_args):
         beam_options = PipelineOptions(beam_args)
@@ -315,21 +325,20 @@ class SegmentIdentityPipeline:
         return beam.Map(rename_timestamp)
 
     @property
-    def destination_tables(self):
+    def destination_table(self):
         return dict(
-            segment_identity={
-                "table": self.options.dest_segment_identity,
-                "schema": self.dest_segment_identity_schema,
-                "description": f"""Created by the pipe-segment: {__version__}.
-                Daily segments identity processed in segment step.""",
-            })
+            table=self.options.dest_segment_identity.replace("bq://", "").split(":")[1],
+            schema=self.dest_segment_identity_schema,
+            description=DESCRIPTION_TABLE,
+            partition_field="summary_timestamp",
+        )
 
-    @property
     def dest_segment_identity(self):
         return write_sink(
-            self.destination_tables["segment_identity"]["table"],
-            self.destination_tables["segment_identity"]["schema"],
-            self.destination_tables["segment_identity"]["description"]
+            self.destination_table["table"],
+            self.destination_table["schema"],
+            self.destination_table["description"],
+            self.destination_table["partition_field"],
         )
 
     def pipeline(self):
@@ -342,7 +351,7 @@ class SegmentIdentityPipeline:
             | "ReadDailySegments" >> self.source_segments()
             | "SummarizeIdentifiers" >> self.summarize_identifiers
             | "RenameTimestamp" >> self.rename_timestamp
-            | "WriteSegmentIdentity" >> self.dest_segment_identity
+            | "WriteSegmentIdentity" >> self.dest_segment_identity()
         )
         return pipeline
 
@@ -361,6 +370,10 @@ class SegmentIdentityPipeline:
         ):
             logger.info("Waiting until job is done")
             result.wait_until_finish()
+            if result.state == PipelineState.DONE:
+                dtable = self.destination_table
+                self.bqtools.update_description(dtable["table"], dtable["description"])
+                self.bqtools.update_labels(dtable["table"], self.cloud_options.labels)
         else:
             success_states.add(PipelineState.RUNNING)
             success_states.add(PipelineState.UNKNOWN)
