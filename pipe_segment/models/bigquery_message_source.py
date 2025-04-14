@@ -11,6 +11,7 @@ class BigQueryMessagesSource:
     def __init__(
         self,
         table_id: str,
+        bqtools: BigQueryTools,
         filter_template: str = None
     ):
         self.table_id = table_id
@@ -21,18 +22,15 @@ class BigQueryMessagesSource:
             project_id, dataset_id, table_name = table_id.replace("bq://", "") \
                 .replace(":", ".") \
                 .split(".")
-            self.bqt = BigQueryTools(project_id)
             self._table_suffix = ''
             # When the table is found as provided in the arguments is partitioned
-            self._table = self.bqt.get_bq_table(dataset_id, table_name)
+            self._table = bqtools.get_bq_table(dataset_id, table_name)
 
+            self._filtering_field = "DATE(timestamp)"  # Use timestamp field by default
             if self._table.time_partitioning:
                 partitioning_field = self._table.time_partitioning.field
                 logging.info(f'Table {table_id} is partitioned on field {partitioning_field}')
-                self._filtering_field = partitioning_field
-            else:
-                # Use timestamp field by default
-                self._filtering_field = "timestamp"
+                self._filtering_field = f"DATE({partitioning_field})"
 
             self._date_format = "%Y-%m-%d"
         except Exception as e:
@@ -42,8 +40,10 @@ class BigQueryMessagesSource:
                 # Ensure the table is sharded
                 self._table_suffix = '*'
                 try:
-                    self._table = self.bqt.get_bq_table(dataset_id,
-                                               f"{table_name}{self._table_suffix}")
+                    self._table = bqtools.get_bq_table(
+                        dataset_id,
+                        f"{table_name}{self._table_suffix}"
+                    )
                     self._filtering_field = "_TABLE_SUFFIX"
                     self._date_format = "%Y%m%d"
                     logging.info(f'Table {table_id}* is date sharded')
@@ -57,7 +57,7 @@ class BigQueryMessagesSource:
     def filter_messages(self, start_date: datetime, end_date: datetime) -> str:
         template = self.filter_template
         if template is None:
-            template = "DATE({{ filter_field }}) " + \
+            template = "{{ filter_field }} " + \
                 "BETWEEN '{{ start_date.strftime(date_format) }}' " + \
                 " AND '{{ end_date.strftime(date_format) }}'"
 
