@@ -1,9 +1,5 @@
-from dateutil.parser import parse
 from pipe_segment.segment_identity.transforms import summarize_identifiers
-
-
-def as_timestamp(dt):
-    return parse(dt).timestamp()
+from pipe_segment.tools import timestamp_from_string
 
 
 def build_example_segment_with_identities(daily_msg_count, daily_identities):
@@ -17,16 +13,16 @@ def build_example_segment_with_identities(daily_msg_count, daily_identities):
         "seg_id": "338013000-2017-07-16T19:15:55.000000Z-1",
         "frag_id": "338013000-2017-07-20T00:27:29.000000Z-1",
         "ssvid": "338013000",
-        "timestamp": as_timestamp("2017-07-20 00:00:00.000000 UTC"),
-        "first_msg_timestamp": as_timestamp("2017-01-01T11:00:00.00000 UTC"),
-        "last_msg_timestamp": as_timestamp("2017-01-01T11:00:00.00000 UTC"),
+        "timestamp": timestamp_from_string("2017-07-20 00:00:00.000000 UTC"),
+        "first_msg_timestamp": timestamp_from_string("2017-01-01T11:00:00.00000 UTC"),
+        "last_msg_timestamp": timestamp_from_string("2017-01-01T11:00:00.00000 UTC"),
         "daily_msg_count": daily_msg_count,
         "daily_identities": daily_identities,
         "daily_destinations": [{
             "count": 45,
             "destination": "FISHING GROUND"
         }],
-        "first_timestamp": as_timestamp("2017-07-16 19:15:55.000000 UTC"),
+        "first_timestamp": timestamp_from_string("2017-07-16 19:15:55.000000 UTC"),
         "cumulative_msg_count": "931",
         "cumulative_identities": [{
             "count": 243,
