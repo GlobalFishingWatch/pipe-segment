@@ -96,8 +96,6 @@ OUTPUT = [
 
 
 def test_create_segment_map():
-    op = CreateSegmentMap()  # No params
-
     op = CreateSegmentMap(MERGE_PARAMS)
 
     output = list(op.merge_fragments(INPUTS[0]))
@@ -109,3 +107,7 @@ def test_create_segment_map():
         output = pcoll | op
 
         assert_that(output, equal_to(OUTPUT))
+
+
+def test_create_segment_map_no_params():
+    CreateSegmentMap()
