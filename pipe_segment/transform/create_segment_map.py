@@ -1,5 +1,3 @@
-import logging
-
 from datetime import date
 
 import apache_beam as beam
@@ -8,8 +6,6 @@ from typing import Iterable, Generator, Any, Optional, List, Tuple, Set, Dict
 
 from ..tools import datetimeFromTimestamp
 from .util import by_day
-
-logger = logging.getLogger(__name__)
 
 
 def get_next(
