@@ -24,6 +24,7 @@ class CreateSegmentMap(beam.PTransform):
     def __init__(self, args=None):
         if args is None:
             args = {}
+
         assert "lookback" not in args
         args["lookback"] = 0
         self.matcher = Matcher(**args)
@@ -42,8 +43,10 @@ class CreateSegmentMap(beam.PTransform):
         hours = self.matcher.compute_msg_delta_hours(msg0, msg1)
         if not 0 < hours < 24:
             return 0.0
+
         penalized_hours = self.matcher.compute_penalized_hours(hours)
         discrepancy = self.matcher.compute_discrepancy(msg0, msg1, penalized_hours)
+
         return self.matcher.compute_metric(discrepancy, hours)
 
     def compute_ordered_scores(

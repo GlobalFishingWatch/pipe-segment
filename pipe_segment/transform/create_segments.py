@@ -1,11 +1,10 @@
 import logging
 
-from apache_beam import FlatMap, PTransform
+import apache_beam as beam
 
 from .util import by_day
 
 logger = logging.getLogger(__file__)
-logger.setLevel(logging.DEBUG)
 
 
 def idents2dict(key, cnt):
@@ -18,7 +17,7 @@ def convert_idents(d: dict):
     return [idents2dict(k, v) for (k, v) in d.items()]
 
 
-class CreateSegments(PTransform):
+class CreateSegments(beam.PTransform):
     def update_msgs(self, items):
         _, frags = items
         frags = sorted(frags, key=lambda x: x["first_msg_timestamp"])
@@ -71,4 +70,4 @@ class CreateSegments(PTransform):
             yield seg
 
     def expand(self, xs):
-        return xs | FlatMap(self.update_msgs)
+        return xs | beam.FlatMap(self.update_msgs)

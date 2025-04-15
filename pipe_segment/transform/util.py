@@ -1,6 +1,7 @@
-from ..tools import datetimeFromTimestamp
-from typing import Iterable, Generator, Tuple, List
 from datetime import date
+from typing import Iterable, Generator, Tuple, List
+
+from pipe_segment.tools import datetimeFromTimestamp
 
 
 def by_day(
