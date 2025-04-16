@@ -26,7 +26,7 @@ from pipe_segment.transform.satellite_offsets import (
 )
 from pipe_segment.transform.tag_with_fragid_and_timebin import TagWithFragIdAndTimeBin
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
-from pipe_segment.transform.write_sink import WriteSink
+from pipe_segment.transform.write_partitioned_table import WritePartitionedTable
 from pipe_segment.transform.whitelist_messages_segmented import WhitelistFields
 from pipe_segment.utils.bqtools import BigQueryTools
 from pipe_segment.version import __version__
@@ -149,8 +149,8 @@ class SegmentPipeline:
             }
         return result
 
-    def write(self, tbl_data: dict) -> WriteSink:
-        return WriteSink(
+    def write(self, tbl_data: dict) -> WritePartitionedTable:
+        return WritePartitionedTable(
             tbl_data["table"],
             tbl_data["schema"],
             tbl_data["description"],

@@ -1,16 +1,16 @@
 import apache_beam as beam
 
 
-class WriteSink(beam.PTransform):
+class WritePartitionedTable(beam.PTransform):
     """Writes the partitioned tables specifing each property."""
     def __init__(
         self,
-        sink_table: str,
+        table: str,
         schema: dict,
         description: str = None,
         partition_field: str = "timestamp"
     ):
-        self.sink_table = sink_table.replace('bq://', '')
+        self.table = table.replace('bq://', '')
         self.schema = schema
         self.description = description
         self.partition_field = partition_field
@@ -18,12 +18,12 @@ class WriteSink(beam.PTransform):
     def expand(self, pcoll):
         return (
             pcoll
-            | self.write_sink()
+            | self.write_partitioned_table()
         )
 
-    def write_sink(self):
+    def write_partitioned_table(self):
         return beam.io.WriteToBigQuery(
-            table=self.sink_table,
+            table=self.table,
             schema=self.schema,
             write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
