@@ -2,6 +2,9 @@ import argparse
 import datetime
 import re
 
+FULL_TABLE_PATH = r"(bq://)?[\w\-_]+[:\.][\w\-_]+\.[\w\-_]+"
+SHORT_TABLE_PATH = r"(bq://)?[\w\-_]+\.[\w\-_]+"
+
 
 def valid_daterange(s: str) -> str:
     # expects to have YYYY-MM-DD,YYYY-MM-DD
@@ -17,19 +20,19 @@ def valid_date(s: str) -> datetime.date:
         raise argparse.ArgumentTypeError(f"not a valid date: {s!r}")
 
 
-def valid_table(s: str, pattern: str) -> str:
-    if pattern is None:
+def valid_table(s: str, matched: str, pattern: str) -> str:
+    if matched is None:
         raise argparse.ArgumentTypeError(
-            f"not a valid table pattern: {s!r}"
+            f"not a valid table pattern: {s!r}. Format allowed <{pattern}>"
         )
     return s
 
 
 def valid_table_shortpath(s: str) -> str:
-    matched_shortpath = re.fullmatch(r"(bq://)?[\w\-_]+\.[\w\-_]+", s)
-    return valid_table(s, matched_shortpath)
+    matched = re.fullmatch(SHORT_TABLE_PATH, s)
+    return valid_table(s, matched, SHORT_TABLE_PATH)
 
 
 def valid_table_fullpath(s: str) -> str:
-    matched_fullpath = re.fullmatch(r"(bq://)?[\w\-_]+[:\.][\w\-_]+\.[\w\-_]+", s)
-    return valid_table(s, matched_fullpath)
+    matched = re.fullmatch(FULL_TABLE_PATH, s)
+    return valid_table(s, matched, FULL_TABLE_PATH)
