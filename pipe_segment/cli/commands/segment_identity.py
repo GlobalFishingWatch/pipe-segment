@@ -2,6 +2,10 @@ import logging
 
 from pipe_segment.segment_identity import pipeline
 from pipe_segment.cli.commands.base import Command
+from pipe_segment.cli.commands.validator import (
+    valid_daterange,
+    valid_table_fullpath
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,13 +35,16 @@ class SegmentIdentity(Command):
 
         required = p.add_argument_group("Required")
         add = required.add_argument
-        add("--source_segments", required=True, metavar='\b', help=cls.HELP_SOURCE_SEGMENTS)
-        add("--source_fragments", required=True, metavar='\b', help=cls.HELP_SOURCE_FRAGMENTS)
-        add("--dest_segment_identity", required=True, metavar='\b', help=cls.HELP_DEST)
+        add("--source_segments", required=True, metavar='\b',
+            type=valid_table_fullpath, help=cls.HELP_SOURCE_SEGMENTS)
+        add("--source_fragments", required=True, metavar='\b',
+            type=valid_table_fullpath, help=cls.HELP_SOURCE_FRAGMENTS)
+        add("--dest_segment_identity", required=True, metavar='\b',
+            type=valid_table_fullpath, help=cls.HELP_DEST)
 
         optional = p.add_argument_group("Optional")
         add = optional.add_argument
-        add("--date_range", metavar='\b', help=cls.HELP_DATE_RANGE)
+        add("--date_range", metavar='\b', type=valid_daterange, help=cls.HELP_DATE_RANGE)
         add("--wait_for_job", action="store_true", help=cls.HELP_WAIT_FOR_JOB)
         add("--temp_shards_per_day", type=int, metavar='\b', default=16, help=cls.HELP_TEMP_SHARDS)
 
