@@ -7,7 +7,7 @@ REQS_ALL:=requirements/all.txt
 ## gcp: pulls gcloud docker image, authenticates to google cloud and configure the project.
 ## build: Builds docker image.
 ## login: run google cloud authentication .
-## dockershell: Enters to docker container shell.
+## docker-shell: Enters to docker container shell.
 ## requirements: Compiles requirements file with pip-tools.
 ## upgrade-requirementsde: Upgrades requirements file based on .in constraints.
 ## venv: creates a virtual environment inside .venv.
@@ -16,6 +16,7 @@ REQS_ALL:=requirements/all.txt
 ## test: Runs unit tests.
 ## testdocker: Runs unit tests inside docker container.
 ## testdocker-all: Runs unit and integration tests inside docker container.
+## flake: Checks PEP8 code style agreement.
 
 
 help:
@@ -32,7 +33,7 @@ gcp:
 build:
 	docker compose build
 
-dockershell:
+docker-shell:
 	docker compose run --rm --entrypoint /bin/bash -it dev
 
 requirements:
@@ -61,5 +62,8 @@ testdocker:
 testdocker-all:
 	docker compose run --rm --entrypoint "pytest --runslow" dev
 
+flake:
+	docker compose run --rm --entrypoint flake8 -it dev --count
 
-.PHONY: help gcp build dockersheel requirements upgrade-requirements venv venv3.8 install test testdocker testdocker-all
+
+.PHONY: help gcp build dockersheel requirements upgrade-requirements venv venv3.8 install test testdocker testdocker-all flake
