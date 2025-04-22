@@ -2,9 +2,6 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import apache_beam as beam
-from google.cloud import bigquery
-from google.api_core.exceptions import NotFound, BadRequest
-
 
 from pipe_segment.transform.satellite_offsets import SatelliteOffsets
 
@@ -14,24 +11,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 class ReadFromBigQueryMock(beam.io.ReadFromBigQuery):
     def expand(self, pcoll):
         return pcoll | beam.Create(["dummy"])
-
-
-class RowMock:
-    min_suffix = "20240301"
-
-
-@dataclass
-class ResultMock:
-    job_id = '1234'
-    state = 0
-    exception: Exception = None
-    exception_message: str = ""
-
-    def result(self):
-        if self.exception:
-            raise self.exception(self.exception_message)
-
-        return [RowMock()]
 
 
 @dataclass
@@ -45,15 +24,6 @@ class BigQueryClientMock:
     project: str = 'gfw'
     notfound: bool = False
     badrequest: bool = False
-
-    def query(self, query, config=None):
-        if self.badrequest:
-            return ResultMock(exception=BadRequest)
-
-        if self.notfound:
-            return ResultMock(exception=NotFound)
-
-        return ResultMock()
 
     def get_table(self, table):
         return TableMock()

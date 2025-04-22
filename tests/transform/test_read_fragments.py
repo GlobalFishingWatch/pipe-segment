@@ -24,9 +24,11 @@ class ResultErrorMock:
     def result(self):
         raise BadRequest("Bad request")
 
+
 class DatasetMock:
     def table(self, id: str):
         return id
+
 
 @dataclass
 class BigQueryClientMock:
