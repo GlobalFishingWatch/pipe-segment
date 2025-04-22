@@ -1,5 +1,4 @@
 from datetime import timedelta
-from importlib import resources
 from jinja2 import Template
 
 import apache_beam as beam
