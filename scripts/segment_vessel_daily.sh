@@ -54,12 +54,12 @@ TABLE_DESC=(
   "$@"
 )
 TABLE_DESC=$( IFS=$'\n'; echo "${TABLE_DESC[*]}" )
-SCHEMA=${ASSETS}/${PROCESS}.schema.json
+SCHEMA=${ASSETS}/schemas/${PROCESS}.schema.json
 bq mk --force \
   --description "${TABLE_DESC}" \
   --time_partitioning_type MONTH \
-  --time_partitioning_field sharded_date \
-  --clustering_fields 'sharded_date,ssvid' \
+  --time_partitioning_field day \
+  --clustering_fields 'day,ssvid' \
   ${DEST_TABLE} \
   ${SCHEMA}
 
@@ -72,7 +72,7 @@ echo "  Table ${DEST_TABLE} exists"
 ################################################################################
 # Generate data
 ################################################################################
-SQL=${ASSETS}/${PROCESS}.sql.j2
+SQL=${ASSETS}/queries/${PROCESS}.sql.j2
 LABELS_PARAM=$(test -n ${LABELS} && echo "--label ${LABELS//,/ --label }")
 
 echo "Publishing ${PROCESS} to ${DEST_TABLE}..."

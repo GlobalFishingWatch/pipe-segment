@@ -51,7 +51,7 @@ TABLE_DESC=(
   "$@"
 )
 TABLE_DESC=$( IFS=$'\n'; echo "${TABLE_DESC[*]}" )
-SCHEMA=${ASSETS}/${PROCESS}.schema.json
+SCHEMA=${ASSETS}/schemas/${PROCESS}.schema.json
 bq mk --force -t \
   --description "${TABLE_DESC}" \
   ${DEST_TABLE} \
@@ -66,7 +66,7 @@ echo "  Table ${DEST_TABLE} exists"
 ################################################################################
 # Generate data
 ################################################################################
-SQL=${ASSETS}/${PROCESS}.sql.j2
+SQL=${ASSETS}/queries/${PROCESS}.sql.j2
 LABELS_PARAM=$(test -n ${LABELS} && echo "--label ${LABELS//,/ --label }")
 
 echo "Publishing ${PROCESS} to ${DEST_TABLE}..."

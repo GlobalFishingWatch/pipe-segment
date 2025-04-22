@@ -66,12 +66,6 @@
     "description": "Number of positional messages in the segment over WINDOW_DAYS"
   },
   {
-    "mode": "NULLABLE",
-    "name": "sharded_date",
-    "type": "DATE",
-    "description": "The date the content of the segment vessel daily was processed."
-  },
-  {
     "fields": [
       {
         "mode": "NULLABLE",

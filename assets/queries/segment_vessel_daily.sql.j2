@@ -28,9 +28,9 @@ WITH
   SELECT
     *
   FROM
-    `{{ segment_identity_daily }}*`
+    `{{ segment_identity }}`
   WHERE
-    _TABLE_SUFFIX between YYYYMMDD(windowStart()) AND YYYYMMDD(processDate())
+    DATE({{ segment_identity_partition_field }}) between windowStart() AND processDate()
   ),
 
   #
@@ -160,7 +160,6 @@ WITH
 
 
 SELECT
-  *,
-  processDate() as sharded_date
+  *
 FROM
    segment_vessel_day
