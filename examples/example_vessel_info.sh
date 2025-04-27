@@ -1,0 +1,11 @@
+docker compose run --rm --entrypoint pipe dev vessel_info \
+    --source_segment_identity=scratch_matias_ttl7d.internal__segment_identity_daily \
+    --source_segment_vessel=scratch_matias_ttl7d.internal__segment_vessel_daily \
+    --destination=scratch_matias_ttl7d.internal__vessel_info \
+    --labels=environment=production \
+    --labels=resource_creator=matias \
+    --labels=project=core_pipeline \
+    --labels=version=v3 \
+    --labels=step=segment \
+    --labels=stage=productive \
+    --project=world-fishing-827

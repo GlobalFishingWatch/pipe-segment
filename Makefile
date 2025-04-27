@@ -16,7 +16,7 @@ REQS_ALL:=requirements/all.txt
 ## test: Runs unit tests.
 ## testdocker: Runs unit tests inside docker container.
 ## testdocker-all: Runs unit and integration tests inside docker container.
-## flake: Checks PEP8 code style agreement.
+## docker-flake: Checks PEP8 code style agreement.
 
 
 help:
@@ -62,8 +62,8 @@ testdocker:
 testdocker-all:
 	docker compose run --rm --entrypoint "pytest --runslow" dev
 
-flake:
+docker-flake:
 	docker compose run --rm --entrypoint flake8 -it dev --count
 
 
-.PHONY: help gcp build dockersheel requirements upgrade-requirements venv venv3.8 install test testdocker testdocker-all flake
+.PHONY: help gcp build dockersheel requirements upgrade-requirements venv venv3.8 install test testdocker testdocker-all docker-flake

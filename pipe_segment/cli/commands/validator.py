@@ -6,6 +6,13 @@ FULL_TABLE_PATH = r"(bq://)?[\w\-_]+[:\.][\w\-_]+\.[\w\-_]+"
 SHORT_TABLE_PATH = r"(bq://)?[\w\-_]+\.[\w\-_]+"
 
 
+def valid_frequency(f: float) -> float:
+    if (f < 0 or f > 1):
+        return ValueError(f"Value should be between 0 and 1, value: {f}")
+    else:
+        return f
+
+
 def valid_daterange(s: str) -> str:
     # expects to have YYYY-MM-DD,YYYY-MM-DD
     s1, s2 = s.split(',')
