@@ -3,7 +3,7 @@ import logging
 from pipe_segment.segment_vessel import segment_vessel
 from pipe_segment.cli.commands.base import Command
 from pipe_segment.cli.commands.validator import (
-    valid_daterange, valid_frequency, valid_table_shortpath
+    valid_table_shortpath
 )
 
 logger = logging.getLogger(__name__)

@@ -66,4 +66,4 @@ docker-flake:
 	docker compose run --rm --entrypoint flake8 -it dev --count
 
 
-.PHONY: help gcp build dockersheel requirements upgrade-requirements venv venv3.8 install test testdocker testdocker-all docker-flake
+.PHONY: help gcp build docker-shell requirements upgrade-requirements venv venv3.8 install test testdocker testdocker-all docker-flake

@@ -9,6 +9,7 @@ from time import sleep
 
 logger = logging.getLogger(__name__)
 
+
 class BigQueryTools():
     def __init__(self, project: str):
         self.client = bigquery.Client(project=project)
@@ -63,10 +64,10 @@ class BigQueryTools():
                 )
             )
             logger.info(f'Removing the data content: Job {query_job.job_id},'
-                         f' is currently in state {query_job.state}')
+                        f' is currently in state {query_job.state}')
             result = query_job.result()
             logger.info(f'Removing the data content: Date range '
-                         f'[{date_from},{date_to}] cleaned in table {table}: {result}')
+                        f'[{date_from},{date_to}] cleaned in table {table}: {result}')
             return True
         except NotFound:
             logger.warn(f'Removing the data content: Table {table} NOT FOUND. We can go on.')
@@ -172,9 +173,9 @@ class BigQueryTools():
         :param labels: The labels to audit.
         """
         if dest_table:
-            time_partitioning=None
+            time_partitioning = None
             if partition_field is not None:
-                time_partitioning=bigquery.table.TimePartitioning(
+                time_partitioning = bigquery.table.TimePartitioning(
                     type_=bigquery.table.TimePartitioningType.MONTH,
                     field=partition_field,
                 )

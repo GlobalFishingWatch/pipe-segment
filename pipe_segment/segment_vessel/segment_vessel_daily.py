@@ -1,7 +1,6 @@
 from pipe_segment.utils.bqtools import BigQueryTools
 from pipe_segment.utils.template_tools import format_query
 from pipe_segment.version import __version__
-from pipe_segment.tools import as_timestamp
 import logging
 import typing
 
