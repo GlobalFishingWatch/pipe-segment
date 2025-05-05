@@ -1,10 +1,13 @@
 services:
-  dev:
-    image: gfw/pipe-segment-dev
+  build_config: &build_config
     build:
       context: .
       dockerfile: Dockerfile
       target: dev
+
+  dev:
+    image: gfw/pipe-segment-dev
+    <<: *build_config
     volumes:
       - ".:/opt/project"
       - "gcp:/root/.config/"
@@ -12,6 +15,7 @@ services:
 
   test:
     image: gfw/pipe-segment-dev
+    <<: *build_config
     environment:
       BIGQUERY_HOST: bigquery
       INTEGRATION_TESTS: true
