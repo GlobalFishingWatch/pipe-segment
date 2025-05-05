@@ -1,69 +1,235 @@
+import functools
+import json
 import logging
-from datetime import timedelta
-
+import typing
+import datetime as dt
 from google.cloud import bigquery
+from google.cloud.exceptions import BadRequest, NotFound
+from time import sleep
 
-
-def build_sink_table_descriptor(table_id, schema, description):
-    table = bigquery.Table(
-        table_id.replace("bq://", "").replace(":", "."),
-        schema=schema,
-    )
-    table.description = description
-    return table
+logger = logging.getLogger(__name__)
 
 
 class BigQueryTools():
-    def __init__(self, project):
+    def __init__(self, project: str):
         self.client = bigquery.Client(project=project)
 
-    def ensure_table_exists(self, table):
-        logging.info(f"Ensuring table {table.table_id} exists")
-        result = self.client.create_table(table=table, exists_ok=True)
-        logging.info(f"Table {result.full_table_id} exists")
-        return result
+    def get_bq_table(self, dataset_id: str, table_id: str) -> bigquery.Table:
+        """Returns the bigquery.Table from the dataset and table ids.
+        :param dataset_id: The id of the dataset of the table.
+        :param table_id: The id of the table."""
+        dataset_ref = self.client.dataset(dataset_id)
+        table_ref = dataset_ref.table(table_id)
+        return self.client.get_table(table_ref)
 
-    def clear_records(self, table, date_field, date_from, date_to):
-        logging.info(
-            f"""Deleting records at
-            table {table.full_table_id} between {date_from:%Y-%m-%d} and {date_to:%Y-%m-%d}""")
-        query_job = self.client.query(
-            f"""
-               DELETE FROM `{table.project}.{table.dataset_id}.{table.table_id}`
-               WHERE DATE({date_field}) BETWEEN '{date_from:%Y-%m-%d}' AND '{date_to:%Y-%m-%d}'
-            """,
-            bigquery.QueryJobConfig(
-                use_legacy_sql=False,
-            )
+    def remove_content(
+        self,
+        table: str,
+        date_range: str,
+        labels: typing.List[str] = [],
+        partition_field: str = "timestamp"
+    ) -> bool:
+        """Removes the data content from a table to specific date range.
+        Useful when we need to re-process a time period with fresh data.
+
+        :param table: Table path Format: <dataset.table>.
+        :param date_range: Date range to clean the table content.
+        :param labels: Labels to audit the operation.
+        :param partition_field: Partition field of the table.
+        """
+        logger.info(f'Removing the data content of [{table}] period <{date_range}>.')
+        table_ds, table_tb = table.split('.')
+        date_from, date_to = list(map(lambda x: x.strip(), date_range.split(',')))
+        labels = functools.reduce(
+            lambda x, y: dict(x, **{y.split('=')[0]: y.split('=')[1]}),
+            labels,
+            dict()
         )
-        result = query_job.result()
-        logging.info(
-            f"""Records at table {table.full_table_id} between
-            {date_from:%Y-%m-%d} and {date_to:%Y-%m-%d} deleted""")
-        return result
 
-    def ensure_sharded_tables_creation(
-            self,
-            start_date,
-            end_date,
-            destination_tables,
-            key="timestamp"):
-        # Ensure sharded tables are created for all dates
-        logging.info("Ensure sharded tables are created for all dates")
-
-        def full_tbl_id(tbl): return f"{self.client.project}.{tbl}" if not (
-            self.client.project in tbl) else tbl
-
-        # Create list of days between start_date and end_date including the start_date.
-        days = ([start_date] + [start_date + timedelta(days=x)
-                for x in range((end_date - start_date).days)])
-        for dt in days:
-
-            for dst in destination_tables.keys():
-                sink_table_descriptor = build_sink_table_descriptor(
-                    table_id=f"{full_tbl_id(destination_tables[dst]['table'])}{dt:%Y%m%d}",
-                    schema=destination_tables[dst]["schema"]["fields"],
-                    description=destination_tables[dst]["description"]
+        try:
+            table_ref = self.get_bq_table(table_ds, table_tb)
+            table = self.client.get_table(table_ref)  # API request
+            logger.info(f'Removing the data content: Ensures the table [{table}] exists.')
+            # deletes the content
+            query_job = self.client.query(
+                f"""
+                   DELETE FROM `{table}`
+                   WHERE date({partition_field}) >= '{date_from}'
+                   AND date({partition_field}) <= '{date_to}'
+                """,  # incusive range
+                bigquery.QueryJobConfig(
+                    use_query_cache=False,
+                    use_legacy_sql=False,
+                    labels=labels,
                 )
-                sink_table = self.ensure_table_exists(sink_table_descriptor)
-                self.clear_records(sink_table, key, dt, dt)
+            )
+            logger.info(f'Removing the data content: Job {query_job.job_id},'
+                        f' is currently in state {query_job.state}')
+            result = query_job.result()
+            logger.info(f'Removing the data content: Date range '
+                        f'[{date_from},{date_to}] cleaned in table {table}: {result}')
+            return True
+        except NotFound:
+            logger.warn(f'Removing the data content: Table {table} NOT FOUND. We can go on.')
+
+        except BadRequest as err:
+            logger.error(f'Removing the data content: Bad request received {err}.')
+
+        return False
+
+    def update_description(self, table: str, description: str):
+        """Updates the description of a table.
+
+        :param table: The table id.
+        :param description: The description of the table.
+        """
+        table = self.get_bq_table(*table.split("."))
+        table.description = description
+        table_updated = self.client.update_table(table, ["description"])  # API request
+        logger.info(f"Update description <{table_updated}>.")
+
+    def update_labels(self, table: str, labels: typing.List):
+        """Updates the labels of the table.
+
+        :param table: The table id.
+        :param labels: The labels of the table.
+        """
+        table = self.get_bq_table(*table.split("."))
+        table.labels = {x.split('=')[0]: x.split('=')[1] for x in labels}
+        table_updated = self.client.update_table(table, ["labels"])  # API request
+        logger.info(f"Update labels <{table_updated}>.")
+
+    def update_table_schema(self, table, schema_file):
+        """Updates the schema of the table.
+
+        :param table: The table id.
+        :param schema: The schema of the table.
+        """
+        table = self.get_bq_table(*table.split("."))
+        with open(schema_file) as file:
+            table.schema = json.load(file)
+        table_updated = self.client.update_table(table, ["schema"])  # API request
+        logger.info(f"Update schema <{table_updated}>.")
+
+    def table_ref(self, table: str) -> bigquery.TableReference:
+        """Returns a table reference from a table id."""
+        return bigquery.TableReference.from_string(
+            table, default_project=self.client.project
+        )
+
+    def _timeline_stats(self, timeline):
+        stats = {
+            "elapsed_ms": 0,
+            "slot_millis": 0,
+            "pending_units": "",
+            "completed_units": "",
+            "active_units": "",
+        }
+        if timeline:
+            entry = timeline[-1]
+            stats["elapsed_ms"] = int(entry.elapsed_ms)
+            stats["slot_millis"] = int(entry.slot_millis)
+            stats["pending_units"] = entry.pending_units
+            stats["completed_units"] = entry.completed_units
+            stats["active_units"] = entry.active_units
+        return stats
+
+    def _log_job_stats(self, job):
+        execution_seconds = (job.ended - job.started).total_seconds()
+        slot_seconds = (job.slot_millis or 0) / 1000
+        logger.info(f"  execution_seconds:     {execution_seconds}")
+        logger.info(f"  slot_seconds:          {slot_seconds}")
+        logger.info(f"  num_child_jobs:        {job.num_child_jobs}")
+        logger.info(f"  total_bytes_processed: {job.total_bytes_processed}")
+        logger.info(f"  total_bytes_billed:    {job.total_bytes_billed}")
+        logger.info("  referenced_tables:")
+        for table in job.referenced_tables:
+            logger.info(f"    {table.project}.{table.dataset_id}.{table.table_id}")
+        if job.destination:
+            logger.info("  output_table:")
+            logger.info(f"    {job.destination}")
+
+        logger.info(f"  reservation_usage:     {job.reservation_usage}")
+        logger.info(f"  script_statistics:     {job.script_statistics}")
+
+    def run_query(
+        self,
+        query,
+        dest_table=None,
+        write_disposition="WRITE_APPEND",
+        partition_field=None,
+        clustering_fields=None,
+        job_priority="INTERACTIVE",
+        labels={},
+    ):
+        """Run the query using the Bigquery client.
+
+        :param query: The sql query.
+        :param dest_table: The destination table.
+        :param write_disposition: The write disposition to use.
+        :param partition_field: The partition field of the destination table.
+        :param clustering_fields: The clustering fields of the destination table.
+        :param job_priority: The priority of the QUERY JOB.
+        :param labels: The labels to audit.
+        """
+        if dest_table:
+            time_partitioning = None
+            if partition_field is not None:
+                time_partitioning = bigquery.table.TimePartitioning(
+                    type_=bigquery.table.TimePartitioningType.MONTH,
+                    field=partition_field,
+                )
+
+            config = bigquery.QueryJobConfig(
+                destination=self.table_ref(dest_table),
+                priority=job_priority,
+                write_disposition=write_disposition,
+                time_partitioning=time_partitioning,
+                clustering_fields=clustering_fields,
+                labels=labels,
+            )
+        else:
+            config = bigquery.QueryJobConfig(
+                priority=job_priority,
+                labels=labels,
+            )
+        job = self.client.query(query, job_config=config)
+        logger.info(f"Bigquery job created: {job.created:%Y-%m-%d %H:%M:%S}")
+        logger.info(f"job_id: {job.job_id}")
+        logger.debug("Running...")
+        start_time = dt.datetime.now()
+        i = 0
+        while job.running():
+            stats = self._timeline_stats(job.timeline)
+            stats["run_time"] = (
+                round((dt.datetime.now() - start_time).total_seconds()) + 1
+            )
+            stats["exec_s"] = round(stats["elapsed_ms"] / 1000)
+            stats["slot_s"] = round(stats["slot_millis"] / 1000)
+            if i % 10 == 0:
+                line = (
+                    "  elapsed: {run_time}s "
+                    " exec: {exec_s}s  slot: {slot_s}s"
+                    " pend: {pending_units} compl: {completed_units} active: {active_units}"
+                    .format(
+                        **stats
+                    )
+                )
+                line = f"{line[:80]: <80}"
+                if logger.level == logging.DEBUG:
+                    logger.debug(line)
+
+            i += 1
+            sleep(0.1)
+        if logger.level == logging.DEBUG:
+            logger.debug(" " * 80)  # overwrite the previous line
+            self.dump_query(job.query)
+        logger.info("Bigquery job done.")
+
+        if job.error_result:
+            err = job.error_result["reason"]
+            msg = job.error_result["message"]
+            raise RuntimeError(f"{err}: {msg}")
+        else:
+            self._log_job_stats(job)
+        return job.result()

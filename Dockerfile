@@ -1,4 +1,4 @@
-FROM gcr.io/world-fishing-827/github.com/globalfishingwatch/gfw-bash-pipeline:latest-python3.8
+FROM gcr.io/world-fishing-827/github.com/globalfishingwatch/gfw-pipeline:latest-python3.8
 
 # Install SDK. (needed for Python SDK)
 RUN pip install --no-cache-dir apache-beam[gcp]==2.56.0
