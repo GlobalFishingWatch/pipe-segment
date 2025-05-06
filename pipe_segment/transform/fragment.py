@@ -1,5 +1,6 @@
 import logging
 import math
+import pytz
 
 from apache_beam import FlatMap, PTransform
 from apache_beam.pvalue import TaggedOutput
@@ -88,7 +89,8 @@ class Fragment(PTransform):
     def _convert_message_in(msg):
         msg = msg.copy()
         msg["raw_timestamp"] = msg["timestamp"]
-        msg["timestamp"] = datetime_from_timestamp(msg["raw_timestamp"])
+        # TODO remove pytz once gspdio-segment is updated.
+        msg["timestamp"] = datetime_from_timestamp(msg["raw_timestamp"], tzinfo=pytz.UTC)
         return msg
 
     @staticmethod
