@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import logging
 from apache_beam import PTransform
 
-from ..tools import datetimeFromTimestamp
+from ..tools import datetime_from_timestamp
 
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
@@ -22,7 +22,7 @@ class FilterBadSatelliteTimes(PTransform):
         return abs(x["dt"]) > self.max_timing_offset_s
 
     def make_sat_key(self, receiver, timestamp, offset=0):
-        dtime = datetimeFromTimestamp(timestamp)
+        dtime = datetime_from_timestamp(timestamp)
         hour = datetime(dtime.year, dtime.month, dtime.day, dtime.hour)
         dt = hour + timedelta(hours=offset)
         return f"{receiver}-{dt.year}-{dt.month}-{dt.day}-{dt.hour}"
