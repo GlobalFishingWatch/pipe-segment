@@ -26,13 +26,21 @@ from pipe_segment.transform.satellite_offsets import (
 from pipe_segment.transform.tag_with_fragid_and_timebin import TagWithFragIdAndTimeBin
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
 from pipe_segment.transform.whitelist_messages_segmented import WhitelistFields
-from pipe_segment.transform.write_sink import WriteSink
-from pipe_segment.utils.bq_tools import BigQueryHelper, DateShardedTable
+from pipe_segment.utils.bq_tools import BigQueryHelper, DatePartitionedTable
 from pipe_segment.version import __version__
 
-from .tools import datetime_from_timestamp, list_of_days, timestamp_from_string
+from .tools import datetime_from_timestamp, timestamp_from_string
 
 logger = logging.getLogger(__name__)
+
+DESCRIPTION_TABLE_MESSAGES = f"""
+Created by the pipe-segment:{__version__}.
+Daily satellite messages segmented processed in segment step."""
+DESCRIPTION_TABLE_SEGMENTS = f"""
+Created by the pipe-segment:{__version__}.
+Daily segments processed in segment step."""
+DESCRIPTION_TABLE_FRAGMENTS = f"""Created by the pipe-segment:{__version__}.
+Daily fragments processed in segment step."""
 
 
 def timestamp_to_date(ts: float) -> dt.date:
@@ -99,56 +107,53 @@ class SegmentPipeline:
         return self.options.in_normalized_messages_table.split(",")
 
     @property
-    def messages_output_table(self) -> DateShardedTable:
-        return DateShardedTable(
-            table_id_prefix=self.options.out_segmented_messages_table,
+    def messages_output_table(self) -> DatePartitionedTable:
+        return DatePartitionedTable(
+            table_id=self.options.out_segmented_messages_table,
             schema=message_schema.message_output_schema,
             description=f"""Created by pipe-segment:{__version__}.
                 Daily satellite messages segmented processed in segment step.""",
         )
 
     @property
-    def segments_output_table(self) -> DateShardedTable:
-        return DateShardedTable(
-            table_id_prefix=self.options.out_segments_table,
+    def segments_output_table(self) -> DatePartitionedTable:
+        return DatePartitionedTable(
+            table_id=self.options.out_segments_table,
             schema=segment_schema.segment_schema,
             description=f"""Created by pipe-segment:{__version__}.
                 Daily segments processed in segment step.""",
         )
 
     @property
-    def fragments_output_table(self) -> DateShardedTable:
-        return DateShardedTable(
-            table_id_prefix=self.options.out_fragments_table or self.options.fragments_table,
+    def fragments_output_table(self) -> DatePartitionedTable:
+        return DatePartitionedTable(
+            table_id=self.options.out_fragments_table or self.options.fragments_table,
             schema=Fragment.schema,
             description=f"""Created by pipe-segment:{__version__}.
                 Daily fragments processed in segment step.""",
         )
 
     @property
-    def date_sharded_output_tables(self) -> list:
+    def date_partitioned_output_tables(self) -> list:
         return [
             self.messages_output_table,
             self.segments_output_table,
             self.fragments_output_table,
         ]
 
-    def write_to_date_sharded_table(self, table: DateShardedTable):
-        return WriteSink(
-            sink_table=table.table_id_prefix,
-            schema=table.schema,
+    def write_to_date_partitioned_table(self, table: DatePartitionedTable):
+        return beam.io.WriteToBigQuery(
+            table=table.table_id,
+            schema={"fields": table.schema},
+            create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
         )
 
     def prepare_output_tables(self, start_date, end_date):
-        # list_of_days doesn't include the end date. However, in daily mode,
-        # start and end date are the same day.
-        for date in list_of_days(start_date, end_date + dt.timedelta(days=1)):
-            for table in self.date_sharded_output_tables:
-                shard = table.build_shard(date)
-                self.bq_helper.ensure_table_exists(shard)
-                self.bq_helper.run_query(
-                    query=shard.clear_query(),
-                )
+        for table in self.date_partitioned_output_tables():
+            self.bq_helper.ensure_table_exists(table)
+            self.bq_helper.run_query(
+                query=table.clear_query(start_date, end_date),
+            )
 
         if self.options.out_sat_offsets_table:
             SatelliteOffsetsWrite.prepare_output_tables(
@@ -226,18 +231,17 @@ class SegmentPipeline:
         new_fragments = fragmented[Fragment.OUTPUT_TAG_FRAGMENTS]
 
         logger.info("Adding WriteFragments transform...")
-        _ = new_fragments | "WriteFragments" >> self.write_to_date_sharded_table(
+        _ = new_fragments | "WriteFragments" >> self.write_to_date_partitioned_table(
             self.fragments_output_table)
 
         logger.info("Adding ReadFragments transform...")
         existing_fragments = pipeline | ReadFragments(
+            self.bq_helper,
             self.options.fragments_table,
-            project=self.cloud_options.project,
             # TODO should be able to use single lookback, but would have to
             # lookback at fragments not segments or something otherwise complicated
             start_date=None,  # start_date - timedelta(days=1),
             end_date=start_date - dt.timedelta(days=1),
-            create_if_missing=True,
         )
 
         all_fragments = (new_fragments, existing_fragments) | beam.Flatten()
@@ -271,7 +275,7 @@ class SegmentPipeline:
             | "GroupMsgsWithMap" >> beam.CoGroupByKey()
             | "TagMsgsWithSegId" >> TagWithSegId()
             | "WhitelistFields" >> WhitelistFields()
-            | "WriteMessages" >> self.write_to_date_sharded_table(self.messages_output_table)
+            | "WriteMessages" >> self.write_to_date_partitioned_table(self.messages_output_table)
         )
 
         logger.info("Adding AddFragidKey transform...")
@@ -296,7 +300,7 @@ class SegmentPipeline:
             >> beam.Filter(
                 lambda x: start_date <= timestamp_to_date(x["timestamp"]) <= end_date
             )
-            | "WriteSegments" >> self.write_to_date_sharded_table(self.segments_output_table)
+            | "WriteSegments" >> self.write_to_date_partitioned_table(self.segments_output_table)
         )
 
         return pipeline

@@ -158,7 +158,7 @@ class BigQueryHelper:
         )
         logger.info(f"Query job {rows.job_id} done. Total rows {rows.total_rows}.")
 
-    def run_query_into_table(self, *, query: str, table: SimpleTable | DatePartitionedTable):
+    def run_query_into_table(self, *, query: str, table):
         """
         Runs a query and inserts the results into a given table
         """
@@ -178,7 +178,7 @@ class BigQueryHelper:
         )
         logger.info(f"Query job {rows.job_id} done. Total rows {rows.total_rows}.")
 
-    def update_table_description(self, table: SimpleTable | DatePartitionedTable):
+    def update_table_description(self, table):
         """
         Updates a table description in BigQuery
         """
@@ -189,7 +189,7 @@ class BigQueryHelper:
         self.client.update_table(bq_table, ["description"])
         logger.info(f"Description updated for table {table.table_id}.")
 
-    def update_table_labels(self, table: SimpleTable | DatePartitionedTable):
+    def update_table_labels(self, table):
         """
         Updates the labels of the table.
         """

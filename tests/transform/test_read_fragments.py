@@ -1,5 +1,5 @@
 from datetime import date
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from google.cloud import bigquery
 from google.api_core.exceptions import BadRequest
@@ -25,15 +25,9 @@ class ResultErrorMock:
         raise BadRequest("Bad request")
 
 
-@dataclass
-class BigQueryClientMock:
-    project: str
-
-    def query(self, query):
-        if self.project is None:
-            return ResultErrorMock()
-
-        return ResultMock()
+class DatasetMock:
+    def table(self, id: str):
+        return id
 
 
 class ReadFromBigQueryMock(beam.io.ReadFromBigQuery):
@@ -41,30 +35,40 @@ class ReadFromBigQueryMock(beam.io.ReadFromBigQuery):
         return pcoll | beam.Create([])
 
 
+@dataclass
+class BigQueryHelperMock():
+    notfound_table: bool = True
+    labels: dict = field(default_factory=lambda: {})
+
+    def fetch_table(self, table_ref) -> bigquery.Table:
+        return None if self.notfound_table else bigquery.Table(table_ref)
+
+
 def test_read_fragments(monkeypatch):
     # TODO: replace this monkey patch when design allows for more easy testing.
-    monkeypatch.setattr(bigquery, "Client", BigQueryClientMock)
     monkeypatch.setattr(beam.io, "ReadFromBigQuery", ReadFromBigQueryMock)
 
-    dummy_source = ""
+    bq_helper = BigQueryHelperMock(notfound_table=True)
+    dummy_source = "dummy_project.dummy_ds.dummy_table"
 
     # Test raising BadRequest not create if missing
-    op = ReadFragments(dummy_source, date.today(), date.today())
+    op = ReadFragments(bq_helper, dummy_source, date.today(), date.today())
     with TestPipeline() as p:
         p | op
 
     # Test raising BadRequest and create if missing
-    op = ReadFragments(dummy_source, date.today(), date.today(), create_if_missing=True)
+    op = ReadFragments(bq_helper, dummy_source, date.today(), date.today())
     with TestPipeline() as p:
         p | op
 
+    bq_helper = BigQueryHelperMock(notfound_table=False)
     # Test without raising BadRequest
-    op = ReadFragments(dummy_source, date.today(), date.today(), project="dummy")
+    op = ReadFragments(bq_helper, dummy_source, date.today(), date.today())
     with TestPipeline() as p:
         p | op
 
     # Test without start date
-    op = ReadFragments(dummy_source, None, date.today(), project="dummy")
+    op = ReadFragments(bq_helper, dummy_source, None, date.today())
     with TestPipeline() as p:
         p | op
 
