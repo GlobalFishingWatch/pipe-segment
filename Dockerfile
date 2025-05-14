@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------------------
 # BASE
 # ---------------------------------------------------------------------------------------
-FROM gcr.io/world-fishing-827/github.com/globalfishingwatch/gfw-bash-pipeline:latest-python3.8 AS base
+FROM gcr.io/world-fishing-827/github.com/globalfishingwatch/gfw-pipeline:latest-python3.8 AS base
 
 # Copy files from official SDK image, including script/dependencies.
 COPY --from=apache/beam_python3.8_sdk:2.56.0 /opt/apache/beam /opt/apache/beam

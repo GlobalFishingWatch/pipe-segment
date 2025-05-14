@@ -3,8 +3,14 @@ import logging
 import argparse
 
 from rich.logging import RichHandler
-
-from .commands import Segment, SegmentIdentity
+from pipe_segment.cli.commands import (
+    Segment,
+    SegmentIdentity,
+    SegmentVesselDaily,
+    SegmentInfo,
+    VesselInfo,
+    SegmentVessel,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +81,9 @@ class PIPE(CLI):
         "apache_beam.runners.worker.bundle_processor"
     ]
 
-    COMMANDS = [Segment, SegmentIdentity]
+    COMMANDS = [
+        Segment, SegmentIdentity, SegmentVesselDaily, SegmentInfo, SegmentVessel, VesselInfo
+    ]
 
     @staticmethod
     def formatter():
