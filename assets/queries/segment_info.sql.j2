@@ -15,7 +15,7 @@ WITH
   SELECT
     *
   FROM
-    `{{ segment_identity_daily }}*`
+    `{{ segment_identity_daily }}`
   ),
 
   vessels as (
@@ -24,7 +24,7 @@ WITH
     seg_id,
     day
   FROM
-    `{{ segment_vessel_daily }}*`
+    `{{ segment_vessel_daily }}`
   ),
 
 
