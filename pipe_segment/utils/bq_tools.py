@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 from dataclasses import dataclass, field
 import json
 import logging
@@ -6,7 +6,7 @@ import logging
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class Schemas:
@@ -121,8 +121,8 @@ class DatePartitionedTable:
         """
         return f"""
                     DELETE FROM `{self.table_id}`
-                    WHERE date({self.partitioning_field})
-                    BETWEEN '{from_date}' AND '{to_date}'
+                    WHERE date({self.partitioning_field}) >= '{from_date}'
+                    AND date({self.partitioning_field}) <= '{to_date}'
                 """
 
 
@@ -143,28 +143,29 @@ class BigQueryHelper:
         logger.info(f"Table {table.table_id} exists")
         return result
 
-    def run_query(self, query):
+    def run_query(self, query: str):
         """
         Runs a simple, arbitrary query, tagging the query process with the
         labels
         """
         logger.info("Executing query")
         logger.info(f'=====QUERY STARTS======\n{query}\n====QUERY ENDS====')
-        self.client.query_and_wait(
+        rows = self.client.query_and_wait(
             query,
             job_config=bigquery.QueryJobConfig(
                 labels=self.labels,
             ),
         )
+        logger.info(f"Query job {rows.job_id} done. Total rows {rows.total_rows}.")
 
-    def run_query_into_table(self, *, query, table):
+    def run_query_into_table(self, *, query: str, table: SimpleTable | DatePartitionedTable):
         """
         Runs a query and inserts the results into a given table
         """
         logger.info(f'Executing BATCH query, destination {table.table_id}')
         logger.info(f'=====QUERY STARTS======\n{query}\n====QUERY ENDS====')
 
-        self.client.query_and_wait(
+        rows = self.client.query_and_wait(
             query,
             job_config=bigquery.QueryJobConfig(
                 use_query_cache=False,
@@ -175,9 +176,9 @@ class BigQueryHelper:
                 labels=self.labels,
             )
         )
-        logger.info("Query job done")
+        logger.info(f"Query job {rows.job_id} done. Total rows {rows.total_rows}.")
 
-    def update_table_description(self, table):
+    def update_table_description(self, table: SimpleTable | DatePartitionedTable):
         """
         Updates a table description in BigQuery
         """
@@ -188,7 +189,18 @@ class BigQueryHelper:
         self.client.update_table(bq_table, ["description"])
         logger.info(f"Description updated for table {table.table_id}.")
 
-    def fetch_table(self, table_id):
+    def update_table_labels(self, table: SimpleTable | DatePartitionedTable):
+        """
+        Updates the labels of the table.
+        """
+        bq_table = self.client.get_table(table.table_id)
+        bq_table.labels = table.labels
+
+        logger.info(f"Updating labels for table {table.table_id}")
+        self.client.update_table(bq_table, ["labels"])
+        logger.info(f"labels updated for table {table.table_id}.")
+
+    def fetch_table(self, table_id: str) -> bigquery.Table:
         """
         Returns a bigquery.Table instance for the given table_id, or None if it doesn't exist
         """
