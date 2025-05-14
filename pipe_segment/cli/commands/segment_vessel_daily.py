@@ -3,7 +3,7 @@ import logging
 from pipe_segment.segment_vessel import segment_vessel_daily
 from pipe_segment.cli.commands.base import Command
 from pipe_segment.cli.commands.validator import (
-    valid_daterange, valid_frequency, valid_table_shortpath
+    valid_daterange, valid_frequency, valid_table_reference
 )
 
 logger = logging.getLogger(__name__)
@@ -54,9 +54,9 @@ class SegmentVesselDaily(Command):
         required = p.add_argument_group("Required")
         add = required.add_argument
         add("--source_segment_identity", required=True, metavar='\b',
-            type=valid_table_shortpath, help=cls.HELP_SOURCE_SEGMENT_IDENTITY)
+            type=valid_table_reference, help=cls.HELP_SOURCE_SEGMENT_IDENTITY)
         add("--destination", required=True, metavar='\b',
-            type=valid_table_shortpath, help=cls.HELP_DEST)
+            type=valid_table_reference, help=cls.HELP_DEST)
         add("--date_range", metavar='\b', type=valid_daterange, help=cls.HELP_DATE_RANGE)
         add("--labels", metavar='\b', action="append", help=cls.HELP_LABELS)
 

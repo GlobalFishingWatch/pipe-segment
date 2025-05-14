@@ -3,7 +3,7 @@ import logging
 from pipe_segment.vessel_info import vessel_info
 from pipe_segment.cli.commands.base import Command
 from pipe_segment.cli.commands.validator import (
-     valid_frequency, valid_table_shortpath
+     valid_frequency, valid_table_reference
 )
 
 logger = logging.getLogger(__name__)
@@ -37,11 +37,11 @@ class VesselInfo(Command):
         required = p.add_argument_group("Required")
         add = required.add_argument
         add("--source_segment_identity", required=True, metavar='\b',
-            type=valid_table_shortpath, help=cls.HELP_SOURCE_SEGMENT_IDENTITY)
+            type=valid_table_reference, help=cls.HELP_SOURCE_SEGMENT_IDENTITY)
         add("--source_segment_vessel", required=True, metavar='\b',
-            type=valid_table_shortpath, help=cls.HELP_SOURCE_SEGMENT_VESSEL)
+            type=valid_table_reference, help=cls.HELP_SOURCE_SEGMENT_VESSEL)
         add("--destination", required=True, metavar='\b',
-            type=valid_table_shortpath, help=cls.HELP_DEST)
+            type=valid_table_reference, help=cls.HELP_DEST)
         add("--labels", metavar='\b', action="append", help=cls.HELP_LABELS)
 
         optional = p.add_argument_group("Optional")

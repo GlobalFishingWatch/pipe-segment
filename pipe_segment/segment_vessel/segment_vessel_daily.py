@@ -1,8 +1,8 @@
-from pipe_segment.utils.bq_tools import BigQueryTools
+from google.cloud import bigquery
+from pipe_segment.utils.bq_tools import BigQueryHelper, DatePartitionedTable, Schemas
 from pipe_segment.utils.template_tools import format_query
 from pipe_segment.version import __version__
 import logging
-import typing
 
 logger = logging.getLogger(__name__)
 SCHEMA_PATH = "./assets/schemas/segment_vessel_daily.schema.json"
@@ -19,31 +19,38 @@ def description(options: str) -> str:
 """
 
 
-def parse_labels(ll: typing.List[str]) -> typing.Dict:
-    """Parses the labels from [k=v,k2=v2] -> {k1:v1,k2:v2}"""
-    return dict(map(lambda x: (x.split("=")), ll))
-
-
 class SegmentVesselDailyPipeline:
     """ Segment vessel daily process"""
     def __init__(self, options, extra_options):
         self.options = options
-        self.bqtools = BigQueryTools.build(project=self.options.project)
-
-        self.bqtools.remove_content(
-            table=self.options.destination,
-            date_range=self.options.date_range,
-            labels=self.options.labels,
-            partition_field=PARTITION_FIELD,
+        self.bq_helper = BigQueryHelper(
+            bq_client=bigquery.Client(project=options.project),
+            labels=options.labels,
         )
+        self.prepare_output_tables()
 
     @classmethod
     def build(cls, options, extra_args):
         return cls(options, extra_args)
 
+    def prepare_output_tables(self):
+        start_date, end_date = self.options.date_range.split(",")
+        table = self.get_output_table()
+
+        self.bq_helper.ensure_table_exists(table)
+        self.bq_helper.run_query(query=table.clear_query(start_date, end_date))
+
+    def get_output_table(self):
+        return DatePartitionedTable(
+            table_id=self.options.destination,
+            description=description(self.options),
+            schema=Schemas.load_json_schema(SCHEMA_PATH),
+            partitioning_field=PARTITION_FIELD,
+        )
+
     def run(self):
         # run the query and store the values in the partitioned field.
-        start, end = self.options.date_range.split(",")
+        _, end = self.options.date_range.split(",")
         logger.info("Formatting the query with the parameters.")
         query = format_query(
             QUERY,
@@ -55,21 +62,9 @@ class SegmentVesselDailyPipeline:
             segment_identity=self.options.source_segment_identity,
             segment_identity_partition_field=SOURCE_PARTITION_FIELD,
         )
-        table = self.options.destination
-        logger.debug(f"Query: {query}")
-        logger.info("Rnuning the Segment Vessel Daily query.")
-        self.bqtools.run_query(
-            query,
-            dest_table=table,
-            write_disposition="WRITE_APPEND",
-            partition_field=PARTITION_FIELD,
-            clustering_fields=[PARTITION_FIELD],
-            labels=parse_labels(self.options.labels),
-        )
-        self.bqtools.update_table_schema(table, SCHEMA_PATH)
-        # updates the label and description
-        self.bqtools.update_description(table, description(self.options))
-        self.bqtools.update_labels(table, self.options.labels)
+        logger.info("Running the Segment Vessel Daily query.")
+        table = self.get_output_table()
+        self.bq_helper.run_query(query=query, table=table)
 
 
 def run(*args, **kwargs):
