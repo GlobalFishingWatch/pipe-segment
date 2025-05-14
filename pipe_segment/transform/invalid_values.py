@@ -57,6 +57,35 @@ def validate_fixed_position_field(precision, is_invalid):
     )
 
 
+def validate_all_fields_record(fields, is_invalid):
+    """
+    This is a specialization for `validate_field`, which checks if all the
+    fields in the given list are invalid. If they are, the fields are set to
+    `None`. If not, the original record is returned.
+    Arguments:
+    `fields`: List of fields to check
+    `is_invalid`: Function which returns true when a given value is invalid,
+    false otherwise
+    Returns:
+    A function which checks if all the fields in the given list are invalid.
+    If they are, the fields are set to `None`. If not, the original record is
+    returned.
+
+    Examples:
+    ```
+    validator = validate_all_fields_record(["lat", "lon"], lambda x: x == 0)
+    validator({"lat": 0, "lon": 0}) -> {"lat": None, "lon": None}
+    validator({"lat": 1, "lon": 0}) -> {"lat": 1, "lon": 0}
+    ```
+    """
+    def validate_multiple_fields(record):
+        not_valid = all(is_invalid(record[field]) for field in fields)
+
+        return {field: None if not_valid else record[field] for field in fields}
+
+    return validate_multiple_fields
+
+
 INVALID_VALUE_RULES_BY_MESSAGE_TYPE = {
     # Class A Position Report
     "AIS.1": {
@@ -145,10 +174,36 @@ INVALID_VALUE_RULES_BY_MESSAGE_TYPE = {
         "course": validate_fixed_position_field(0, lambda x: x < 0 or x >= 360),
         "speed": validate_fixed_position_field(0, lambda x: x < 0 or x >= 63),
     },
+    # General VMS
+    "VMS": {
+        "lon": validate_fixed_position_field(2, lambda x: x < -180 or x > 180),
+        "lat": validate_fixed_position_field(2, lambda x: x < -90 or x > 90),
+        "course": validate_fixed_position_field(0, lambda x: x < 0 or x >= 360),
+        "speed": validate_fixed_position_field(0, lambda x: x < 0),
+    },
+}
+
+INVALID_RECORD_RULES_BY_MESSAGE_TYPE = {
+    "VMS": {
+        # VMS messages with both lat and lon set to 0 are invalid
+        # and should be set to None
+        "lat,lon": validate_all_fields_record(["lat", "lon"],
+                                              lambda x: float_to_fixed_point(x, 2) == 0),
+    }
 }
 
 
-def filter_invalid_values(element):
+def apply_field_validators(element):
+    """
+    Applies the field validators to the given element. The field validators
+    are defined in the `INVALID_VALUE_RULES_BY_MESSAGE_TYPE` dictionary.
+
+    Arguments:
+    `element`: The element to apply the field validators to.
+
+    Returns:
+    The element with the field validators applied.
+    """
     field_validators = INVALID_VALUE_RULES_BY_MESSAGE_TYPE.get(element["type"])
 
     if field_validators is None:
@@ -159,4 +214,57 @@ def filter_invalid_values(element):
         if unfiltered_value is not None:
             element[field] = validator(unfiltered_value)
 
+    return element
+
+
+def apply_record_validators(element):
+    """
+    Applies the record validators to the given element. The record validators
+    are defined in the `INVALID_RECORD_RULES_BY_MESSAGE_TYPE` dictionary.
+
+    Arguments:
+    `element`: The element to apply the record validators to.
+
+    Returns:
+    The element with the record validators applied.
+    """
+    record_validators = INVALID_RECORD_RULES_BY_MESSAGE_TYPE.get(element["type"])
+
+    if record_validators is None:
+        return element
+
+    for fields_list, validator in record_validators.items():
+        fields = fields_list.split(",")
+        # Check if all fields are present in the element
+        if all(field in element for field in fields):
+            # Create a record with the values of the fields
+            record = {field: element.get(field) for field in fields}
+
+            if any(value is None for value in record.values()):
+                # If any field is None, we don't need to apply the validator
+                continue
+
+            # Apply the validator to the record
+            record = validator(record)
+            # Update the element with the validated record
+            for field in fields:
+                element[field] = record.get(field)
+        # If the field is not present, we don't need to apply the validator
+
+    return element
+
+
+def filter_invalid_values(element):
+    """
+    Applies the field and record validators to the given element. The field
+    validators are defined in the `INVALID_VALUE_RULES_BY_MESSAGE_TYPE` dictionary
+    and the record validators are defined in the `INVALID_RECORD_RULES_BY_MESSAGE_TYPE`
+    dictionary.
+    Arguments:
+    `element`: The element to apply the field and record validators to.
+    Returns:
+    The element with the field and record validators applied.
+    """
+    element = apply_field_validators(element)
+    element = apply_record_validators(element)
     return element
