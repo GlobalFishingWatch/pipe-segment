@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional
 from dataclasses import dataclass, field
 import json
 import logging
