@@ -112,21 +112,21 @@ def rename_timestamp(record):
     return result
 
 
-def write_sink(sink_table, schema, description):
-    sink_table = sink_table.replace("bq://", "")
-
-    def compute_table(message):
-        timestamp = message["summary_timestamp"]
-        return f"{sink_table}{timestamp:%Y%m%d}"
+def write_partitioned_table(table_id, schema, description, partition_field):
+    table = table_id.replace("bq://", "")
 
     return beam.io.WriteToBigQuery(
-        compute_table,
+        table,
         schema=schema,
-        write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+        write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
         additional_bq_parameters={
-            "destinationTableProperties": {
-                "description": description,
-            },
-        },
+            "timePartitioning": {
+                "type": "MONTH",
+                "field": partition_field,
+                "requirePartitionFilter": False
+            }, "clustering": {
+                "fields": [partition_field]
+            }
+        }
     )
