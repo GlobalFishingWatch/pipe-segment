@@ -1,6 +1,6 @@
 #!/bin/bash
-# Usage:
-# ./example_segment.sh scratch_output
+## Usage:
+## ./example_segment.sh scratch_output
 if [ -z $1 ]; then grep "^##" $(dirname $0)/$(basename $0); exit 1; else DATASET_OUT=$1; fi
 echo "Output dataset ${DATASET_OUT}."
 
