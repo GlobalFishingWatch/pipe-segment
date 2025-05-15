@@ -53,7 +53,7 @@ class ReadFragments(beam.PTransform):
         return (pcoll | "ReadFragments"
                 >> beam.io.ReadFromBigQuery(
                     query=self.make_query(),
-                    method=beam.io.ReadFromBigQuery.Method.DIRECT_READ,
+                    method=beam.io.ReadFromBigQuery.Method.EXPORT,
                     bigquery_job_labels=self.bq_helper.labels,
                     use_standard_sql=True
                 ))
