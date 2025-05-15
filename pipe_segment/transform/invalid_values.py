@@ -188,7 +188,7 @@ INVALID_RECORD_RULES_BY_MESSAGE_TYPE = {
         # VMS messages with both lat and lon set to 0 are invalid
         # and should be set to None
         "lat,lon": validate_all_fields_record(["lat", "lon"],
-                                              lambda x: float_to_fixed_point(x, 2) == 0),
+                                              lambda x: x == 0),
     }
 }
 
