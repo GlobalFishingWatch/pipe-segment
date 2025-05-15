@@ -107,8 +107,9 @@ class Fragment(PTransform):
             "first_msg_timestamp",
             "last_msg_timestamp",
         ]:
-            assert k in frag, frag
-            if k in frag and not frag[k] is None:
+            if k not in frag:
+                raise KeyError(f"Required key {k} is not found in the fragment {frag}")
+            if not frag[k] is None:
                 frag[k] = timestamp_from_datetime(frag[k])
         return frag
 
