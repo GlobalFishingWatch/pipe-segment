@@ -63,7 +63,7 @@ class BigQueryTools:
         """
         logger.info(f'Removing the data content of [{table}] period <{date_range}>.')
         table_ds, table_tb = table.split('.')
-        date_from, date_to = list(map(lambda x: x.strip(), date_range.split(',')))
+        start, end = list(map(lambda x: x.strip(), date_range.split(',')))
         labels = functools.reduce(
             lambda x, y: dict(x, **{y.split('=')[0]: y.split('=')[1]}),
             labels,
@@ -75,7 +75,13 @@ class BigQueryTools:
             table = self.client.get_table(table_ref)  # API request
             logger.info(f'Removing the data content: Ensures the table [{table}] exists.')
             # deletes the content
-            query_job = self.client.query(DELETE_BETWEEN_DATES_QUERY, bigquery.QueryJobConfig(
+            delete_query = DELETE_BETWEEN_DATES_QUERY.format(
+                table=table,
+                field=partition_field,
+                start=start,
+                end=end
+            )
+            query_job = self.client.query(delete_query, bigquery.QueryJobConfig(
                 use_query_cache=False,
                 use_legacy_sql=False,
                 labels=labels,
@@ -84,7 +90,7 @@ class BigQueryTools:
                         f' is currently in state {query_job.state}')
             result = query_job.result()
             logger.info(f'Removing the data content: Date range '
-                        f'[{date_from},{date_to}] cleaned in table {table}: {result}')
+                        f'[{start},{end}] cleaned in table {table}: {result}')
             return True
         except NotFound:
             logger.warn(f'Removing the data content: Table {table} NOT FOUND. We can go on.')

@@ -26,7 +26,7 @@ TABLE_SCHEMA = {
     ]
 }
 
-TABLE_NAME = "test_dataset.test_table_"
+TABLE_NAME = "test_dataset.test_table"
 TABLE_DESCRIPTION = "Test table."
 
 DESTINATION_TABLES = dict(
@@ -59,22 +59,23 @@ def test_bigquery_integration():
 
     bqtools = BigQueryTools(client)
 
-    table = bqtools.create_table(
-        table_ref=TABLE_FULL_ID,
-        schema=TABLE_SCHEMA,
-        description=TABLE_DESCRIPTION
-    )
+    table = bigquery.Table(TABLE_FULL_ID)
+    table.schema = TABLE_SCHEMA["fields"]
+    table.description = TABLE_DESCRIPTION
+    client.create_table(table, exists_ok=True)
 
     assert isinstance(table, bigquery.Table)
-    assert client.get_table(TABLE_NAME)  # table exists.
+    assert bqtools.get_bq_table(*TABLE_NAME.split("."))  # table exists.
     assert len(list(client.list_rows(TABLE_NAME))) == 0
 
     start_date = datetime(2024, 1, 1).date()
     end_date = start_date
-    bqtools.create_or_clear_tables(DESTINATION_TABLES, start_date, end_date)
+    date_range = f"{start_date.isoformat()},{end_date.isoformat()}"
+    bqtools.remove_content(DESTINATION_TABLES["messages"]["table"], date_range)
 
     end_date = start_date + timedelta(days=1)
-    bqtools.create_or_clear_tables(DESTINATION_TABLES, start_date, end_date)
+    date_range = f"{start_date.isoformat()},{end_date.isoformat()}"
+    bqtools.remove_content(DESTINATION_TABLES["messages"]["table"], date_range)
 
     bqtools = BigQueryTools.build(
         project=PROJECT, client_options=client_options, credentials=AnonymousCredentials())
