@@ -136,14 +136,6 @@ class SegmentPipeline:
             }
         return result
 
-    def write(self, tbl_data: dict) -> WritePartitionedTable:
-        return WritePartitionedTable(
-            tbl_data["table"],
-            tbl_data["schema"],
-            tbl_data["description"],
-            tbl_data["partition_field"]
-        )
-
     # TODO: consider breaking up
     def pipeline(self):
         logger.info("Creating pipeline object...")
@@ -192,7 +184,8 @@ class SegmentPipeline:
 
             if self.options.out_sat_offsets_table:
                 (
-                    satellite_offsets | self.write(self.destination_tables['sat_offset'])
+                    satellite_offsets
+                    | WritePartitionedTable(**self.destination_tables['sat_offset'])
                 )
 
             logger.info("Adding FilterBadSatelliteTimes transform...")
@@ -220,7 +213,9 @@ class SegmentPipeline:
 
         logger.info("Adding WriteFragments transform...")
 
-        new_fragments | "WriteFragments" >> self.write(self.destination_tables["fragments"])
+        new_fragments | "WriteFragments" >> WritePartitionedTable(
+            **self.destination_tables['fragments']
+        )
 
         logger.info("Adding ReadFragments transform...")
         existing_fragments = pipeline | ReadFragments(
@@ -264,7 +259,7 @@ class SegmentPipeline:
             | "GroupMsgsWithMap" >> beam.CoGroupByKey()
             | "TagMsgsWithSegId" >> TagWithSegId()
             | "WhitelistFields" >> WhitelistFields()
-            | "WriteMessages" >> self.write(self.destination_tables["messages"])
+            | "WriteMessages" >> WritePartitionedTable(**self.destination_tables['messages'])
         )
 
         logger.info("Adding AddFragidKey transform...")
@@ -289,7 +284,7 @@ class SegmentPipeline:
             >> beam.Filter(
                 lambda x: start_date <= timestamp_to_date(x["timestamp"]) <= end_date
             )
-            | "WriteSegments" >> self.write(self.destination_tables["segments"])
+            | "WriteSegments" >> WritePartitionedTable(**self.destination_tables['segments'])
         )
 
         return pipeline
