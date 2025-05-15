@@ -945,79 +945,100 @@ class TestInvalidData:
         assert expected == actual
 
     def test_vms_type_messages(self):
-        source = [
-            {
-                "type": "VMS",
-                "lat": -35,
-                "lon": -125,
-                "course": 112.35,
-                "speed": 35.45,
-            },
-            {"type": "VMS", "lat": -90, "lon": -180, "course": 0, "speed": 0},
-            {"type": "VMS", "lat": -91, "lon": -181, "course": -1, "speed": -1},
-            {"type": "VMS", "lat": 91, "lon": 181, "course": 360, "speed": 102.3},
-            {
-                "type": "VMS",
-                "lat": 90.997,
-                "lon": 180.996,
-                "course": 359.6,
-                "speed": 62.9,
-            },
-            {
-                "type": "VMS",
-                "lat": 90.001,
-                "lon": 180.001,
-                "course": 359.1,
-                "speed": 62.2999,
-            },
-            {"type": "VMS", "lat": None, "lon": None, "course": None, "speed": None},
-            {
-                "type": "VMS",
-                "lat": 0,
-                "lon": 0,
-                "course": 7,
-                "speed": 12,
-            },
+        test_cases = [
+            (
+                "valid values",
+                {
+                    "type": "VMS",
+                    "lat": -35,
+                    "lon": -125,
+                    "course": 112.35,
+                    "speed": 35.45,
+                },
+                {
+                    "type": "VMS",
+                    "lat": -35,
+                    "lon": -125,
+                    "course": 112.35,
+                    "speed": 35.45,
+                },
+            ),
+            (
+                "boundary values",
+                {"type": "VMS", "lat": -90, "lon": -180, "course": 0, "speed": 0},
+                {"type": "VMS", "lat": -90, "lon": -180, "course": 0, "speed": 0},
+            ),
+            (
+                "invalid negative values",
+                {"type": "VMS", "lat": -91, "lon": -181, "course": -1, "speed": -1},
+                {"type": "VMS", "lat": None, "lon": None, "course": None, "speed": None},
+            ),
+            (
+                "invalid positive values",
+                {"type": "VMS", "lat": 91, "lon": 181, "course": 360, "speed": 102.3},
+                {"type": "VMS", "lat": None, "lon": None, "course": None, "speed": 102.3},
+            ),
+            (
+                "lat/lon out of bounds",
+                {
+                    "type": "VMS",
+                    "lat": 90.997,
+                    "lon": 180.996,
+                    "course": 359.6,
+                    "speed": 62.9,
+                },
+                {
+                    "type": "VMS",
+                    "lat": None,
+                    "lon": None,
+                    "course": 359.6,
+                    "speed": 62.9,
+                },
+            ),
+            (
+                "lat/lon slightly out of bounds",
+                {
+                    "type": "VMS",
+                    "lat": 90.001,
+                    "lon": 180.001,
+                    "course": 359.1,
+                    "speed": 62.2999,
+                },
+                {
+                    "type": "VMS",
+                    "lat": None,
+                    "lon": None,
+                    "course": 359.1,
+                    "speed": 62.2999,
+                },
+            ),
+            (
+                "all None",
+                {"type": "VMS", "lat": None, "lon": None, "course": None, "speed": None},
+                {"type": "VMS", "lat": None, "lon": None, "course": None, "speed": None},
+            ),
+            (
+                "zero lat/lon",
+                {
+                    "type": "VMS",
+                    "lat": 0,
+                    "lon": 0,
+                    "course": 7,
+                    "speed": 12,
+                },
+                {
+                    "type": "VMS",
+                    "lat": None,
+                    "lon": None,
+                    "course": 7,
+                    "speed": 12,
+                },
+            ),
         ]
 
-        expected = [
-            {
-                "type": "VMS",
-                "lat": -35,
-                "lon": -125,
-                "course": 112.35,
-                "speed": 35.45,
-            },
-            {"type": "VMS", "lat": -90, "lon": -180, "course": 0, "speed": 0},
-            {"type": "VMS", "lat": None, "lon": None, "course": None, "speed": None},
-            {"type": "VMS", "lat": None, "lon": None, "course": None, "speed": 102.3},
-            {
-                "type": "VMS",
-                "lat": None,
-                "lon": None,
-                "course": 359.6,
-                "speed": 62.9,
-            },
-            {
-                "type": "VMS",
-                "lat": None,
-                "lon": None,
-                "course": 359.1,
-                "speed": 62.2999,
-            },
-            {"type": "VMS", "lat": None, "lon": None, "course": None, "speed": None},
-            {
-                "type": "VMS",
-                "lat": None,
-                "lon": None,
-                "course": 7,
-                "speed": 12,
-            },
-        ]
-
-        actual = [filter_invalid_values(x) for x in source]
-
-        assert actual == expected
+        for label, source, expected in test_cases:
+            actual = filter_invalid_values(source)
+            assert actual == expected, f"Failed test case: {label}"
 
 
 def test_no_validator():

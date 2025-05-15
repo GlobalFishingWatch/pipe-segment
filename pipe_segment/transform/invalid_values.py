@@ -176,10 +176,10 @@ INVALID_VALUE_RULES_BY_MESSAGE_TYPE = {
     },
     # General VMS
     "VMS": {
-        "lon": validate_fixed_position_field(2, lambda x: x < -180 or x > 180),
-        "lat": validate_fixed_position_field(2, lambda x: x < -90 or x > 90),
-        "course": validate_fixed_position_field(0, lambda x: x < 0 or x >= 360),
-        "speed": validate_fixed_position_field(0, lambda x: x < 0),
+        "lon": validate_field(lambda x: x < -180 or x > 180),
+        "lat": validate_field(lambda x: x < -90 or x > 90),
+        "course": validate_field(lambda x: x < 0 or x >= 360),
+        "speed": validate_field(lambda x: x < 0),
     },
 }
 
