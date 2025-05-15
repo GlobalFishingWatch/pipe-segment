@@ -112,9 +112,7 @@ def rename_timestamp(record):
     return result
 
 
-def write_partitioned_table(table_id, schema, description, partition_field):
-    table = table_id.replace("bq://", "")
-
+def write_partitioned_table(table, schema, description, partition_field):
     return beam.io.WriteToBigQuery(
         table,
         schema=schema,
