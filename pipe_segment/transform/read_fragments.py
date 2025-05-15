@@ -47,7 +47,7 @@ class ReadFragments(beam.PTransform):
         logger.debug(f"Emitting read fragments query:\n{query}")
         return query
 
-    def create_if_missing(self) -> bool:
+    def is_table_missing(self) -> bool:
         """Returns True if the source table is missing."""
         try:
             d, t = self.source.split('.')
@@ -57,7 +57,7 @@ class ReadFragments(beam.PTransform):
             return True
 
     def expand(self, pcoll):
-        if self.create_if_missing():
+        if self.is_table_missing():
             return pcoll | beam.Create([])
         return (pcoll | "ReadFragments"
                 >> beam.io.ReadFromBigQuery(
