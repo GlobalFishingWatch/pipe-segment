@@ -11,7 +11,7 @@ services:
     volumes:
       - ".:/opt/project"
       - "gcp:/root/.config/"
-    entrypoint: "./scripts/run.sh"
+    entrypoint: pipe
 
   test:
     image: gfw/pipe-segment-dev

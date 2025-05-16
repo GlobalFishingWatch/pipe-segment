@@ -4,7 +4,8 @@ from pipe_segment.cli.commands.validator import (
     valid_date,
     valid_daterange,
     valid_table_fullpath,
-    valid_table_shortpath
+    valid_table_shortpath,
+    valid_frequency
 )
 
 
@@ -60,3 +61,14 @@ class TestValidators:
     )
     def test_table_valid_shortpath(self, table, expected):
         assert expected == valid_table_shortpath(table)
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            (0.1, 0.1),
+            pytest.param(1.2, 1.2, marks=pytest.mark.xfail),
+            pytest.param(-1.2, -1.2, marks=pytest.mark.xfail),
+        ]
+    )
+    def test_value_valid_shortpath(self, value, expected):
+        assert expected == valid_frequency(value)

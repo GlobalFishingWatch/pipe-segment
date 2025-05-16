@@ -18,11 +18,13 @@ from pipe_segment.transform.fragment import Fragment
 from pipe_segment.transform.invalid_values import filter_invalid_values
 from pipe_segment.transform.read_fragments import ReadFragments
 from pipe_segment.transform.read_messages import ReadMessages
-from pipe_segment.transform.satellite_offsets import SatelliteOffsets, SatelliteOffsetsWrite
-from pipe_segment.transform.satellite_offsets import remove_satellite_offsets_content
+from pipe_segment.transform.satellite_offsets import (
+    SatelliteOffsets,
+    get_description as satellite_offsets_description
+)
 from pipe_segment.transform.tag_with_fragid_and_timebin import TagWithFragIdAndTimeBin
 from pipe_segment.transform.tag_with_seg_id import TagWithSegId
-from pipe_segment.transform.write_sink import WriteSink
+from pipe_segment.transform.write_partitioned_table import WritePartitionedTable
 from pipe_segment.transform.whitelist_messages_segmented import WhitelistFields
 from pipe_segment.utils.bq_tools import BigQueryTools
 from pipe_segment.version import __version__
@@ -32,6 +34,15 @@ from typing import List
 from .tools import timestamp_from_string, datetime_from_timestamp
 
 logger = logging.getLogger(__name__)
+
+DESCRIPTION_TABLE_MESSAGES = f"""
+Created by the pipe-segment:{__version__}.
+Daily satellite messages segmented processed in segment step."""
+DESCRIPTION_TABLE_SEGMENTS = f"""
+Created by the pipe-segment:{__version__}.
+Daily segments processed in segment step."""
+DESCRIPTION_TABLE_FRAGMENTS = f"""Created by the pipe-segment:{__version__}.
+Daily fragments processed in segment step."""
 
 
 def timestamp_to_date(ts: float) -> date:
@@ -74,15 +85,7 @@ class SegmentPipeline:
         self.beam_options = beam_options
         self.cloud_options = beam_options.view_as(GoogleCloudOptions)
         self.date_range = parse_date_range(self.options.date_range)
-        self.satellite_offsets_writer = None
         self.bqtools = BigQueryTools.build(project=self.cloud_options.project)
-
-        if self.options.out_sat_offsets_table:
-            remove_satellite_offsets_content(
-                self.options.out_sat_offsets_table,
-                self.options.date_range,
-                self.cloud_options.labels,
-                self.cloud_options.project)
 
     @classmethod
     def build(cls, options, beam_args):
@@ -100,50 +103,38 @@ class SegmentPipeline:
 
     @property
     def source_tables(self) -> List[str]:
-        return self.options.source.split(",")
+        return self.options.in_normalized_messages_table.split(",")
 
     @property
     def destination_tables(self):
-        ver = __version__
-        return dict(
+        result = dict(
             messages={
                 "table": self.options.out_segmented_messages_table,
                 "schema": message_schema.message_output_schema,
-                "description": f"""Created by the pipe-segment:{ver}.
-                Daily satellite messages segmented processed in segment step.""",
+                "description": DESCRIPTION_TABLE_MESSAGES,
+                "partition_field": "timestamp",
             },
             segments={
                 "table": self.options.out_segments_table,
                 "schema": segment_schema.segment_schema,
-                "description": f"""Created by the pipe-segment:{ver}.
-                Daily segments processed in segment step.""",
+                "description": DESCRIPTION_TABLE_SEGMENTS,
+                "partition_field": "timestamp",
             },
             fragments={
                 "table": self.options.out_fragments_table or self.options.fragments_table,
                 "schema": Fragment.schema,
-                "description": f"""Created by the pipe-segment:{ver}.
-                Daily fragments processed in segment step.""",
+                "description": DESCRIPTION_TABLE_FRAGMENTS,
+                "partition_field": "timestamp",
             })
 
-    @property
-    def write(self):
-        return dict(
-            messages=WriteSink(
-                self.destination_tables["messages"]["table"],
-                self.destination_tables["messages"]["schema"],
-                self.destination_tables["messages"]["description"]
-            ),
-            segments=WriteSink(
-                self.destination_tables["segments"]["table"],
-                self.destination_tables["segments"]["schema"],
-                self.destination_tables["segments"]["description"]
-            ),
-            fragments=WriteSink(
-                self.destination_tables["fragments"]["table"],
-                self.destination_tables["fragments"]["schema"],
-                self.destination_tables["fragments"]["description"]
-            ),
-        )
+        if self.options.out_sat_offsets_table:
+            result["sat_offset"] = {
+                "table": self.options.out_sat_offsets_table,
+                "schema": SatelliteOffsets.schema,
+                "description": satellite_offsets_description(self.options, __version__),
+                "partition_field": "hour",
+            }
+        return result
 
     # TODO: consider breaking up
     def pipeline(self):
@@ -153,7 +144,15 @@ class SegmentPipeline:
         start_date = safe_date(self.date_range[0])
         end_date = safe_date(self.date_range[1])
 
-        self.bqtools.create_or_clear_tables(self.destination_tables, start_date, end_date)
+        # Cleans each table content to start fresh
+        for key in self.destination_tables:
+            dtable = self.destination_tables[key]
+            self.bqtools.remove_content(
+                table=dtable["table"],
+                date_range=self.options.date_range,
+                labels=self.cloud_options.labels,
+                partition_field=dtable["partition_field"],
+            )
 
         logger.info("Adding ReadMessages transform...")
         messages = (
@@ -184,12 +183,9 @@ class SegmentPipeline:
             )
 
             if self.options.out_sat_offsets_table:
-                logger.info("Adding SatelliteOffsetsWrite transform...")
-
-                self.satellite_offsets_writer = SatelliteOffsetsWrite(
-                    self.options, self.cloud_options)
                 (
-                    satellite_offsets | self.satellite_offsets_writer
+                    satellite_offsets
+                    | WritePartitionedTable(**self.destination_tables['sat_offset'])
                 )
 
             logger.info("Adding FilterBadSatelliteTimes transform...")
@@ -216,7 +212,10 @@ class SegmentPipeline:
         new_fragments = fragmented[Fragment.OUTPUT_TAG_FRAGMENTS]
 
         logger.info("Adding WriteFragments transform...")
-        new_fragments | "WriteFragments" >> self.write["fragments"]
+
+        new_fragments | "WriteFragments" >> WritePartitionedTable(
+            **self.destination_tables['fragments']
+        )
 
         logger.info("Adding ReadFragments transform...")
         existing_fragments = pipeline | ReadFragments(
@@ -226,7 +225,7 @@ class SegmentPipeline:
             # lookback at fragments not segments or something otherwise complicated
             start_date=None,  # start_date - timedelta(days=1),
             end_date=start_date - timedelta(days=1),
-            create_if_missing=True,
+            labels=self.cloud_options.labels,
         )
 
         all_fragments = (new_fragments, existing_fragments) | beam.Flatten()
@@ -260,7 +259,7 @@ class SegmentPipeline:
             | "GroupMsgsWithMap" >> beam.CoGroupByKey()
             | "TagMsgsWithSegId" >> TagWithSegId()
             | "WhitelistFields" >> WhitelistFields()
-            | "WriteMessages" >> self.write["messages"]
+            | "WriteMessages" >> WritePartitionedTable(**self.destination_tables['messages'])
         )
 
         logger.info("Adding AddFragidKey transform...")
@@ -285,7 +284,7 @@ class SegmentPipeline:
             >> beam.Filter(
                 lambda x: start_date <= timestamp_to_date(x["timestamp"]) <= end_date
             )
-            | "WriteSegments" >> self.write["segments"]
+            | "WriteSegments" >> WritePartitionedTable(**self.destination_tables['segments'])
         )
 
         return pipeline
@@ -305,9 +304,11 @@ class SegmentPipeline:
         ):
             logger.info("Waiting until job is done")
             result.wait_until_finish()
-            if (result.state == PipelineState.DONE and self.satellite_offsets_writer):
-                self.satellite_offsets_writer.update_table_description()
-                self.satellite_offsets_writer.update_labels()
+            if result.state == PipelineState.DONE:
+                for key in self.destination_tables:
+                    dtable = self.destination_tables[key]
+                    self.bqtools.update_description(dtable["table"], dtable["description"])
+                    self.bqtools.update_labels(dtable["table"], self.cloud_options.labels)
 
         else:
             success_states.add(PipelineState.RUNNING)
