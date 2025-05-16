@@ -1,4 +1,4 @@
-import decimal
+from decimal import Decimal
 
 
 def validate_field(is_invalid):
@@ -40,8 +40,8 @@ def float_to_fixed_point(value, precision):
         Decimal('120.0')
     """
     precision_format_string = "{{0:.{}f}}".format(precision)
-    precision_decimal = decimal.Decimal(precision_format_string.format(1))
-    return decimal.Decimal(value).quantize(precision_decimal)
+    precision_decimal = Decimal(precision_format_string.format(1))
+    return Decimal(value).quantize(precision_decimal)
 
 
 def validate_fixed_position_field(precision, is_invalid):
