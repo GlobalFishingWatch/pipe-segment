@@ -1069,27 +1069,27 @@ def test_validate_all_fields_record():
         "lat": None,
         "lon": None,
     }
-    validator = validate_all_fields_record(["lat", "lon"], lambda x: x == 0)
+    validator = validate_all_fields_record(lambda x: x == 0)
 
-    assert validator({"lat": 0, "lon": 0}) == {"lat": None, "lon": None}, (
+    assert validator(("lat", "lon"), {"lat": 0, "lon": 0}) == {"lat": None, "lon": None}, (
         "Both lat and lon are zero"
     )
-    assert validator({"lat": 10, "lon": 0}) == {"lat": 10, "lon": 0}, (
+    assert validator(("lat", "lon"), {"lat": 10, "lon": 0}) == {"lat": 10, "lon": 0}, (
         "Only lon is zero"
     )
-    assert validator({"lat": 0, "lon": 10}) == {"lat": 0, "lon": 10}, (
+    assert validator(("lat", "lon"), {"lat": 0, "lon": 10}) == {"lat": 0, "lon": 10}, (
         "Only lat is zero"
     )
-    assert validator({"lat": None, "lon": 10}) == {"lat": None, "lon": 10}, (
+    assert validator(("lat", "lon"), {"lat": None, "lon": 10}) == {"lat": None, "lon": 10}, (
         "Lat is None"
     )
-    assert validator({"lat": 10, "lon": None}) == {"lat": 10, "lon": None}, (
+    assert validator(("lat", "lon"), {"lat": 10, "lon": None}) == {"lat": 10, "lon": None}, (
         "Lon is None"
     )
-    assert validator({"lat": None, "lon": None}) == {"lat": None, "lon": None}, (
+    assert validator(("lat", "lon"), {"lat": None, "lon": None}) == {"lat": None, "lon": None}, (
         "Both lat and lon are None"
     )
-    assert validator({"lat": 0, "lon": 0, "course": 0}) == expected, (
+    assert validator(("lat", "lon"), {"lat": 0, "lon": 0, "course": 0}) == expected, (
         "Extra field is removed from the result"
     )
 
