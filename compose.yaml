@@ -32,6 +32,7 @@ services:
       - "gcp:/root/.config/"
 
   bigquery:
+    platform: linux/x86_64
     ports:
       - 9050:9050
     image: ghcr.io/goccy/bigquery-emulator:latest
