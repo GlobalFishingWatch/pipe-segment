@@ -216,6 +216,8 @@ def apply_field_validators(element):
     if field_validators is None:
         return element
 
+    # Making a copy of the element to avoid modifying the original
+    element = element.copy()
     for field, validator in field_validators.items():
         unfiltered_value = element.get(field)
         if unfiltered_value is not None:
