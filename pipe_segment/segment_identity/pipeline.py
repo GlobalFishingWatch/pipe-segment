@@ -9,6 +9,7 @@
 # `segment_identity_daily` table, which summarizes identity information per
 # segment.
 ################################################################################
+from datetime import timedelta
 import logging
 
 from google.cloud import bigquery
@@ -152,128 +153,127 @@ DEST_SEGMENT_IDENTITY_SCHEMA = [
         "type": "RECORD",
         "description": DESCRIPTION_CALLSIGN,
     },
-{
-    "fields": [
-        {
-            "mode": "NULLABLE",
-            "name": "value",
-            "type": "STRING",
-            "description": "Unique field value",
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "count",
-            "type": "INTEGER",
-            "description": DESCRIPTION_COUNT,
-        },
-    ],
-    "mode": "REPEATED",
-    "name": "imo",
-    "type": "RECORD",
-    "description": DESCRIPTION_IMO,
-},
-{
-    "fields": [
-        {
-            "mode": "NULLABLE",
-            "name": "value",
-            "type": "STRING",
-            "description": "Unique field value",
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "count",
-            "type": "INTEGER",
-            "description": DESCRIPTION_COUNT,
-        },
-    ],
-    "mode": "REPEATED",
-    "name": "n_shipname",
-    "type": "RECORD",
-    "description": DESCRIPTION_SHIPNAME_NORM,
-},
-{
-    "fields": [
-        {
-            "mode": "NULLABLE",
-            "name": "value",
-            "type": "STRING",
-            "description": "Unique field value",
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "count",
-            "type": "INTEGER",
-            "description": DESCRIPTION_COUNT,
-        },
-    ],
-    "mode": "REPEATED",
-    "name": "n_callsign",
-    "type": "RECORD",
-    "description": DESCRIPTION_CALLSIGN_NORM,
-},
-{
-    "fields": [
-        {
-            "mode": "NULLABLE",
-            "name": "value",
-            "type": "STRING",
-            "description": "Unique field value",
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "count",
-            "type": "INTEGER",
-            "description": DESCRIPTION_COUNT,
-        },
-    ],
-    "mode": "REPEATED",
-    "name": "n_imo",
-    "type": "RECORD",
-    "description": DESCRIPTION_IMO_VALID,
-},
-{
-    "fields": [
-        {
-            "mode": "NULLABLE",
-            "name": "value",
-            "type": "STRING",
-            "description": "Unique field value",
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "count",
-            "type": "INTEGER",
-            "description": DESCRIPTION_COUNT,
-        },
-    ],
-    "mode": "REPEATED",
-    "name": "length",
-    "type": "RECORD",
-    "description": "Array of all unique length for this segment for this day.",
-},
-{
-    "fields": [
-        {
-            "mode": "NULLABLE",
-            "name": "value",
-            "type": "STRING",
-            "description": "Unique field value",
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "count",
-            "type": "INTEGER",
-            "description": DESCRIPTION_COUNT,
-        },
-    ],
-    "mode": "REPEATED",
-    "name": "width",
-    "type": "RECORD",
-    "description": "Array of all unique width for this segment for this day.",
-},
+    {
+        "fields": [
+            {
+                "mode": "NULLABLE",
+                "name": "value",
+                "type": "STRING",
+                "description": "Unique field value",
+            },
+            {
+                "mode": "NULLABLE",
+                "name": "count",
+                "type": "INTEGER",
+                "description": DESCRIPTION_COUNT,
+            },
+        ],
+        "mode": "REPEATED",
+        "name": "imo",
+        "type": "RECORD",
+        "description": DESCRIPTION_IMO,
+    },
+    {
+        "fields": [
+            {
+                "mode": "NULLABLE",
+                "name": "value",
+                "type": "STRING",
+                "description": "Unique field value",
+            },
+            {
+                "mode": "NULLABLE",
+                "name": "count",
+                "type": "INTEGER",
+                "description": DESCRIPTION_COUNT,
+            },
+        ],
+        "mode": "REPEATED",
+        "name": "n_shipname",
+        "type": "RECORD",
+        "description": DESCRIPTION_SHIPNAME_NORM,
+    },
+    {
+        "fields": [
+            {
+                "mode": "NULLABLE",
+                "name": "value",
+                "type": "STRING",
+                "description": "Unique field value",
+            },
+            {
+                "mode": "NULLABLE",
+                "name": "count",
+                "type": "INTEGER",
+                "description": DESCRIPTION_COUNT,
+            },
+        ],
+        "mode": "REPEATED",
+        "name": "n_callsign",
+        "type": "RECORD",
+        "description": DESCRIPTION_CALLSIGN_NORM,
+    },
+    {
+        "fields": [
+            {
+                "mode": "NULLABLE",
+                "name": "value",
+                "type": "STRING",
+                "description": "Unique field value",
+            },
+            {
+                "mode": "NULLABLE",
+                "name": "count",
+                "type": "INTEGER",
+                "description": DESCRIPTION_COUNT,
+            },
+        ],
+        "mode": "REPEATED",
+        "name": "n_imo",
+        "type": "RECORD",
+        "description": DESCRIPTION_IMO_VALID,
+    },
+    {
+        "fields": [
+            {
+                "mode": "NULLABLE",
+                "name": "value",
+                "type": "STRING",
+                "description": "Unique field value",
+            },
+            {
+                "mode": "NULLABLE",
+                "name": "count",
+                "type": "INTEGER",
+                "description": DESCRIPTION_COUNT,
+            },
+        ],
+        "mode": "REPEATED",
+        "name": "length",
+        "type": "RECORD",
+        "description": "Array of all unique length for this segment for this day.",
+    },
+    {
+        "fields": [
+            {
+                "mode": "NULLABLE",
+                "name": "value",
+                "type": "STRING",
+                "description": "Unique field value",
+            },
+            {
+                "mode": "NULLABLE",
+                "name": "count",
+                "type": "INTEGER",
+                "description": DESCRIPTION_COUNT,
+            },
+        ],
+        "mode": "REPEATED",
+        "name": "width",
+        "type": "RECORD",
+        "description": "Array of all unique width for this segment for this day.",
+    },
 ]
-
 
 
 def parse_date_range(s):
@@ -332,7 +332,9 @@ class SegmentIdentityPipeline:
         )
 
     def prepare_output_tables(self, start_date, end_date):
-        for date in list_of_days(start_date, end_date):
+        # list_of_days doesn't include the end date. However, in daily mode,
+        # start and end date are the same day.
+        for date in list_of_days(start_date, end_date + timedelta(days=1)):
             shard = self.destination_table.build_shard(date)
             self.bq_helper.ensure_table_exists(shard)
             self.bq_helper.run_query(

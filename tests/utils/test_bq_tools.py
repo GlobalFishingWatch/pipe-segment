@@ -1,12 +1,8 @@
 import os
 
-import pytest
-
-from google.api_core.client_options import ClientOptions
-from google.auth.credentials import AnonymousCredentials
 from google.cloud import bigquery
 
-from pipe_segment.utils.bq_tools import BigQueryHelper, SimpleTable
+from pipe_segment.utils.bq_tools import SimpleTable
 
 
 PROJECT = "test_project"
@@ -26,10 +22,10 @@ TABLE_SCHEMA = [
         "TIMESTAMP",
         description="The timestap that indicates when the message was transmitted.",
         mode="NULLABLE",
-     ),
+    ),
 ]
 
-TABLE_DEFINITION=SimpleTable(
+TABLE_DEFINITION = SimpleTable(
     table_id=TABLE_FULL_ID,
     description=TABLE_DESCRIPTION,
     schema=TABLE_SCHEMA,

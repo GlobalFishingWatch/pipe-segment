@@ -4,7 +4,6 @@ from jinja2 import Template
 
 import apache_beam as beam
 from pipe_segment.utils.bq_source import BigQuerySource
-from pipe_segment.utils.bq_tools import BigQueryHelper
 
 
 logger = logging.getLogger(__name__)
