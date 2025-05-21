@@ -43,4 +43,4 @@ def make_schema():
     return schema
 
 
-segment_schema = make_schema()
+segment_schema = make_schema()["fields"]

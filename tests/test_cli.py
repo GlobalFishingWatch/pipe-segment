@@ -12,17 +12,16 @@ def test_cli(monkeypatch, tmp_path):
     monkeypatch.setattr(pipeline, "run", lambda *x, **y: 0)
 
     log_file = os.path.join(tmp_path, 'segment.log')
-    dummy_table = 'dummy_proj:dummy_dataset.dummy_table'
-    dummy_table_short = 'dummy_dataset.dummy_table'
+    dummy_table = 'dummy_proj.dummy_dataset.dummy_table'
 
     cli.run([
         '-v',
         '--log_file', log_file,
         'segment',
         '--in_normalized_messages_table', dummy_table,
-        '--out_segmented_messages_table', dummy_table_short,
-        '--fragments_table', dummy_table_short,
-        '--out_segments_table', dummy_table_short
+        '--out_segmented_messages_table', dummy_table,
+        '--fragments_table', dummy_table,
+        '--out_segments_table', dummy_table
     ])
 
     assert os.path.exists(log_file)

@@ -112,21 +112,14 @@ def rename_timestamp(record):
     return result
 
 
-def write_sink(sink_table, schema, description):
-    sink_table = sink_table.replace("bq://", "")
-
+def write_sink(sink_table, schema):
     def compute_table(message):
         timestamp = message["summary_timestamp"]
         return f"{sink_table}{timestamp:%Y%m%d}"
 
     return beam.io.WriteToBigQuery(
         compute_table,
-        schema=schema,
+        schema={"fields": schema},
         write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-        additional_bq_parameters={
-            "destinationTableProperties": {
-                "description": description,
-            },
-        },
+        create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
     )
