@@ -108,32 +108,31 @@ message_input_schema = [
         "name": "receiver_type",
         "type": "STRING",
     },
-{
-    "description": "The source from spire json decoded message.",
-    "mode": "NULLABLE",
-    "name": "receiver",
-    "type": "STRING",
-},
-{
-    "description": "The length of the vessel from the SPIRE message.",
-    "mode": "NULLABLE",
-    "name": "length",
-    "type": "FLOAT",
-},
-{
-    "description": "The width of the vessel from the SPIRE message.",
-    "mode": "NULLABLE",
-    "name": "width",
-    "type": "FLOAT",
-},
-{
-    "description": "The navigational status.",
-    "mode": "NULLABLE",
-    "name": "status",
-    "type": "INTEGER",
-},
+    {
+        "description": "The source from spire json decoded message.",
+        "mode": "NULLABLE",
+        "name": "receiver",
+        "type": "STRING",
+    },
+    {
+        "description": "The length of the vessel from the SPIRE message.",
+        "mode": "NULLABLE",
+        "name": "length",
+        "type": "FLOAT",
+    },
+    {
+        "description": "The width of the vessel from the SPIRE message.",
+        "mode": "NULLABLE",
+        "name": "width",
+        "type": "FLOAT",
+    },
+    {
+        "description": "The navigational status.",
+        "mode": "NULLABLE",
+        "name": "status",
+        "type": "INTEGER",
+    },
 ]
-
 
 
 message_output_schema = deepcopy(message_input_schema)

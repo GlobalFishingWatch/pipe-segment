@@ -143,10 +143,10 @@ class BigQueryHelper:
         logger.info(f"Table {table.table_id} exists")
         return result
 
-
     def run_query(self, query):
         """
-        Runs a simple, arbitrary query, tagging the query process with the labels
+        Runs a simple, arbitrary query, tagging the query process with the
+        labels
         """
         logger.info("Executing query")
         logger.info(f'=====QUERY STARTS======\n{query}\n====QUERY ENDS====')

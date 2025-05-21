@@ -1,6 +1,5 @@
 import logging
 
-from google.cloud.exceptions import NotFound
 from pipe_segment.utils.bq_tools import BigQueryHelper
 
 
@@ -41,7 +40,9 @@ class BigQuerySource:
             logger.info(f'Table {self.table_id} is partitioned on field {self.filtering_field}')
         else:
             self.filtering_field = "DATE(timestamp)"
-            logger.info(f'Table {self.table_id} is not time partitioned, defaulting to timestamp filtering')
+            logger.info(
+                f'Table {self.table_id} is not time partitioned, defaulting to timestamp filtering'
+            )
 
     def _initialize_sharded_table(self):
         logger.info(f"Table {self.table_id} is a date sharded table")

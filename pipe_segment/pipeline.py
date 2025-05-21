@@ -1,7 +1,5 @@
-import datetime
-from datetime import date, datetime, timedelta, timezone
+import datetime as dt
 import logging
-from typing import List
 
 from google.cloud import bigquery
 import ujson
@@ -37,7 +35,7 @@ from .tools import datetime_from_timestamp, list_of_days, timestamp_from_string
 logger = logging.getLogger(__name__)
 
 
-def timestamp_to_date(ts: float) -> date:
+def timestamp_to_date(ts: float) -> dt.date:
     return datetime_from_timestamp(ts).date()
 
 
@@ -53,8 +51,8 @@ def parse_date_range(s):
 
 
 def time_bin_ndx(dtime, time_bins):
-    reltime = dtime - datetime(dtime.year, dtime.month, dtime.day, tzinfo=timezone.utc)
-    ndx = int(time_bins * (reltime / timedelta(hours=24)))
+    reltime = dtime - dt.datetime(dtime.year, dtime.month, dtime.day, tzinfo=dt.timezone.utc)
+    ndx = int(time_bins * (reltime / dt.timedelta(hours=24)))
     assert 0 <= ndx < time_bins
     return ndx
 
@@ -112,7 +110,7 @@ class SegmentPipeline:
     @property
     def segments_output_table(self) -> DateShardedTable:
         return DateShardedTable(
-            table_id_prefix=self.options.out_segmented_messages_table,
+            table_id_prefix=self.options.out_segments_table,
             schema=segment_schema.segment_schema,
             description=f"""Created by pipe-segment:{__version__}.
                 Daily segments processed in segment step.""",
@@ -144,7 +142,7 @@ class SegmentPipeline:
     def prepare_output_tables(self, start_date, end_date):
         # list_of_days doesn't include the end date. However, in daily mode,
         # start and end date are the same day.
-        for date in list_of_days(start_date, end_date + timedelta(days=1)):
+        for date in list_of_days(start_date, end_date + dt.timedelta(days=1)):
             for table in self.date_sharded_output_tables:
                 shard = table.build_shard(date)
                 self.bq_helper.ensure_table_exists(shard)
@@ -227,7 +225,8 @@ class SegmentPipeline:
         new_fragments = fragmented[Fragment.OUTPUT_TAG_FRAGMENTS]
 
         logger.info("Adding WriteFragments transform...")
-        _ = new_fragments | "WriteFragments" >> self.write_to_date_sharded_table(self.fragments_output_table)
+        _ = new_fragments | "WriteFragments" >> self.write_to_date_sharded_table(
+            self.fragments_output_table)
 
         logger.info("Adding ReadFragments transform...")
         existing_fragments = pipeline | ReadFragments(
@@ -236,7 +235,7 @@ class SegmentPipeline:
             # TODO should be able to use single lookback, but would have to
             # lookback at fragments not segments or something otherwise complicated
             start_date=None,  # start_date - timedelta(days=1),
-            end_date=start_date - timedelta(days=1),
+            end_date=start_date - dt.timedelta(days=1),
             create_if_missing=True,
         )
 
