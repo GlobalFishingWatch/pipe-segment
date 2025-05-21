@@ -149,4 +149,4 @@ class Fragment(PTransform):
     def expand(self, xs):
         return xs | FlatMap(self.fragment).with_outputs(main=self.OUTPUT_TAG_MESSAGES)
 
-    schema = make_schema()
+    schema = make_schema()["fields"]

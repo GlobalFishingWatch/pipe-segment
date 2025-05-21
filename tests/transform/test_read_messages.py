@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 import pytest
 
-from google.api_core import exceptions
 from google.api_core.client_options import ClientOptions
 from google.auth.credentials import AnonymousCredentials
 from google.cloud import bigquery
@@ -13,6 +12,7 @@ import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from pipe_segment.transform.read_messages import ReadMessages
 from pipe_segment import tools
+from pipe_segment.utils.bq_tools import BigQueryHelper
 
 TABLE_SCHEMA = [
     {
@@ -35,14 +35,13 @@ API_PORT = 9050
 
 
 @dataclass
-class BigQueryClientMock():
-    project: str
+class BigQueryHelperMock():
     notfound_fails: int = 0
 
-    def get_table(self, table_ref) -> bigquery.Table:
+    def fetch_table(self, table_ref) -> bigquery.Table:
         if self.notfound_fails > 0:
             self.notfound_fails -= 1
-            raise exceptions.NotFound("Table not found.")
+            return None
 
         table = bigquery.Table(table_ref)
         return table
@@ -59,15 +58,15 @@ def test_read_messages(monkeypatch):
 
     dummy_sources = ["project1.dataset1.table1", "project2.dataset2.table2"]
 
-    bq_client = BigQueryClientMock(project="test", notfound_fails=1)
+    bq_helper = BigQueryHelperMock(notfound_fails=1)
 
     # Test without ssvid_filter_query
-    op = ReadMessages(bq_client, dummy_sources, date.today(), date.today())
+    op = ReadMessages(bq_helper, dummy_sources, date.today(), date.today())
     with TestPipeline() as p:
         p | op
 
     # Test with ssvid_filter_query
-    op = ReadMessages(bq_client, dummy_sources, date.today(), date.today(), ssvid_filter_query="")
+    op = ReadMessages(bq_helper, dummy_sources, date.today(), date.today(), ssvid_filter_query="")
     with TestPipeline() as p:
         p | op
 
@@ -86,6 +85,8 @@ def test_bigquery_integration():
         client_options=client_options,
         credentials=AnonymousCredentials(),
     )
+
+    bq_helper = BigQueryHelper(bq_client, [])
 
     # Partitioned table
     dummy_table1 = f"{project_id}.{dataset_id}.table1"
@@ -116,7 +117,7 @@ def test_bigquery_integration():
         print("{}.{}.{}".format(table.project, table.dataset_id, table.table_id))
 
     dummy_sources = [dummy_table1, dummy_table2, dummy_table3]
-    op = ReadMessages(bq_client, dummy_sources, start_date, end_date)  # noqa
+    op = ReadMessages(bq_helper, dummy_sources, start_date, end_date)  # noqa
     op.build_query(dummy_table1)
 
     with pytest.raises(ValueError):
