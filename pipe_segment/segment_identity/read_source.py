@@ -5,15 +5,15 @@ SOURCE_QUERY_TEMPLATE = """
       seg.* EXCEPT(cumulative_identities, cumulative_destinations),
       frag.first_msg_timestamp, frag.last_msg_timestamp,
     FROM
-      `{source_segments}*` seg
+      `{source_segments}` seg
     JOIN
-      `{source_fragments}*` frag
+      `{source_fragments}` frag
     USING (frag_id)
     WHERE
-      (seg._TABLE_SUFFIX BETWEEN FORMAT_TIMESTAMP('%Y%m%d', TIMESTAMP_SECONDS({start_ts}))
-      AND FORMAT_TIMESTAMP('%Y%m%d', TIMESTAMP_SECONDS({end_ts})))
-      AND (frag._TABLE_SUFFIX BETWEEN FORMAT_TIMESTAMP('%Y%m%d', TIMESTAMP_SECONDS({start_ts}))
-      AND FORMAT_TIMESTAMP('%Y%m%d', TIMESTAMP_SECONDS({end_ts})))
+      (DATE(seg.timestamp) BETWEEN
+        DATE(TIMESTAMP_SECONDS({start_ts})) AND DATE(TIMESTAMP_SECONDS({end_ts})))
+      AND (DATE(frag.timestamp) BETWEEN
+        DATE(TIMESTAMP_SECONDS({start_ts})) AND DATE(TIMESTAMP_SECONDS({end_ts})))
       AND TRUE
 """
 

@@ -16,9 +16,8 @@ class SegmentIdentity(Command):
     HELP = "segment identity pipeline."
     HELP_SOURCE_SEGMENTS = "Table, query or file to read segments from."
     HELP_SOURCE_FRAGMENTS = "Table, query or file to read fragments from."
-    HELP_DEST = "Table or file (prefix) to write daily segment identity records."
+    HELP_DEST = "Table to write daily segment identity records."
     HELP_WAIT_FOR_JOB = "Wait until the job finishes before returning."
-
     HELP_DATE_RANGE = "Range of dates to read from source. Format: YYYY-MM-DD,YYYY-MM-DD."
     HELP_TEMP_SHARDS = (
         "Number of shards to write per day in output temporary storage. "

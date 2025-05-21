@@ -19,7 +19,7 @@ from apache_beam.options.pipeline_options import (
 from pipe_segment.segment_identity.read_source import ReadSource
 from pipe_segment.segment_identity.transforms import (rename_timestamp,
                                                       summarize_identifiers,
-                                                      write_sink)
+                                                      write_partitioned_table)
 from pipe_segment.utils.bq_tools import BigQueryTools
 from pipe_segment.version import __version__
 
@@ -27,6 +27,9 @@ from ..tools import timestamp_from_string, datetime_from_timestamp
 
 logger = logging.getLogger(__name__)
 
+DESCRIPTION_TABLE = f"""
+Created by the pipe-segment: {__version__}.
+Daily segments identity processed in segment step."""
 
 DESCRIPTION_COUNT = "Number of times the unique field value occured for this segment for this day"
 DESCRIPTION_SHIPNAME = "Array of unique shipnames (unnormalized) for this segment for this day."
@@ -317,28 +320,24 @@ class SegmentIdentityPipeline:
     @property
     def destination_tables(self):
         return dict(
-            segment_identity={
-                "table": self.options.dest_segment_identity,
-                "schema": self.dest_segment_identity_schema,
-                "description": f"""Created by the pipe-segment: {__version__}.
-                Daily segments identity processed in segment step.""",
-            })
-
-    @property
-    def dest_segment_identity(self):
-        return write_sink(
-            self.destination_tables["segment_identity"]["table"],
-            self.destination_tables["segment_identity"]["schema"],
-            self.destination_tables["segment_identity"]["description"]
+            segment_identity=dict(
+                table=self.options.dest_segment_identity.replace("bq://", "").split(":")[1],
+                schema=self.dest_segment_identity_schema,
+                description=DESCRIPTION_TABLE,
+                partition_field="summary_timestamp",
+            )
         )
 
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.beam_options)
 
         start_dt, end_dt = [datetime_from_timestamp(ts) for ts in self.date_range]
-        self.bqtools.create_or_clear_tables(
-            self.destination_tables, start_dt.date(), end_dt.date(),
-            date_field="summary_timestamp"
+
+        self.bqtools.remove_content(
+            table=self.destination_tables["segment_identity"]["table"],
+            date_range=self.options.date_range,
+            labels=self.cloud_options.labels,
+            partition_field=self.destination_tables["segment_identity"]["partition_field"],
         )
 
         (
@@ -346,7 +345,9 @@ class SegmentIdentityPipeline:
             | "ReadDailySegments" >> self.source_segments()
             | "SummarizeIdentifiers" >> self.summarize_identifiers
             | "RenameTimestamp" >> self.rename_timestamp
-            | "WriteSegmentIdentity" >> self.dest_segment_identity
+            | "WriteSegmentIdentity" >> write_partitioned_table(
+                **self.destination_tables["segment_identity"]
+            )
         )
         return pipeline
 
@@ -365,6 +366,10 @@ class SegmentIdentityPipeline:
         ):
             logger.info("Waiting until job is done")
             result.wait_until_finish()
+            if result.state == PipelineState.DONE:
+                dtable = self.destination_tables["segment_identity"]
+                self.bqtools.update_description(dtable["table"], dtable["description"])
+                self.bqtools.update_labels(dtable["table"], self.cloud_options.labels)
         else:
             success_states.add(PipelineState.RUNNING)
             success_states.add(PipelineState.UNKNOWN)

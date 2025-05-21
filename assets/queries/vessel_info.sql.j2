@@ -22,7 +22,7 @@ WITH
   SELECT
     *
   FROM
-    `{{ segment_identity_daily }}*`
+    `{{ segment_identity_daily }}`
   ),
   #
   # vessel_id mapped to seg_id
@@ -37,7 +37,7 @@ WITH
     seg_id,
     day
   FROM
-    `{{ segment_vessel_daily }}*`
+    `{{ segment_vessel_daily }}`
   ),
   #
   # Get the day for each row in segments

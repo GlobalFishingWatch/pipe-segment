@@ -25,15 +25,26 @@ class ResultErrorMock:
         raise BadRequest("Bad request")
 
 
+class DatasetMock:
+    def table(self, id: str):
+        return id
+
+
 @dataclass
 class BigQueryClientMock:
     project: str
+
+    def dataset(self, id: str):
+        return DatasetMock()
 
     def query(self, query):
         if self.project is None:
             return ResultErrorMock()
 
         return ResultMock()
+
+    def get_table(self, id: str):
+        return id
 
 
 class ReadFromBigQueryMock(beam.io.ReadFromBigQuery):
@@ -46,7 +57,7 @@ def test_read_fragments(monkeypatch):
     monkeypatch.setattr(bigquery, "Client", BigQueryClientMock)
     monkeypatch.setattr(beam.io, "ReadFromBigQuery", ReadFromBigQueryMock)
 
-    dummy_source = ""
+    dummy_source = "dummy_ds.dummy_table"
 
     # Test raising BadRequest not create if missing
     op = ReadFragments(dummy_source, date.today(), date.today())
@@ -54,7 +65,7 @@ def test_read_fragments(monkeypatch):
         p | op
 
     # Test raising BadRequest and create if missing
-    op = ReadFragments(dummy_source, date.today(), date.today(), create_if_missing=True)
+    op = ReadFragments(dummy_source, date.today(), date.today())
     with TestPipeline() as p:
         p | op
 
