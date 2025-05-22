@@ -16,18 +16,17 @@ class WriteToBigQueryMock(beam.io.WriteToBigQuery):
         return pcoll | beam.Map(self._table)
 
 
-def test_read_messages(monkeypatch):
+def test_write_sink(monkeypatch):
     # TODO: replace this monkey patch when design allows for more easy testing.
     monkeypatch.setattr(beam.io, "WriteToBigQuery", WriteToBigQueryMock)
 
     sink_table = "dummy_table"
     schema = {}
-    description = None
     inputs = [{"timestamp": datetime(2024, 1, 1).timestamp()}]
     outputs = ["dummy_table20240101"]
 
     # Test without ssvid_filter_query
-    op = WriteSink(sink_table, schema, description)
+    op = WriteSink(sink_table, schema)
     with TestPipeline() as p:
         pcoll = p | beam.Create(inputs)
         output = pcoll | op

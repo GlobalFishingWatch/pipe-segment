@@ -8,8 +8,9 @@ from pipe_segment.utils.bq_source import BigQuerySource
 
 logger = logging.getLogger(__name__)
 
+
 FILTER_TEMPLATE = """
-    DATE({{ filter_field }})
+    {{ filter_field }}
     BETWEEN '{{ start_date.strftime(date_format) }}'
     AND '{{ end_date.strftime(date_format) }}'
 """
@@ -18,20 +19,20 @@ FILTER_TEMPLATE = """
 class ReadMessages(beam.PTransform):
     def __init__(
         self,
-        bqclient,
+        bq_helper,
         sources,
         start_date,
         end_date,
         ssvid_filter_query=None,
     ):
-        self.bqclient = bqclient
+        self.bq_helper = bq_helper
         self.sources = sources
         self.start_date = start_date
         self.end_date = end_date
         self.ssvid_filter_query = ssvid_filter_query
 
     def build_query(self, source: str):
-        bq_source = BigQuerySource(self.bqclient, source)
+        bq_source = BigQuerySource(self.bq_helper, source)
 
         query = f"""
         SELECT *

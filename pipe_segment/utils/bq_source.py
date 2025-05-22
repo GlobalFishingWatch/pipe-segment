@@ -1,49 +1,55 @@
 import logging
 
-from google.cloud import bigquery
-from google.api_core import exceptions
+from pipe_segment.utils.bq_tools import BigQueryHelper
+
 
 logger = logging.getLogger(__name__)
 
 
 class BigQuerySource:
-    SHARDED_SUFFIX = "*"
-
     def __init__(
         self,
-        bqclient: bigquery.Client,
+        bq_helper: BigQueryHelper,
         table_id: str,
     ):
-        self._bqclient = bqclient
-        self.table_id = table_id.replace("bq://", "").replace(":", ".")
+        logger.info(f"Building BigQuerySource for source {table_id}")
+        self._bq_helper = bq_helper
+        self.table_id = table_id
+        self._check_sharded_or_partitioned(table_id)
 
-        # Default values (partitioned)
-        self.filtering_field = "timestamp"
+    def _check_sharded_or_partitioned(self, table_id):
+        table = self._bq_helper.fetch_table(table_id)
+        if table is not None:
+            self._initialize_partitioned_table(table)
+            return
+
+        table = self._bq_helper.fetch_table(f"{table_id}*")
+        if table is not None:
+            self._initialize_sharded_table()
+            return
+
+        raise ValueError("Source table is neither sharded or partitioned")
+
+    def _initialize_partitioned_table(self, table):
+        logger.info(f"Table {self.table_id} is a partitioned table")
         self.date_format = "%Y-%m-%d"
-        self.qualified_source = self.table_id
+        self._table_suffix = ''
 
-        self._check_sharded_or_partitioned()
+        if table.time_partitioning:
+            self.filtering_field = f"DATE({table.time_partitioning.field})"
+            logger.info(f'Table {self.table_id} is partitioned on field {self.filtering_field}')
+        else:
+            self.filtering_field = "DATE(timestamp)"
+            logger.info(
+                f'Table {self.table_id} is not time partitioned, defaulting to timestamp filtering'
+            )
 
-    def _check_sharded_or_partitioned(self):
-        # TODO: simplify this. Maybe directly on ReadMessages transform...
-        try:
-            table = self._bqclient.get_table(self.table_id)
-            if table.time_partitioning:
-                self.filtering_field = table.time_partitioning.field
+    def _initialize_sharded_table(self):
+        logger.info(f"Table {self.table_id} is a date sharded table")
+        self._table_suffix = '*'
+        self.date_format = "%Y%m%d"
+        self.filtering_field = "_TABLE_SUFFIX"
 
-            logging.info(f'Table {self.table_id} is partitioned on field {self.filtering_field}')
-            return table
-        except exceptions.NotFound:
-            logger.info(f"Table {self.table_id} not found as partitioned.")
-
-        try:
-            logger.info("Checking if it's a sharded table...")
-            self.qualified_source = f"{self.table_id}{self.SHARDED_SUFFIX}"
-            self._bqclient.get_table(self.qualified_source)
-            logging.info(f'Table {self.table_id} is date sharded')
-
-            self.filtering_field = "_TABLE_SUFFIX"
-            self.date_format = "%Y%m%d"
-        except exceptions.NotFound:
-            raise ValueError(
-                f'Table {self.table_id} could not be found as partitioned or sharded.')
+    @property
+    def qualified_source(self):
+        return f"{self.table_id}{self._table_suffix}"

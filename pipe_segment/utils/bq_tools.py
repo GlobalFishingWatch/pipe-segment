@@ -1,89 +1,198 @@
+from typing import Optional
+from dataclasses import dataclass, field
+import json
 import logging
-from datetime import timedelta
 
 from google.cloud import bigquery
+from google.cloud.exceptions import NotFound
 
-from pipe_segment import tools
-
-
-DELETE_BETWEEN_DATES_QUERY = """
-DELETE FROM `{table}` WHERE DATE({field}) BETWEEN '{start}' AND '{end}'
-"""
+logger = logging.getLogger()
 
 
-class BigQueryTools:
-    """Wrapper above bigquery library with extra features.
+class Schemas:
+    @classmethod
+    def json_to_schema_field(cls, field):
+        """
+        Converts a json dictionary representing a single field in a json schema
+        document to an actual SchemaField instance
+        """
+        subfields = field["fields"] if field["type"].upper() == "RECORD" else []
 
-    Args:
-        client: a bigquery client.
-    """
-    def __init__(self, client: bigquery.Client):
-        self.client = client
+        return bigquery.SchemaField(
+            field['name'],
+            field['type'],
+            mode=field['mode'],
+            description=field['description'],
+            fields=(cls.json_to_schema_field(f) for f in subfields)
+        )
 
     @classmethod
-    def build(cls, project: str = None, **kwargs):
-        """Builds a BigQueryTools objec.
-
-        Args:
-            project: the name of the project.
-            kwargs: any parameter allowed by bigquery.Client constructor.
-                https://cloud.google.com/python/docs/reference/bigquery/latest/google.cloud.bigquery.client.Client
+    def load_json_schema(cls, schema_path: str):
         """
-        return cls(bigquery.Client(project=project, **kwargs))
-
-    def create_or_clear_tables(self, tables, start_date, end_date=None, date_field="timestamp"):
-        """Creates sharded tables. If they already exist, deletes their records.
-
-        Args:
-            tables: list of tables.
-            start_date: the start of dates interval.
-            end_date: the end of dates interval.
-            date_field: name of the field with datetime.
+        Reads a json schema file and converts it to an actual SchemaField list
         """
-        logging.info("Ensure sharded tables are created for all dates...")
-        if end_date is None or end_date == start_date:
-            end_date = start_date + timedelta(days=1)
 
-        for date in tools.list_of_days(start_date, end_date):
-            for table_config in tables.values():
-                table_ref, table_config = self._resolve_table_id(date, **table_config)
-                table = self.create_table(table_ref, **table_config)
-                self.clear_records(table, date_field, date, date)
+        with open(schema_path) as json_schema_file:
+            json_schema = json.load(json_schema_file)
+            return [cls.json_to_schema_field(field) for field in json_schema]
 
-    def create_table(self, table_ref: str, **table_config) -> bigquery.Table:
-        logging.info(f"Creating table {table_ref} (if it doesn't exists yet)...")
-        table = self.build_table(table_ref=table_ref, **table_config)
-        return self.client.create_table(table=table, exists_ok=True)
 
-    def clear_records(self, table, date_field, date_from, date_to):
-        logging.info(
-            "Deleting records at table {} between {} and {}..."
-            .format(table.full_table_id, date_from, date_to)
-        )
+@dataclass(frozen=True)
+class SimpleTable:
+    """
+    Represents an unpartitioned simple table
+    """
+    table_id: str
+    description: str
+    schema: list
+    clustering_field: Optional[str] = None
 
-        full_table_id = table.full_table_id.replace(":", ".")
-
-        query = DELETE_BETWEEN_DATES_QUERY.format(
-            table=full_table_id, field=date_field, start=date_from, end=date_to)
-
-        query_job = self.client.query(query, bigquery.QueryJobConfig(use_legacy_sql=False))
-
-        return query_job.result()
-
-    def _resolve_table_id(self, date, table, **rest_of_config):
-        if self.client.project not in table:
-            table = f"{self.client.project}.{table}"
-
-        table = f"{table}{date:%Y%m%d}"
-
-        return table, rest_of_config
-
-    @staticmethod
-    def build_table(table_ref, schema, description):
-        table = bigquery.Table(
-            table_ref=table_ref.replace("bq://", "").replace(":", "."),
-            schema=schema["fields"],
-        )
-        table.description = description
-
+    def to_bigquery_table(self):
+        """
+        Returns a bigquery.Table instance that can be used to create or update
+        the remote table at BigQuery.
+        """
+        table = bigquery.Table(self.table_id, schema=self.schema)
+        if self.clustering_field:
+            table.clustering_fields = [self.clustering_field]
+        table.description = self.description
         return table
+
+    def clear_query(self):
+        """
+        Returns a query to delete all the data in the table.
+        """
+        return f"""
+                    TRUNCATE TABLE `{self.table_id}`
+                """
+
+
+@dataclass(frozen=True)
+class DateShardedTable:
+    """
+    Represents a legacy date sharded table
+    """
+    table_id_prefix: str
+    description: str
+    schema: list
+    clustering_field: Optional[str] = None
+
+    def build_shard(self, date):
+        """
+        Returns a simple table representing a specific shard for this
+        date-sharded table
+        """
+        return SimpleTable(
+            table_id=f"{self.table_id_prefix}{date:%Y%m%d}",
+            description=self.description,
+            schema=self.schema,
+            clustering_field=self.clustering_field,
+        )
+
+
+@dataclass(frozen=True)
+class DatePartitionedTable:
+    """
+    Represents a timestamp-partitioned table with monthly partitions
+    """
+    table_id: str
+    description: str
+    schema: list
+    partitioning_field: str
+    additional_clustering_fields: list = field(default_factory=lambda: [])
+
+    def to_bigquery_table(self):
+        """
+        Returns a bigquery.Table instance that can be used to create or update
+        the remote table at BigQuery
+        """
+        table = bigquery.Table(self.table_id, schema=self.schema)
+        table.time_partitioning = bigquery.TimePartitioning(
+            type_=bigquery.TimePartitioningType.MONTH,
+            field=self.partitioning_field,
+        )
+        table.clustering_fields = [self.partitioning_field, *self.additional_clustering_fields]
+        table.description = self.description
+        return table
+
+    def clear_query(self, from_date, to_date):
+        """
+        Returns a query to remove data in the table in a date interval
+        """
+        return f"""
+                    DELETE FROM `{self.table_id}`
+                    WHERE date({self.partitioning_field})
+                    BETWEEN '{from_date}' AND '{to_date}'
+                """
+
+
+class BigQueryHelper:
+    def __init__(self, bq_client, labels):
+        self.client = bq_client
+        self.labels = dict([entry.split("=") for entry in labels])
+
+    def ensure_table_exists(self, table):
+        """
+        Ensures a table exists, creating it if it doesn't
+        """
+
+        logger.info(f"Ensuring table {table.table_id} exists")
+        table_definition = table.to_bigquery_table()
+        table_definition.labels = self.labels
+        result = self.client.create_table(table_definition, exists_ok=True)
+        logger.info(f"Table {table.table_id} exists")
+        return result
+
+    def run_query(self, query):
+        """
+        Runs a simple, arbitrary query, tagging the query process with the
+        labels
+        """
+        logger.info("Executing query")
+        logger.info(f'=====QUERY STARTS======\n{query}\n====QUERY ENDS====')
+        self.client.query_and_wait(
+            query,
+            job_config=bigquery.QueryJobConfig(
+                labels=self.labels,
+            ),
+        )
+
+    def run_query_into_table(self, *, query, table):
+        """
+        Runs a query and inserts the results into a given table
+        """
+        logger.info(f'Executing BATCH query, destination {table.table_id}')
+        logger.info(f'=====QUERY STARTS======\n{query}\n====QUERY ENDS====')
+
+        self.client.query_and_wait(
+            query,
+            job_config=bigquery.QueryJobConfig(
+                use_query_cache=False,
+                priority=bigquery.QueryPriority.BATCH,
+                use_legacy_sql=False,
+                write_disposition='WRITE_APPEND',
+                destination=table.table_id,
+                labels=self.labels,
+            )
+        )
+        logger.info("Query job done")
+
+    def update_table_description(self, table):
+        """
+        Updates a table description in BigQuery
+        """
+        bq_table = self.client.get_table(table.table_id)
+        bq_table.description = table.description
+
+        logger.info(f"Updating description for table {table.table_id}")
+        self.client.update_table(bq_table, ["description"])
+        logger.info(f"Description updated for table {table.table_id}.")
+
+    def fetch_table(self, table_id):
+        """
+        Returns a bigquery.Table instance for the given table_id, or None if it doesn't exist
+        """
+        try:
+            return self.client.get_table(table_id)
+        except NotFound:
+            return None
