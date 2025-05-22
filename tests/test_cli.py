@@ -12,7 +12,7 @@ def test_cli(monkeypatch, tmp_path):
     monkeypatch.setattr(pipeline, "run", lambda *x, **y: 0)
 
     log_file = os.path.join(tmp_path, 'segment.log')
-    dummy_table = 'dummy_table'
+    dummy_table = 'dummy_proj.dummy_dataset.dummy_table'
 
     cli.run([
         '-v',

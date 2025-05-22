@@ -9,21 +9,28 @@
 # `segment_identity_daily` table, which summarizes identity information per
 # segment.
 ################################################################################
+from datetime import timedelta
 import logging
 
-import apache_beam as beam
-from apache_beam.runners import PipelineState
-from apache_beam.options.pipeline_options import (
-    GoogleCloudOptions, StandardOptions, PipelineOptions)
+from google.cloud import bigquery
 
+import apache_beam as beam
+from apache_beam.options.pipeline_options import (
+    GoogleCloudOptions,
+    PipelineOptions,
+    StandardOptions,
+)
+from apache_beam.runners import PipelineState
 from pipe_segment.segment_identity.read_source import ReadSource
-from pipe_segment.segment_identity.transforms import (rename_timestamp,
-                                                      summarize_identifiers,
-                                                      write_sink)
-from pipe_segment.utils.bqtools import BigQueryTools
+from pipe_segment.segment_identity.transforms import (
+    rename_timestamp,
+    summarize_identifiers,
+    write_sink,
+)
+from pipe_segment.utils.bq_tools import BigQueryHelper, DateShardedTable
 from pipe_segment.version import __version__
 
-from ..tools import as_timestamp, datetimeFromTimestamp
+from ..tools import datetime_from_timestamp, list_of_days, timestamp_from_string
 
 logger = logging.getLogger(__name__)
 
@@ -36,244 +43,242 @@ DESCRIPTION_SHIPNAME_NORM = "Array of unique normalized shipnames for this segme
 DESCRIPTION_CALLSIGN_NORM = "Array of unique normalized callsigns for this segment for this day."
 DESCRIPTION_IMO_VALID = "Array of all unique valid imo numbers for this segment for this day."
 
-DEST_SEGMENT_IDENTITY_SCHEMA = {
-    "fields": [
-        {
-            "mode": "NULLABLE",
-            "name": "seg_id",
-            "type": "STRING",
-            "description": "unique segment id.  This table has one row per segment id per day",
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "ssvid",
-            "type": "STRING",
-            "description": (
-                "source specific vessel id. "
-                "This is the transponder id, and for AIS this is the MMSI"
-            ),
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "summary_timestamp",
-            "type": "TIMESTAMP",
-            "description": "Timestamp this summary was created",
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "first_timestamp",
-            "type": "TIMESTAMP",
-            "description": "Timestamp of the first message in the segment for this day",
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "last_timestamp",
-            "type": "TIMESTAMP",
-            "description": "Timestamp of the last message in the segment for this day",
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "first_pos_timestamp",
-            "type": "TIMESTAMP",
-            "description": "Timestamp of the first position message in the segment for this day",
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "last_pos_timestamp",
-            "type": "TIMESTAMP",
-            "description": "Timestamp of the last position message in the segment for this day",
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "msg_count",
-            "type": "INTEGER",
-            "description": (
-                "Total number of messages (positional and identity messages) "
-                "in the segment for this day"
-            ),
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "pos_count",
-            "type": "INTEGER",
-            "description": "Number of positional messages in the segment for this day",
-        },
-        {
-            "mode": "NULLABLE",
-            "name": "ident_count",
-            "type": "INTEGER",
-            "description": (
-                "Number of identity messages in the segment for this day. "
-                "Note that some messages can contain both position and identity"
-            ),
-        },
-        {
-            "fields": [
-                {
-                    "mode": "NULLABLE",
-                    "name": "value",
-                    "type": "STRING",
-                    "description": "Unique field value",
-                },
-                {
-                    "mode": "NULLABLE",
-                    "name": "count",
-                    "type": "INTEGER",
-                    "description": DESCRIPTION_COUNT,
-                }
-            ],
-            "mode": "REPEATED",
-            "name": "shipname",
-            "type": "RECORD",
-            "description": DESCRIPTION_SHIPNAME,
-        },
-        {
-            "fields": [
-                {
-                    "mode": "NULLABLE",
-                    "name": "value",
-                    "type": "STRING",
-                    "description": "Unique field value",
-                },
-                {
-                    "mode": "NULLABLE",
-                    "name": "count",
-                    "type": "INTEGER",
-                    "description": DESCRIPTION_COUNT,
-                },
-            ],
-            "mode": "REPEATED",
-            "name": "callsign",
-            "type": "RECORD",
-            "description": DESCRIPTION_CALLSIGN,
-        },
-        {
-            "fields": [
-                {
-                    "mode": "NULLABLE",
-                    "name": "value",
-                    "type": "STRING",
-                    "description": "Unique field value",
-                },
-                {
-                    "mode": "NULLABLE",
-                    "name": "count",
-                    "type": "INTEGER",
-                    "description": DESCRIPTION_COUNT,
-                },
-            ],
-            "mode": "REPEATED",
-            "name": "imo",
-            "type": "RECORD",
-            "description": DESCRIPTION_IMO,
-        },
-        {
-            "fields": [
-                {
-                    "mode": "NULLABLE",
-                    "name": "value",
-                    "type": "STRING",
-                    "description": "Unique field value",
-                },
-                {
-                    "mode": "NULLABLE",
-                    "name": "count",
-                    "type": "INTEGER",
-                    "description": DESCRIPTION_COUNT,
-                },
-            ],
-            "mode": "REPEATED",
-            "name": "n_shipname",
-            "type": "RECORD",
-            "description": DESCRIPTION_SHIPNAME_NORM,
-        },
-        {
-            "fields": [
-                {
-                    "mode": "NULLABLE",
-                    "name": "value",
-                    "type": "STRING",
-                    "description": "Unique field value",
-                },
-                {
-                    "mode": "NULLABLE",
-                    "name": "count",
-                    "type": "INTEGER",
-                    "description": DESCRIPTION_COUNT,
-                },
-            ],
-            "mode": "REPEATED",
-            "name": "n_callsign",
-            "type": "RECORD",
-            "description": DESCRIPTION_CALLSIGN_NORM,
-        },
-        {
-            "fields": [
-                {
-                    "mode": "NULLABLE",
-                    "name": "value",
-                    "type": "STRING",
-                    "description": "Unique field value",
-                },
-                {
-                    "mode": "NULLABLE",
-                    "name": "count",
-                    "type": "INTEGER",
-                    "description": DESCRIPTION_COUNT,
-                },
-            ],
-            "mode": "REPEATED",
-            "name": "n_imo",
-            "type": "RECORD",
-            "description": DESCRIPTION_IMO_VALID,
-        },
-        {
-            "fields": [
-                {
-                    "mode": "NULLABLE",
-                    "name": "value",
-                    "type": "STRING",
-                    "description": "Unique field value",
-                },
-                {
-                    "mode": "NULLABLE",
-                    "name": "count",
-                    "type": "INTEGER",
-                    "description": DESCRIPTION_COUNT,
-                },
-            ],
-            "mode": "REPEATED",
-            "name": "length",
-            "type": "RECORD",
-            "description": "Array of all unique length for this segment for this day.",
-        },
-        {
-            "fields": [
-                {
-                    "mode": "NULLABLE",
-                    "name": "value",
-                    "type": "STRING",
-                    "description": "Unique field value",
-                },
-                {
-                    "mode": "NULLABLE",
-                    "name": "count",
-                    "type": "INTEGER",
-                    "description": DESCRIPTION_COUNT,
-                },
-            ],
-            "mode": "REPEATED",
-            "name": "width",
-            "type": "RECORD",
-            "description": "Array of all unique width for this segment for this day.",
-        },
-    ]
-}
+DEST_SEGMENT_IDENTITY_SCHEMA = [
+    {
+        "mode": "NULLABLE",
+        "name": "seg_id",
+        "type": "STRING",
+        "description": "unique segment id.  This table has one row per segment id per day",
+    },
+    {
+        "mode": "NULLABLE",
+        "name": "ssvid",
+        "type": "STRING",
+        "description": (
+            "source specific vessel id. "
+            "This is the transponder id, and for AIS this is the MMSI"
+        ),
+    },
+    {
+        "mode": "NULLABLE",
+        "name": "summary_timestamp",
+        "type": "TIMESTAMP",
+        "description": "Timestamp this summary was created",
+    },
+    {
+        "mode": "NULLABLE",
+        "name": "first_timestamp",
+        "type": "TIMESTAMP",
+        "description": "Timestamp of the first message in the segment for this day",
+    },
+    {
+        "mode": "NULLABLE",
+        "name": "last_timestamp",
+        "type": "TIMESTAMP",
+        "description": "Timestamp of the last message in the segment for this day",
+    },
+    {
+        "mode": "NULLABLE",
+        "name": "first_pos_timestamp",
+        "type": "TIMESTAMP",
+        "description": "Timestamp of the first position message in the segment for this day",
+    },
+    {
+        "mode": "NULLABLE",
+        "name": "last_pos_timestamp",
+        "type": "TIMESTAMP",
+        "description": "Timestamp of the last position message in the segment for this day",
+    },
+    {
+        "mode": "NULLABLE",
+        "name": "msg_count",
+        "type": "INTEGER",
+        "description": (
+            "Total number of messages (positional and identity messages) "
+            "in the segment for this day"
+        ),
+    },
+    {
+        "mode": "NULLABLE",
+        "name": "pos_count",
+        "type": "INTEGER",
+        "description": "Number of positional messages in the segment for this day",
+    },
+    {
+        "mode": "NULLABLE",
+        "name": "ident_count",
+        "type": "INTEGER",
+        "description": (
+            "Number of identity messages in the segment for this day. "
+            "Note that some messages can contain both position and identity"
+        ),
+    },
+    {
+        "fields": [
+            {
+                "mode": "NULLABLE",
+                "name": "value",
+                "type": "STRING",
+                "description": "Unique field value",
+            },
+            {
+                "mode": "NULLABLE",
+                "name": "count",
+                "type": "INTEGER",
+                "description": DESCRIPTION_COUNT,
+            }
+        ],
+        "mode": "REPEATED",
+        "name": "shipname",
+        "type": "RECORD",
+        "description": DESCRIPTION_SHIPNAME,
+    },
+    {
+        "fields": [
+            {
+                "mode": "NULLABLE",
+                "name": "value",
+                "type": "STRING",
+                "description": "Unique field value",
+            },
+            {
+                "mode": "NULLABLE",
+                "name": "count",
+                "type": "INTEGER",
+                "description": DESCRIPTION_COUNT,
+            },
+        ],
+        "mode": "REPEATED",
+        "name": "callsign",
+        "type": "RECORD",
+        "description": DESCRIPTION_CALLSIGN,
+    },
+    {
+        "fields": [
+            {
+                "mode": "NULLABLE",
+                "name": "value",
+                "type": "STRING",
+                "description": "Unique field value",
+            },
+            {
+                "mode": "NULLABLE",
+                "name": "count",
+                "type": "INTEGER",
+                "description": DESCRIPTION_COUNT,
+            },
+        ],
+        "mode": "REPEATED",
+        "name": "imo",
+        "type": "RECORD",
+        "description": DESCRIPTION_IMO,
+    },
+    {
+        "fields": [
+            {
+                "mode": "NULLABLE",
+                "name": "value",
+                "type": "STRING",
+                "description": "Unique field value",
+            },
+            {
+                "mode": "NULLABLE",
+                "name": "count",
+                "type": "INTEGER",
+                "description": DESCRIPTION_COUNT,
+            },
+        ],
+        "mode": "REPEATED",
+        "name": "n_shipname",
+        "type": "RECORD",
+        "description": DESCRIPTION_SHIPNAME_NORM,
+    },
+    {
+        "fields": [
+            {
+                "mode": "NULLABLE",
+                "name": "value",
+                "type": "STRING",
+                "description": "Unique field value",
+            },
+            {
+                "mode": "NULLABLE",
+                "name": "count",
+                "type": "INTEGER",
+                "description": DESCRIPTION_COUNT,
+            },
+        ],
+        "mode": "REPEATED",
+        "name": "n_callsign",
+        "type": "RECORD",
+        "description": DESCRIPTION_CALLSIGN_NORM,
+    },
+    {
+        "fields": [
+            {
+                "mode": "NULLABLE",
+                "name": "value",
+                "type": "STRING",
+                "description": "Unique field value",
+            },
+            {
+                "mode": "NULLABLE",
+                "name": "count",
+                "type": "INTEGER",
+                "description": DESCRIPTION_COUNT,
+            },
+        ],
+        "mode": "REPEATED",
+        "name": "n_imo",
+        "type": "RECORD",
+        "description": DESCRIPTION_IMO_VALID,
+    },
+    {
+        "fields": [
+            {
+                "mode": "NULLABLE",
+                "name": "value",
+                "type": "STRING",
+                "description": "Unique field value",
+            },
+            {
+                "mode": "NULLABLE",
+                "name": "count",
+                "type": "INTEGER",
+                "description": DESCRIPTION_COUNT,
+            },
+        ],
+        "mode": "REPEATED",
+        "name": "length",
+        "type": "RECORD",
+        "description": "Array of all unique length for this segment for this day.",
+    },
+    {
+        "fields": [
+            {
+                "mode": "NULLABLE",
+                "name": "value",
+                "type": "STRING",
+                "description": "Unique field value",
+            },
+            {
+                "mode": "NULLABLE",
+                "name": "count",
+                "type": "INTEGER",
+                "description": DESCRIPTION_COUNT,
+            },
+        ],
+        "mode": "REPEATED",
+        "name": "width",
+        "type": "RECORD",
+        "description": "Array of all unique width for this segment for this day.",
+    },
+]
 
 
 def parse_date_range(s):
     # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
-    return list(map(as_timestamp, s.split(",")) if s is not None else (None, None))
+    return list(map(timestamp_from_string, s.split(",")) if s is not None else (None, None))
 
 
 class SegmentIdentityPipeline:
@@ -282,7 +287,10 @@ class SegmentIdentityPipeline:
         self.beam_options = beam_options
         self.cloud_options = beam_options.view_as(GoogleCloudOptions)
         self.date_range = parse_date_range(self.options.date_range)
-        self.bqtools = BigQueryTools(project=self.cloud_options.project)
+        self.bq_helper = BigQueryHelper(
+            bq_client=bigquery.Client(project=self.cloud_options.project),
+            labels=self.cloud_options.labels,
+        )
 
     @classmethod
     def build(cls, options, beam_args):
@@ -315,36 +323,41 @@ class SegmentIdentityPipeline:
         return beam.Map(rename_timestamp)
 
     @property
-    def destination_tables(self):
-        return dict(
-            segment_identity={
-                "table": self.options.dest_segment_identity,
-                "schema": self.dest_segment_identity_schema,
-                "description": f"""Created by the pipe-segment: {__version__}.
+    def destination_table(self):
+        return DateShardedTable(
+            table_id_prefix=self.options.dest_segment_identity,
+            description=f"""Created by the pipe-segment: {__version__}.
                 Daily segments identity processed in segment step.""",
-            })
-
-    @property
-    def dest_segment_identity(self):
-        return write_sink(
-            self.destination_tables["segment_identity"]["table"],
-            self.destination_tables["segment_identity"]["schema"],
-            self.destination_tables["segment_identity"]["description"]
+            schema=self.dest_segment_identity_schema,
         )
+
+    def prepare_output_tables(self, start_date, end_date):
+        # list_of_days doesn't include the end date. However, in daily mode,
+        # start and end date are the same day.
+        for date in list_of_days(start_date, end_date + timedelta(days=1)):
+            shard = self.destination_table.build_shard(date)
+            self.bq_helper.ensure_table_exists(shard)
+            self.bq_helper.run_query(
+                query=shard.clear_query()
+            )
 
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.beam_options)
 
-        start_dt, end_dt = [datetimeFromTimestamp(ts) for ts in self.date_range]
-        self.bqtools.ensure_sharded_tables_creation(
-            start_dt, end_dt, self.destination_tables, key="summary_timestamp")
+        start_dt, end_dt = [datetime_from_timestamp(ts) for ts in self.date_range]
 
-        (
+        logger.info("Preparing output tables")
+        self.prepare_output_tables(start_dt, end_dt)
+
+        _ = (
             pipeline
             | "ReadDailySegments" >> self.source_segments()
             | "SummarizeIdentifiers" >> self.summarize_identifiers
             | "RenameTimestamp" >> self.rename_timestamp
-            | "WriteSegmentIdentity" >> self.dest_segment_identity
+            | "WriteSegmentIdentity" >> write_sink(
+                sink_table=self.destination_table.table_id_prefix,
+                schema=self.destination_table.schema,
+            )
         )
         return pipeline
 

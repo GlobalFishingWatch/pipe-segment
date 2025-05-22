@@ -4,7 +4,7 @@ import apache_beam as beam
 from gpsdio_segment.matcher import Matcher
 from typing import Iterable, Generator, Any, Optional, List, Tuple, Set, Dict
 
-from ..tools import datetimeFromTimestamp
+from ..tools import datetime_from_timestamp
 from .util import by_day
 
 
@@ -24,6 +24,7 @@ class CreateSegmentMap(beam.PTransform):
     def __init__(self, args=None):
         if args is None:
             args = {}
+
         assert "lookback" not in args
         args["lookback"] = 0
         self.matcher = Matcher(**args)
@@ -33,7 +34,7 @@ class CreateSegmentMap(beam.PTransform):
             k: frag[f"{end}_msg_{k}"]
             for k in ["timestamp", "lon", "lat", "speed", "course"]
         }
-        msg["timestamp"] = datetimeFromTimestamp(msg["timestamp"])
+        msg["timestamp"] = datetime_from_timestamp(msg["timestamp"])
         return msg
 
     def compute_pair_score(self, frag0, frag1):
@@ -42,8 +43,10 @@ class CreateSegmentMap(beam.PTransform):
         hours = self.matcher.compute_msg_delta_hours(msg0, msg1)
         if not 0 < hours < 24:
             return 0.0
+
         penalized_hours = self.matcher.compute_penalized_hours(hours)
         discrepancy = self.matcher.compute_discrepancy(msg0, msg1, penalized_hours)
+
         return self.matcher.compute_metric(discrepancy, hours)
 
     def compute_ordered_scores(
@@ -91,7 +94,6 @@ class CreateSegmentMap(beam.PTransform):
             ordered_scores = self.compute_ordered_scores(
                 open_segs.items(), new_fragments, frag_map
             )
-            #
             active_segs = {}
             stale_keys: Set[str] = set()
             while (item := get_next(ordered_scores, stale_keys)) is not None:

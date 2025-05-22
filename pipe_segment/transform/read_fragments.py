@@ -52,7 +52,11 @@ class ReadFragments(beam.PTransform):
         if self.start_date is None:
             start_date = first_table_date
         else:
-            start_date = max(first_table_date, self.start_date)
+            if first_table_date is not None:
+                start_date = max(first_table_date, self.start_date)
+            else:
+                start_date = self.end_date
+
         while start_date <= self.end_date:
             next_start_date = start_date + timedelta(days=365)
             end_date = min(next_start_date - timedelta(days=1), self.end_date)

@@ -72,6 +72,7 @@ class PIPE(CLI):
     # packages / moudules for which to set the log level as WARNING.
     LOG_LEVEL_WARNING = [
         "apache_beam.io.gcp",
+        "apache_beam.runners.worker.bundle_processor"
     ]
 
     COMMANDS = [Segment, SegmentIdentity]
