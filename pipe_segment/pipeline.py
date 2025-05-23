@@ -150,7 +150,6 @@ class SegmentPipeline:
                     query=shard.clear_query(),
                 )
 
-
         if self.options.out_sat_offsets_table:
             SatelliteOffsetsWrite.prepare_output_tables(
                 self.options,
