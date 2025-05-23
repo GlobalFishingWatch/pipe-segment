@@ -150,10 +150,12 @@ class SegmentPipeline:
                     query=shard.clear_query(),
                 )
 
-        SatelliteOffsetsWrite.prepare_output_tables(
-            self.options,
-            self.cloud_options
-        )
+
+        if self.options.out_sat_offsets_table:
+            SatelliteOffsetsWrite.prepare_output_tables(
+                self.options,
+                self.cloud_options
+            )
 
     # TODO: consider breaking up
     def pipeline(self):
