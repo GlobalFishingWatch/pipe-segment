@@ -6,6 +6,8 @@ steps:
     '-t', '${_IMAGE_NAME}:${TAG_NAME}',
     '-t', '${_IMAGE_NAME}:latest',
     '-f', 'Dockerfile',
+    '--target',
+    "prod",
     '.',
   ]
 
