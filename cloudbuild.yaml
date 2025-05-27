@@ -3,11 +3,10 @@ steps:
   id: build
   args: [
     'build',
-    '-t', '${_IMAGE_NAME}:${TAG_NAME}',
-    '-t', '${_IMAGE_NAME}:latest',
+    '-t', '${_IMAGE_NAME}:test',
     '-f', 'Dockerfile',
     '--target',
-    "prod",
+    'dev',
     '.',
   ]
 
@@ -17,7 +16,19 @@ steps:
     'run',
     '--rm',
     '--entrypoint', 'py.test',
-    '${_IMAGE_NAME}:latest',
+    '${_IMAGE_NAME}:test',
+  ]
+
+- name: 'gcr.io/cloud-builders/docker'
+  id: build
+  args: [
+    'build',
+    '-t', '${_IMAGE_NAME}:${TAG_NAME}',
+    '-t', '${_IMAGE_NAME}:latest',
+    '-f', 'Dockerfile',
+    '--target',
+    "prod",
+    '.',
   ]
 
 images:
