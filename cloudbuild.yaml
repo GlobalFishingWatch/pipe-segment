@@ -1,6 +1,23 @@
 steps:
 - name: 'gcr.io/cloud-builders/docker'
-  id: build
+  args: [
+    'build',
+    '-t', '${_IMAGE_NAME}:test',
+    '-f', 'Dockerfile',
+    '--target',
+    'dev',
+    '.',
+  ]
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'run',
+    '--rm',
+    '--entrypoint', 'py.test',
+    '${_IMAGE_NAME}:test',
+  ]
+
+- name: 'gcr.io/cloud-builders/docker'
   args: [
     'build',
     '-t', '${_IMAGE_NAME}:test',
