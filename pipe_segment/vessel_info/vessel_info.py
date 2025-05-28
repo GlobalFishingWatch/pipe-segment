@@ -53,7 +53,7 @@ class VesselInfoPipeline:
             segment_vessel_daily=self.options.source_segment_vessel,
         )
         logger.info("Running the Vessel Info query.")
-        self.bqtools.run_query(query=query, table=self.get_output_table())
+        self.bq_helper.run_query_into_table(query=query, table=self.get_output_table())
 
 
 def run(*args, **kwargs):

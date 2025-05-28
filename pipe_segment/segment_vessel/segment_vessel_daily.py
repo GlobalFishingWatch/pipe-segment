@@ -64,7 +64,7 @@ class SegmentVesselDailyPipeline:
         )
         logger.info("Running the Segment Vessel Daily query.")
         table = self.get_output_table()
-        self.bq_helper.run_query(query=query, table=table)
+        self.bq_helper.run_query_into_table(query=query, table=table)
 
 
 def run(*args, **kwargs):

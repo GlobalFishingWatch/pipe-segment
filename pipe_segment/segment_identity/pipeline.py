@@ -330,10 +330,11 @@ class SegmentIdentityPipeline:
             description=f"""Created by the pipe-segment: {__version__}.
                 Daily segments identity processed in segment step.""",
             schema=self.dest_segment_identity_schema,
-            partition_field="summary_timestamp",
+            partitioning_field="summary_timestamp",
         )
 
-    def prepare_output_tables(self, start_date, end_date):
+    def prepare_output_tables(self):
+        start_date, end_date = self.options.date_range.split(",")
         self.bq_helper.ensure_table_exists(self.destination_table)
         self.bq_helper.run_query(
             query=self.destination_table.clear_query(start_date, end_date)
@@ -345,7 +346,7 @@ class SegmentIdentityPipeline:
         start_dt, end_dt = [datetime_from_timestamp(ts) for ts in self.date_range]
 
         logger.info("Preparing output tables")
-        self.prepare_output_tables(start_dt, end_dt)
+        self.prepare_output_tables()
 
         _ = (
             pipeline
