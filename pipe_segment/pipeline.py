@@ -113,6 +113,7 @@ class SegmentPipeline:
             schema=message_schema.message_output_schema,
             description=f"""Created by pipe-segment:{__version__}.
                 Daily satellite messages segmented processed in segment step.""",
+            partitioning_field="timestamp",
         )
 
     @property
@@ -122,6 +123,7 @@ class SegmentPipeline:
             schema=segment_schema.segment_schema,
             description=f"""Created by pipe-segment:{__version__}.
                 Daily segments processed in segment step.""",
+            partitioning_field="timestamp",
         )
 
     @property
@@ -131,6 +133,7 @@ class SegmentPipeline:
             schema=Fragment.schema,
             description=f"""Created by pipe-segment:{__version__}.
                 Daily fragments processed in segment step.""",
+            partitioning_field="timestamp",
         )
 
     @property
@@ -149,7 +152,7 @@ class SegmentPipeline:
         )
 
     def prepare_output_tables(self, start_date, end_date):
-        for table in self.date_partitioned_output_tables():
+        for table in self.date_partitioned_output_tables:
             self.bq_helper.ensure_table_exists(table)
             self.bq_helper.run_query(
                 query=table.clear_query(start_date, end_date),
