@@ -150,11 +150,10 @@ class SatelliteOffsetsWrite(PTransform):
 
         start_date, end_date = options.date_range.split(",")
 
+        formatting = dict(**vars(options), ver=__version__, end_date=end_date)
         table = DatePartitionedTable(
             table_id=options.out_sat_offsets_table,
-            description=DESCRIPTION_TABLE.format(
-                **dict(**options, ver=__version__, end_date=end_date)
-            ),
+            description=DESCRIPTION_TABLE.format(**formatting),
             schema=make_schema(),
             partitioning_field="hour",
         )
