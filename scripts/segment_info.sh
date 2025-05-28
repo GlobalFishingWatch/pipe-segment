@@ -39,8 +39,8 @@ for index in ${!ARGS[*]}; do
   echo "  ${arg_name}=${arg_value}"
   # Check if the argument is in the TABLE_ARGS list
   if [[ " ${TABLE_ARGS[@]} " =~ " ${arg_name} " ]]; then
-    if [[ ! "$arg_value" =~ ^[a-zA-Z0-9_-]+[\.:][a-zA-Z0-9_]+\.[a-zA-Z0-9_]+$ ]]; then
-      echo "Error: $arg_name must be in the format project_id[.|:]dataset_id.table_id, got '$arg_value'"
+    if [[ ! "$arg_value" =~ ^[a-zA-Z0-9_-]+\.[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+$ ]]; then
+      echo "Error: $arg_name must be in the format project_id.dataset_id.table_id, got '$arg_value'"
       exit 1
     fi
     # Replace the first dot with a colon
