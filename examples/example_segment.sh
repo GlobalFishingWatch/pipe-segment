@@ -8,13 +8,13 @@ docker compose run --rm --entrypoint pipe dev segment \
   --date_range='2025-01-01,2025-01-01' \
   --segmenter_params='{"max_hours": 24}' \
   --in_normalized_messages_table=world-fishing-827.pipe_ais_sources_v20220628.pipe_nmea_normalized_ \
-  --out_segmented_messages_table=${DATASET_OUT}.internal__messages_segmented \
-  --out_segments_table=${DATASET_OUT}.internal__segments \
-  --fragments_table=${DATASET_OUT}.internal__fragments \
-  --in_normalized_sat_offset_messages_table=pipe_ais_sources_v20220628.pipe_nmea_normalized_ \
-  --out_sat_offsets_table=${DATASET_OUT}.published__satellite_timing_offsets \
-  --in_norad_to_receiver_table=pipe_static.norad_to_receiver_v20230510 \
-  --in_sat_positions_table=satellite_positions_v20190208.satellite_positions_one_second_resolution_ \
+  --out_segmented_messages_table=world-fishing-827.${DATASET_OUT}.internal__messages_segmented \
+  --out_segments_table=world-fishing-827.${DATASET_OUT}.internal__segments \
+  --fragments_table=world-fishing-827.${DATASET_OUT}.internal__fragments \
+  --in_normalized_sat_offset_messages_table=world-fishing-827.pipe_ais_sources_v20220628.pipe_nmea_normalized_ \
+  --out_sat_offsets_table=world-fishing-827.${DATASET_OUT}.published__satellite_timing_offsets \
+  --in_norad_to_receiver_table=world-fishing-827.pipe_static.norad_to_receiver_v20230510 \
+  --in_sat_positions_table=world-fishing-827.satellite_positions_v20190208.satellite_positions_one_second_resolution_ \
   --setup_file=./setup.py \
   --labels=environment=develop \
   --labels=resource_creator=local_example \

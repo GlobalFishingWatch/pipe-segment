@@ -6,9 +6,9 @@ echo "Output dataset ${DATASET_OUT}."
 
 docker compose run --rm --entrypoint pipe dev segment_identity \
   --date_range='2025-01-01,2025-01-01' \
-  --source_segments=bq://world-fishing-827:${DATASET_OUT}.internal__segments \
-  --source_fragments=bq://world-fishing-827:${DATASET_OUT}.internal__fragments \
-  --dest_segment_identity=bq://world-fishing-827:${DATASET_OUT}.internal__segment_identity_daily \
+  --source_segments=world-fishing-827:${DATASET_OUT}.internal__segments \
+  --source_fragments=world-fishing-827:${DATASET_OUT}.internal__fragments \
+  --dest_segment_identity=world-fishing-827:${DATASET_OUT}.internal__segment_identity_daily \
   --setup_file=./setup.py \
   --labels=environment=develop \
   --labels=resource_creator=local_example \
