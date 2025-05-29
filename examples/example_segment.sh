@@ -27,4 +27,4 @@ docker compose run --rm --entrypoint pipe dev segment \
   --temp_location=gs://pipe-temp-us-central-ttl7/dataflow_temp \
   --staging_location=gs://pipe-temp-us-central-ttl7/dataflow_staging \
   --job_name=test-segment-segment--20250101 \
-  --ssvid_filter_query='"9921118512","993660556","4402609","311046100","4403330","2614100","993692032"'
+  --ssvid_filter_query='"311046100","261027110","319887000","563226900","261001520","563207400",'

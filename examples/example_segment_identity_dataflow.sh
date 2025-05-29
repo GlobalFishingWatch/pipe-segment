@@ -4,11 +4,11 @@
 if [ -z $1 ]; then grep "^##" $(dirname $0)/$(basename $0); exit 1; else DATASET_OUT=$1; fi
 echo "Output dataset ${DATASET_OUT}."
 
-docker compose run --rm dev segment_identity_daily \
+docker compose run --rm dev segment_identity \
   --date_range='2025-01-01,2025-01-01' \
-  --source_segments=world-fishing-827.${DATASET_OUT}.segments \
-  --source_fragments=world-fishing-827.${DATASET_OUT}.fragments \
-  --dest_segment_identity=world-fishing-827.${DATASET_OUT}.segment_identity_daily \
+  --source_segments=world-fishing-827.${DATASET_OUT}.internal__segments \
+  --source_fragments=world-fishing-827.${DATASET_OUT}.internal__fragments \
+  --dest_segment_identity=world-fishing-827.${DATASET_OUT}.internal__segment_identity_daily \
   --setup_file=./setup.py \
   --sdk_container_image=gcr.io/world-fishing-827/github.com/globalfishingwatch/pipe-segment/worker:v4.4.1 \
   --labels=environment=develop \
