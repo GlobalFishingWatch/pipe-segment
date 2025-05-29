@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 SCHEMA_PATH = "./assets/schemas/segment_vessel_daily.schema.json"
 QUERY = "segment_vessel_daily.sql.j2"
 PARTITION_FIELD = "day"
-SOURCE_PARTITION_FIELD = "summary_timestamp"
 
 
 def description(options: str) -> str:
@@ -60,7 +59,6 @@ class SegmentVesselDailyPipeline:
             most_common_min_freq=self.options.most_common_min_freq,
             spoofing_threshold=self.options.spoofing_threshold,
             segment_identity=self.options.source_segment_identity,
-            segment_identity_partition_field=SOURCE_PARTITION_FIELD,
         )
         logger.info("Running the Segment Vessel Daily query.")
         table = self.get_output_table()

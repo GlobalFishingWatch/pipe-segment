@@ -30,7 +30,7 @@ WITH
   FROM
     `{{ segment_identity }}`
   WHERE
-    DATE({{ segment_identity_partition_field }}) between windowStart() AND processDate()
+    DATE(summary_timestamp) between windowStart() AND processDate()
   ),
 
   #
