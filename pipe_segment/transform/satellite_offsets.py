@@ -144,7 +144,7 @@ class SatelliteOffsetsWrite(PTransform):
     @classmethod
     def prepare_output_tables(cls, options, cloud_options):
         bq_helper = BigQueryHelper(
-            bq_client=bigquery.Client(project=cloud_options.project),
+            bq_client=bigquery.Client(project=options.project),
             labels=cloud_options.labels,
         )
 

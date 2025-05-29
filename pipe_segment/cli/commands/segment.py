@@ -69,6 +69,8 @@ class Segment(Command):
         from, which is useful on testing scenarios (for example, to read from
         production data and write to a scratch dataset)"""
 
+    HELP_PROJECT = "The Google Cloud Project."
+
     EPILOG = "Example: pipe segment --help"
 
     @classmethod
@@ -110,6 +112,7 @@ class Segment(Command):
         add("--bins_per_day", default=4, metavar=' ', type=int, help=cls.HELP_BINS_PER_DAY)
         add("--out_fragments_table", default=None, metavar=' ',
             type=valid_table_reference, help=cls.HELP_OUT_FRAGMENTS_TABLE)
+        add("--project", metavar='\b', default="world-fishing-827", help=cls.HELP_PROJECT)
 
     @classmethod
     def run(cls, args, extra_args):

@@ -22,6 +22,7 @@ class SegmentIdentity(Command):
     HELP_TEMP_SHARDS = (
         "Number of shards to write per day in output temporary storage. "
         "A good value for this is the max number of workers. (default: %(default)s).")
+    HELP_PROJECT = "The Google Cloud Project."
 
     EPILOG = "Example: pipe segment_identity --help"
 
@@ -46,6 +47,7 @@ class SegmentIdentity(Command):
         add("--date_range", metavar='\b', type=valid_daterange, help=cls.HELP_DATE_RANGE)
         add("--wait_for_job", action="store_true", help=cls.HELP_WAIT_FOR_JOB)
         add("--temp_shards_per_day", type=int, metavar='\b', default=16, help=cls.HELP_TEMP_SHARDS)
+        add("--project", metavar='\b', default="world-fishing-827", help=cls.HELP_PROJECT)
 
     @classmethod
     def run(cls, args, extra_args):

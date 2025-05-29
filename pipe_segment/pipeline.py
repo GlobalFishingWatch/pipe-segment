@@ -84,7 +84,7 @@ class SegmentPipeline:
         self.cloud_options = beam_options.view_as(GoogleCloudOptions)
         self.date_range = parse_date_range(self.options.date_range)
         self.bq_helper = BigQueryHelper(
-            bq_client=bigquery.Client(project=self.cloud_options.project),
+            bq_client=bigquery.Client(project=self.options.project),
             labels=self.cloud_options.labels,
         )
 
