@@ -1,7 +1,11 @@
 # ---------------------------------------------------------------------------------------
 # BASE
 # ---------------------------------------------------------------------------------------
-FROM gcr.io/world-fishing-827/github.com/globalfishingwatch/gfw-pipeline:latest-python3.8 AS base
+FROM python:3.8 AS base
+
+# Configure the working directory
+RUN mkdir -p /opt/project
+WORKDIR /opt/project
 
 # Copy files from official SDK image, including script/dependencies.
 COPY --from=apache/beam_python3.8_sdk:2.56.0 /opt/apache/beam /opt/apache/beam
