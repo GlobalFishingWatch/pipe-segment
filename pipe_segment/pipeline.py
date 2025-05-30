@@ -41,6 +41,9 @@ Created by the pipe-segment:{__version__}.
 Daily segments processed in segment step."""
 DESCRIPTION_TABLE_FRAGMENTS = f"""Created by the pipe-segment:{__version__}.
 Daily fragments processed in segment step."""
+# These are default values used in our pipelines, tweak it to do research
+DEFAULT_MERGE_PARAMS = "{}"
+DEFAULT_SEGMENT_PARAMS = "{\"max_hours\": 24}"
 
 
 def timestamp_to_date(ts: float) -> dt.date:
@@ -96,11 +99,11 @@ class SegmentPipeline:
 
     @property
     def merge_params(self):
-        return ujson.loads(self.options.merge_params)
+        return ujson.loads(DEFAULT_MERGE_PARAMS)
 
     @property
     def segmenter_params(self):
-        return ujson.loads(self.options.segmenter_params)
+        return ujson.loads(DEFAULT_SEGMENT_PARAMS)
 
     @property
     def source_tables(self) -> list:

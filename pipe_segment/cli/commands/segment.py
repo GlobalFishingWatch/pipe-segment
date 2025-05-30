@@ -1,4 +1,3 @@
-import json
 import logging
 
 from pipe_segment import pipeline
@@ -9,18 +8,6 @@ from pipe_segment.cli.commands.validator import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-EXAMPLE_SEGMENTER_PARAMS = {
-    "max_hours": 24,
-    "max_speed": 30,
-    "noise_dist": 0,
-    "reported_speed_multiplier": 1.1,
-    "max_speed_multiplier": 15,
-    "max_speed_exponent": 1.3,
-}
-
-EXAMPLE_MERGE_PARAMS = dict(buffer_hours=0.5)
 
 
 class Segment(Command):
@@ -45,16 +32,6 @@ class Segment(Command):
     )
     HELP_DATE_RANGE = "Range of dates to read from source. Format 'YYYY-MM-DD,YYYY-MM-DD'."
     HELP_WAIT_FOR_JOB = "Wait until the job finishes before returning."
-
-    HELP_SEGMENTER_PARAMS = (
-        "JSON object with fragmenter parameters, or filepath @path/to/file.json. "
-        f"For Example: \n {json.dumps(EXAMPLE_SEGMENTER_PARAMS)}"
-    )
-
-    HELP_MERGE_PARAMS = (
-        "JSON object with fragmenter parameters, or filepath @path/to/file.json. "
-        f"For Example: \n {json.dumps(EXAMPLE_MERGE_PARAMS)}"
-    )
     HELP_SSVID_FILTER = (
         "Query that returns a list of ssvid to trim the sourced data down to. "
         "Note that the returned list is used in memory so should not be too large. "
@@ -106,8 +83,6 @@ class Segment(Command):
             help=cls.HELP_MAX_TIMING_OFFSET_S)
         add("--date_range", metavar=' ', type=valid_daterange, help=cls.HELP_DATE_RANGE)
         add("--wait_for_job", action="store_true", help=cls.HELP_WAIT_FOR_JOB)
-        add("--segmenter_params", default="{}", metavar=' ', help=cls.HELP_SEGMENTER_PARAMS)
-        add("--merge_params", default="{}", metavar=' ', help=cls.HELP_MERGE_PARAMS)
         add("--ssvid_filter_query", metavar=' ', help=cls.HELP_SSVID_FILTER)
         add("--bins_per_day", default=4, metavar=' ', type=int, help=cls.HELP_BINS_PER_DAY)
         add("--out_fragments_table", default=None, metavar=' ',
