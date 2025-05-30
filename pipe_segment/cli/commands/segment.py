@@ -68,18 +68,18 @@ class Segment(Command):
         add(
             "--ssvid_filter_query", metavar=' ',
             help=("Query that returns a list of ssvid to trim the sourced data down to. "
-                 "Note that the returned list is used in memory so should not be too large. "
-                 "This meant for testing purposes. If tempted to use for production, "
-                 "more work should be done so that the data is pruned on the way in."))
+                  "Note that the returned list is used in memory so should not be too large. "
+                  "This meant for testing purposes. If tempted to use for production, "
+                  "more work should be done so that the data is pruned on the way in."))
         add(
             "--bins_per_day", default=4, metavar=' ', type=int,
             help="Amount of containers per day to tag fragments and messages.")
         add(
             "--out_fragments_table", default=None, metavar=' ', type=valid_table_reference,
             help=("Output table for fragments. This parameter allows to specify a different "
-                 "table from the one you use to read fragments from, which is useful on "
-                 "testing scenarios (for example, to read from production data and "
-                 "write to a scratch dataset)"))
+                  "table from the one you use to read fragments from, which is useful on "
+                  "testing scenarios (for example, to read from production data and "
+                  "write to a scratch dataset)"))
 
     @classmethod
     def run(cls, args, extra_args):
