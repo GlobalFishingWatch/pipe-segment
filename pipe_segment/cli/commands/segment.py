@@ -5,6 +5,7 @@ from pipe_segment.cli.commands.base import Command
 from pipe_segment.cli.commands.validator import (
     valid_daterange,
     valid_table_reference,
+    valid_positive_int,
 )
 
 logger = logging.getLogger(__name__)
@@ -54,10 +55,10 @@ class Segment(Command):
             "--out_sat_offsets_table", metavar=' ', type=valid_table_reference,
             help="Table to write satellite offsets to.")
         add(
-            "--bad_hour_padding", type=int, default=1, metavar=' ',
+            "--bad_hour_padding", type=valid_positive_int, default=1, metavar=' ',
             help="Hours on either side of an hour with bad satellite timing to suppress.")
         add(
-            "--max_timing_offset_s", type=int, default=30, metavar=' ',
+            "--max_timing_offset_s", type=valid_positive_int, default=30, metavar=' ',
             help="Max. offset (in seconds) of a satellite clock before we drop its messages.")
         add(
             "--date_range", metavar=' ', type=valid_daterange,
@@ -72,7 +73,7 @@ class Segment(Command):
                   "This meant for testing purposes. If tempted to use for production, "
                   "more work should be done so that the data is pruned on the way in."))
         add(
-            "--bins_per_day", default=4, metavar=' ', type=int,
+            "--bins_per_day", default=4, metavar=' ', type=valid_positive_int,
             help="Amount of containers per day to tag fragments and messages.")
         add(
             "--out_fragments_table", default=None, metavar=' ', type=valid_table_reference,

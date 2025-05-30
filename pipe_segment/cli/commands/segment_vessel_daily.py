@@ -3,7 +3,7 @@ import logging
 from pipe_segment.segment_vessel import segment_vessel_daily
 from pipe_segment.cli.commands.base import Command
 from pipe_segment.cli.commands.validator import (
-    valid_daterange, valid_frequency, valid_table_reference
+    valid_daterange, valid_frequency, valid_table_reference, valid_positive_int
 )
 
 logger = logging.getLogger(__name__)
@@ -44,7 +44,8 @@ class SegmentVesselDaily(Command):
         optional = p.add_argument_group("Optional")
         add = optional.add_argument
         add(
-            "--window_days", type=int, metavar='\b', default=cls.DEFAULT_WINDOW_DAYS,
+            "--window_days", metavar='\b', default=cls.DEFAULT_WINDOW_DAYS,
+            type=valid_positive_int,
             help="Amount of days windowing the segment identities to identify a vessel_id. "
                  "(default: %(default)s).")
         add(
@@ -58,7 +59,8 @@ class SegmentVesselDaily(Command):
             help="The minimal frequency that defines a ssvid that have a single dominant identity."
                  " (default: %(default)s).")
         add(
-            "--spoofing_threshold", type=int, metavar='\b', default=cls.DEFAULT_SPOOFING_THRESHOLD,
+            "--spoofing_threshold", metavar='\b', default=cls.DEFAULT_SPOOFING_THRESHOLD,
+            type=valid_positive_int,
             help="The amount of spoofing points to consider a segment a noise one. "
                  "(default: %(default)s).")
         add(

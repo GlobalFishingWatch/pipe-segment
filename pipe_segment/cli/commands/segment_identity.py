@@ -5,6 +5,7 @@ from pipe_segment.cli.commands.base import Command
 from pipe_segment.cli.commands.validator import (
     valid_daterange,
     valid_table_reference,
+    valid_positive_int,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ class SegmentIdentity(Command):
             "--wait_for_job", action="store_true",
             help="Wait until the job finishes before returning.")
         add(
-            "--temp_shards_per_day", type=int, metavar='\b', default=16,
+            "--temp_shards_per_day", type=valid_positive_int, metavar='\b', default=16,
             help="Number of shards to write per day in output temporary storage. "
                  "A good value for this is the max number of workers. (default: %(default)s).")
 
