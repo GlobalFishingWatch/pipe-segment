@@ -11,14 +11,8 @@ logger = logging.getLogger(__name__)
 
 class SegmentVessel(Command):
     NAME = "segment_vessel"
-
     HELP = "segment vessel pipeline."
-    HELP_SOURCE_SEGMENT_VESSEL_DAILY = "Table, query or file to read segment vessel daily from."
-    HELP_DEST = "Table to write segment vessel records."
-    HELP_LABELS = "The labels that are using to identify the jobs and audit them."
-    HELP_PROJECT = "The Google Cloud Project."
     EPILOG = "Example: pipe segment_vessel --help"
-
     DEFAULT_PROJECT = "world-fishing-827"
 
     @classmethod
@@ -30,15 +24,23 @@ class SegmentVessel(Command):
 
         required = p.add_argument_group("Required")
         add = required.add_argument
-        add("--source_segment_vessel_daily", required=True, metavar='\b',
-            type=valid_table_reference, help=cls.HELP_SOURCE_SEGMENT_VESSEL_DAILY)
-        add("--destination", required=True, metavar='\b',
-            type=valid_table_reference, help=cls.HELP_DEST)
-        add("--labels", metavar='\b', action="append", help=cls.HELP_LABELS)
+        add(
+            "--source_segment_vessel_daily", required=True, metavar='\b',
+            type=valid_table_reference,
+            help="Table, query or file to read segment vessel daily from.")
+        add(
+            "--destination", required=True, metavar='\b',
+            type=valid_table_reference,
+            help="Table to write segment vessel records.")
+        add(
+            "--labels", metavar='\b', action="append",
+            help="The labels that are using to identify the jobs and audit them.")
 
         optional = p.add_argument_group("Optional")
         add = optional.add_argument
-        add("--project", metavar='\b', default=cls.DEFAULT_PROJECT, help=cls.HELP_PROJECT)
+        add(
+            "--project", metavar='\b', default=cls.DEFAULT_PROJECT,
+            help="The Google Cloud Project that will be billed to.")
 
     @classmethod
     def run(cls, args, extra_args):

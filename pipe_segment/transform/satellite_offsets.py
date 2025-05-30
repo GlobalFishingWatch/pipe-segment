@@ -1,5 +1,6 @@
 from datetime import timedelta
 from jinja2 import Template
+from importlib import resources
 
 import apache_beam as beam
 from apache_beam import PTransform, io
@@ -102,8 +103,9 @@ class SatelliteOffsets(PTransform):
         ] | "MergeSatOffsets" >> beam.Flatten()
 
     def _sat_offset_iter(self):
-        with open('./pipe_segment/transform/assets/satellite_offsets.sql.j2') as f:
-            template = Template(f.read())
+        with resources.path('pipe_segment.transform.assets', 'satellite_offsets.sql.j2') as t:
+            with open(t) as f:
+                template = Template(f.read())
 
         for start_window, end_window in self._get_query_windows():
             query = template.render(
@@ -137,14 +139,13 @@ class SatelliteOffsetsWrite(PTransform):
         return xs | "WriteSatOffsets" >> io.WriteToBigQuery(
             self.dest_table,
             schema={"fields": self.schema},
-            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
             create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
         )
 
     @classmethod
     def prepare_output_tables(cls, options, cloud_options):
         bq_helper = BigQueryHelper(
-            bq_client=bigquery.Client(project=options.project),
+            bq_client=bigquery.Client(project=cloud_options.project),
             labels=cloud_options.labels,
         )
 
