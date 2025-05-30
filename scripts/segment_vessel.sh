@@ -15,6 +15,14 @@ ARGS=( \
 TABLE_ARGS=("SEGMENT_VESSEL_TABLE" "DEST_TABLE")
 
 ################################################################################
+# Setup up project to be billed for this process
+################################################################################
+if [ -z "${BILLING_PROJECT_ID}" ]; then
+  BILLING_PROJECT_ID=world-fishing-827
+fi
+echo "Using billing project id ${BILLING_PROJECT_ID}"
+
+################################################################################
 # Validate and extract arguments
 ################################################################################
 display_usage() {
@@ -80,7 +88,7 @@ echo "Publishing ${PROCESS} to ${DEST_TABLE}..."
 jinja2 ${SQL} \
    -D segment_vessel_daily=${SEGMENT_VESSEL_TABLE//:/.} \
    | bq query --headless --max_rows=0 --allow_large_results --replace \
-     ${LABELS_PARAM} --destination_table ${DEST_TABLE}
+     ${LABELS_PARAM} --destination_table ${DEST_TABLE} --project_id ${BILLING_PROJECT_ID}
 
 if [ "$?" -ne 0 ]; then
   echo "  Unable to insert records for table ${DEST_TABLE}"

@@ -17,6 +17,14 @@ ARGS=( \
 TABLE_ARGS=("SEGMENT_IDENTITY_TABLE" "SEGMENT_VESSEL_TABLE" "DEST_TABLE")
 
 ################################################################################
+# Setup up project to be billed for this process
+################################################################################
+if [ -z "${BILLING_PROJECT_ID}" ]; then
+  BILLING_PROJECT_ID=world-fishing-827
+fi
+echo "Using billing project id ${BILLING_PROJECT_ID}"
+
+################################################################################
 # Validate and extract arguments
 ################################################################################
 display_usage() {
@@ -88,7 +96,7 @@ jinja2 ${SQL} \
    -D most_common_min_freq=${MOST_COMMON_MIN_FREQ} \
    | bq query --headless --max_rows=0 --allow_large_results --replace \
      ${LABELS_PARAM} --destination_table ${DEST_TABLE} \
-     --destination_schema ${SCHEMA}
+     --destination_schema ${SCHEMA} --project_id ${BILLING_PROJECT_ID}
 
 if [ "$?" -ne 0 ]; then
   echo "  Unable to insert records for table ${DEST_TABLE}"
