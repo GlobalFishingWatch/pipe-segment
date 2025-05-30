@@ -18,7 +18,6 @@ GCP_DOCKER_VOLUME:=gcp
 ## test: Runs unit tests.
 ## testintegration: Runs unit and integration tests.
 ## testdocker: Runs unit and integration tests inside docker container.
-## docker-flake: Checks PEP8 code style agreement.
 
 
 help:
@@ -64,7 +63,4 @@ testintegration:
 testdocker:
 	docker compose run --rm test
 
-docker-flake:
-	docker compose run --rm --entrypoint flake8 -it dev --count
-
-.PHONY: help gcp build docker-shell reqs upgrade-reqs venv install test testintegration testdocker docker-flake
+.PHONY: help gcp build docker-shell reqs upgrade-reqs venv install test testintegration testdocker
