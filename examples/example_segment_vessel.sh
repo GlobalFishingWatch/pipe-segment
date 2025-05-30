@@ -4,7 +4,7 @@
 if [ -z $1 ]; then grep "^##" $(dirname $0)/$(basename $0); exit 1; else DATASET_OUT=$1; fi
 echo "Output dataset ${DATASET_OUT}."
 
-docker compose run --rm --entrypoint pipe dev segment_vessel \
+docker compose run --rm dev segment_vessel \
     --source_segment_vessel_daily=world-fishing-827.${DATASET_OUT}.internal__segment_vessel_daily \
     --destination=world-fishing-827.${DATASET_OUT}.internal__segment_vessel \
     --labels=environment=develop \

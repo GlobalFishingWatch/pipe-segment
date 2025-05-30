@@ -4,9 +4,8 @@
 if [ -z $1 ]; then grep "^##" $(dirname $0)/$(basename $0); exit 1; else DATASET_OUT=$1; fi
 echo "Output dataset ${DATASET_OUT}."
 
-docker compose run --rm --entrypoint pipe dev segment \
+docker compose run --rm -e GOOGLE_CLOUD_PROJECT="world-fishing-827" dev segment \
   --date_range='2025-01-01,2025-01-01' \
-  --segmenter_params='{"max_hours": 24}' \
   --in_normalized_messages_table=world-fishing-827.pipe_ais_sources_v20220628.pipe_nmea_normalized_ \
   --out_segmented_messages_table=world-fishing-827.${DATASET_OUT}.internal__messages_segmented \
   --out_segments_table=world-fishing-827.${DATASET_OUT}.internal__segments \

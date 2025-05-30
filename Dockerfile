@@ -47,4 +47,4 @@ RUN cd /usr/local/lib/python3.8/site-packages && \
     python /opt/project/setup.py develop
 
 # Set the entrypoint to Apache Beam SDK launcher.
-ENTRYPOINT ["/bin/bash"]
+ENTRYPOINT ["pipe"]
