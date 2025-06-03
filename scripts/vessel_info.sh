@@ -14,6 +14,7 @@ ARGS=( \
   DEST_TABLE \
   LABELS \
 )
+TABLE_ARGS=("SEGMENT_IDENTITY_TABLE" "SEGMENT_VESSEL_TABLE" "DEST_TABLE")
 
 ################################################################################
 # Validate and extract arguments
@@ -32,8 +33,19 @@ fi
 echo "Running $0"
 ARG_VALUES=("$@")
 for index in ${!ARGS[*]}; do
-  echo "  ${ARGS[$index]}=${ARG_VALUES[$index]}"
-  declare "${ARGS[$index]}"="${ARG_VALUES[$index]}"
+  arg_name="${ARGS[$index]}"
+  arg_value="${ARG_VALUES[$index]}"
+  echo "  ${arg_name}=${arg_value}"
+  # If argument name ends with _TABLE, validate and transform
+  if [[ "$arg_name" == *_TABLE ]]; then
+       if [[ ! "$arg_value" =~ ^[a-zA-Z0-9_-]+[\.:][a-zA-Z0-9_]+\.[a-zA-Z0-9_]+$ ]]; then
+      echo "Error: $arg_name must be in the format project_id[.|:]dataset_id.table_id, got '$arg_value'"
+      exit 1
+    fi
+    # Replace the first dot with a colon
+    arg_value="${arg_value/./:}"
+  fi
+  declare "${arg_name}"="${arg_value}"
 done
 
 ################################################################################
