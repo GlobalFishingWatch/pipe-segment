@@ -328,8 +328,8 @@ class SegmentIdentityPipeline:
     def destination_table(self):
         return DatePartitionedTable(
             table_id=self.options.dest_segment_identity,
-            description=f"""Created by the pipe-segment: {__version__}.
-                Daily segments identity processed in segment step.""",
+            description=f"Created by the pipe-segment: {__version__}.\n"
+                        "Daily segments identity processed in segment step.",
             schema=self.dest_segment_identity_schema,
             partitioning_field="summary_timestamp",
         )

@@ -115,8 +115,8 @@ class SegmentPipeline:
         return DatePartitionedTable(
             table_id=self.options.out_segmented_messages_table,
             schema=message_schema.message_output_schema,
-            description=f"""Created by pipe-segment:{__version__}.
-                Daily satellite messages segmented processed in segment step.""",
+            description=f"Created by pipe-segment:{__version__}.\n"
+                        "Daily satellite messages segmented processed in segment step.",
             partitioning_field="timestamp",
         )
 
@@ -125,8 +125,8 @@ class SegmentPipeline:
         return DatePartitionedTable(
             table_id=self.options.out_segments_table,
             schema=segment_schema.segment_schema,
-            description=f"""Created by pipe-segment:{__version__}.
-                Daily segments processed in segment step.""",
+            description=f"Created by pipe-segment:{__version__}.\n"
+                        "Daily segments processed in segment step.",
             partitioning_field="timestamp",
         )
 
@@ -135,8 +135,8 @@ class SegmentPipeline:
         return DatePartitionedTable(
             table_id=self.options.out_fragments_table or self.options.fragments_table,
             schema=Fragment.schema,
-            description=f"""Created by pipe-segment:{__version__}.
-                Daily fragments processed in segment step.""",
+            description=f"Created by pipe-segment:{__version__}.\n"
+                        "Daily fragments processed in segment step.",
             partitioning_field="timestamp",
         )
 
