@@ -4,6 +4,8 @@ from pipe_segment.cli.commands.validator import (
     valid_date,
     valid_daterange,
     valid_table_reference,
+    valid_frequency,
+    valid_positive_int,
 )
 
 
@@ -42,3 +44,35 @@ class TestValidators:
     )
     def test_valid_table_reference(self, table, expected):
         assert expected == valid_table_reference(table)
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            (0.1, 0.1),
+            (1e-1, 1e-1),
+            pytest.param(1.2, 1.2, marks=pytest.mark.xfail),
+            pytest.param(-1.2, -1.2, marks=pytest.mark.xfail),
+            pytest.param("0.1", "0.1", marks=pytest.mark.xfail),
+            pytest.param("e", "e", marks=pytest.mark.xfail),
+            pytest.param([], [], marks=pytest.mark.xfail),
+            pytest.param({}, {}, marks=pytest.mark.xfail),
+        ]
+    )
+    def test_value_valid_frequency(self, value, expected):
+        assert expected == valid_frequency(value)
+
+    @pytest.mark.parametrize(
+        "value,expected",
+        [
+            (1, 1),
+            (0, 0),
+            pytest.param(-1, -1, marks=pytest.mark.xfail),
+            pytest.param(1e-1, 1e-1, marks=pytest.mark.xfail),
+            pytest.param("1", "1", marks=pytest.mark.xfail),
+            pytest.param("e", "e", marks=pytest.mark.xfail),
+            pytest.param([], [], marks=pytest.mark.xfail),
+            pytest.param({}, {}, marks=pytest.mark.xfail),
+        ]
+    )
+    def test_value_valid_positive_int(self, value, expected):
+        assert expected == valid_positive_int(value)

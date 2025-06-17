@@ -10,7 +10,7 @@ GCP_DOCKER_VOLUME:=gcp
 ## help: Prints this list of commands.
 ## gcp: Authenticates to google cloud and configure the project.
 ## build: Builds docker image.
-## dockershell: Enters to docker container shell.
+## docker-shell: Enters to docker container shell.
 ## reqs: Compiles requirements file with pip-tools.
 ## upgrade-reqs: Upgrades requirements file based on .in constraints.
 ## venv: Creates a virtual environment.
@@ -26,22 +26,22 @@ help:
 
 gcp:
 	docker volume create --name ${GCP_DOCKER_VOLUME}
-	docker compose run gcloud auth application-default login
-	docker compose run gcloud config set project ${GCP_PROJECT}
-	docker compose run gcloud auth application-default set-quota-project ${GCP_PROJECT}
+	docker compose run --rm gcloud auth application-default login
+	docker compose run --rm gcloud config set project ${GCP_PROJECT}
+	docker compose run --rm gcloud auth application-default set-quota-project ${GCP_PROJECT}
 
 build:
 	docker compose build
 
-dockershell:
-	docker compose run --entrypoint /bin/bash -it ${DOCKER_IMAGE_DEV}
+docker-shell:
+	docker compose run --rm --entrypoint /bin/bash -it ${DOCKER_IMAGE_DEV}
 
 reqs:
-	docker compose run --entrypoint /bin/bash -it ${DOCKER_IMAGE_DEV} -c \
+	docker compose run --rm --entrypoint /bin/bash -it ${DOCKER_IMAGE_DEV} -c \
 		'pip-compile -o ${REQS_PROD_TXT} ${REQS_PROD_IN} -v'
 
 upgrade-reqs:
-	docker compose run --entrypoint /bin/bash -it ${DOCKER_IMAGE_DEV} -c \
+	docker compose run --rm --entrypoint /bin/bash -it ${DOCKER_IMAGE_DEV} -c \
 	'pip-compile -o ${REQS_PROD_TXT} -U ${REQS_PROD_IN} -v'
 
 venv:
@@ -61,7 +61,6 @@ testintegration:
 	docker compose down bigquery
 
 testdocker:
-	docker compose run test
+	docker compose run --rm test
 
-
-.PHONY: help gcp build dockershell reqs upgrade-reqs venv install test testintegration testdocker
+.PHONY: help gcp build docker-shell reqs upgrade-reqs venv install test testintegration testdocker

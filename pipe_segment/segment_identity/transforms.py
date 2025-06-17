@@ -1,6 +1,5 @@
 from collections import defaultdict
 
-import apache_beam as beam
 from shipdataprocess.normalize import normalize_callsign, normalize_shipname
 from stdnum import imo as imo_validator
 
@@ -110,16 +109,3 @@ def rename_timestamp(record):
     result = record.copy()
     result["summary_timestamp"] = result.pop("timestamp")
     return result
-
-
-def write_sink(sink_table, schema):
-    def compute_table(message):
-        timestamp = message["summary_timestamp"]
-        return f"{sink_table}{timestamp:%Y%m%d}"
-
-    return beam.io.WriteToBigQuery(
-        compute_table,
-        schema={"fields": schema},
-        write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-        create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
-    )
