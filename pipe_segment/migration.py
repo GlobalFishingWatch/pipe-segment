@@ -18,7 +18,6 @@ from pipe_segment.segment_vessel.segment_vessel_daily import (
     description
 )
 from google.cloud import bigquery
-from pipe_segment.cli.commands.validator import valid_daterange
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +26,7 @@ DESCRIPTION = "Use to migrate the segment tables from date-sharded to date-parti
 PROJECT = "world-fishing-827"  # project to bill and where the tables exists.
 DATASET_OUT = "scratch_matias_ttl7d"  # dataset to create the date-partitioned tables
 DATASET_SOURCE = "pipe_ais_v3_internal"  # dataset where to query the date-sharded tables
+DATE_START = "2012-01-01"
 QUERY = """
 SELECT * FROM `{table_id}_*`
 WHERE _TABLE_SUFFIX BETWEEN '{start}' AND '{end}'
@@ -93,7 +93,7 @@ def prepare_output_tables(bq_helper, dataset_out, tables, start, end):
 def migrate(args):
     # Definitions
     logging.getLogger().setLevel(logging.INFO)
-    date_start, date_end = args.date_range.split(',')
+    date_start, date_end = [DATE_START, dt.datetime.now().date().isoformat()]
 
     start = dt.datetime.fromisoformat(date_start)
     end = dt.datetime.fromisoformat(date_end)
@@ -114,12 +114,6 @@ def migrate(args):
 
 def run(args) -> int:
     parser = argparse.ArgumentParser(prog=NAME, description=DESCRIPTION)
-    parser.add_argument(
-        '--date_range',
-        default=f"2012-01-01,{dt.datetime.now().date().isoformat()}",
-        type=valid_daterange,
-        help="Date range to copy from date-sharded table to date-partitioned table"
-    )
     parser.add_argument(
         '--dataset_out',
         type=str,
