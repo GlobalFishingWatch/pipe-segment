@@ -23,8 +23,9 @@ logger = logging.getLogger(__name__)
 
 NAME = "migration-script"
 DESCRIPTION = "Use to migrate the segment tables from date-sharded to date-partition."
+DATA_AVAILABLE_SINCE = 2012
 QUERY = """
-SELECT * FROM `{table_id}_*`
+SELECT * FROM `{table_id}_{year}*`
 """
 
 
@@ -72,15 +73,17 @@ def define_tables(dataset_out):
     ]
 
 
-def prepare_output_tables(bq_helper, dataset_in, dataset_out, tables):
+def prepare_output_tables(bq_helper, data_available, dataset_in, dataset_out, tables):
     for table in tables:
         bq_helper.ensure_table_exists(table)
         logging.info(f"Ensures table {table.table_id} is created.")
-        query = QUERY.format(
-            table_id=table.table_id.replace(dataset_out, dataset_in),
-        )
-        logger.info(query)
-        bq_helper.run_query_into_table(query=query, table=table)
+        for year in range(data_available, dt.date.today().year + 1):
+            query = QUERY.format(
+                table_id=table.table_id.replace(dataset_out, dataset_in),
+                year=year,
+            )
+            logger.info(query)
+            bq_helper.run_query_into_table(query=query, table=table)
 
 
 def migrate(args):
@@ -97,7 +100,7 @@ def migrate(args):
     ]
     bq_helper = BigQueryHelper(bq_client, labels)
     tables = define_tables(args.dataset_out)
-    prepare_output_tables(bq_helper, args.dataset_in, args.dataset_out, tables)
+    prepare_output_tables(bq_helper, args.data_available, args.dataset_in, args.dataset_out, tables)
 
 
 def run(args) -> int:
@@ -105,21 +108,31 @@ def run(args) -> int:
     parser.add_argument(
         '--dataset_in',
         type=str,
+        required=True,
         help="Project.Dataset to read date-sharded tables from "
              "(ex world-fishing-827.pipe_ais_v3_internal)."
     )
     parser.add_argument(
         '--dataset_out',
         type=str,
+        required=True,
         help="Project.Dataset where to build the date-partitioned tables "
              "(ex world-fishing-827.pipe_ais_v3_internal)."
     )
     parser.add_argument(
         '--billing_project',
         type=str,
+        required=True,
         help="The project who will be billed to do the migration."
     )
+    parser.add_argument(
+        '--data_available',
+        type=int,
+        default=DATA_AVAILABLE_SINCE,
+        help="The year since the data you want to migrate (By default %(default))."
+    )
 
+    log.info(f"Arguments passed: {parser.parse_args(args)}")
     migrate(parser.parse_args(args))
 
 
