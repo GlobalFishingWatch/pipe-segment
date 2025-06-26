@@ -2,7 +2,10 @@
 # and run queries to full-fill those tables with date-sharded tables.
 #
 # Usage:
-# python ./pipe_segment/migration.py
+# python ./pipe_segment/migration.py \
+#   --dataset_in "world-fishing-827.pipe_ais_v3_internal" \
+#   --dataset_out "world-fishing-827.scratch_matias_ttl7d" \
+#   --billing_project "world-fishing-827
 
 import datetime as dt
 import logging
