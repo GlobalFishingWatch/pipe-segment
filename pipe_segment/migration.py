@@ -132,7 +132,7 @@ def run(args) -> int:
         help="The year since the data you want to migrate (By default %(default))."
     )
 
-    log.info(f"Arguments passed: {parser.parse_args(args)}")
+    logging.info(f"Arguments passed: {parser.parse_args(args)}")
     migrate(parser.parse_args(args))
 
 
