@@ -42,6 +42,9 @@ Then, clone the repository:
 git clone git@github.com:GlobalFishingWatch/pipe-segment.git
 ```
 
+You can check the [examples](examples/) folder to see how to run the pipe
+
+
 ## Dependencies
 
 Install Docker Engine using the [docker official instructions] (avoid snap packages)

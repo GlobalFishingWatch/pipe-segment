@@ -9,7 +9,6 @@
 # `segment_identity_daily` table, which summarizes identity information per
 # segment.
 ################################################################################
-from datetime import timedelta
 import logging
 
 from google.cloud import bigquery
@@ -25,15 +24,17 @@ from pipe_segment.segment_identity.read_source import ReadSource
 from pipe_segment.segment_identity.transforms import (
     rename_timestamp,
     summarize_identifiers,
-    write_sink,
 )
-from pipe_segment.utils.bq_tools import BigQueryHelper, DateShardedTable
+from pipe_segment.utils.bq_tools import BigQueryHelper, DatePartitionedTable
 from pipe_segment.version import __version__
 
-from ..tools import datetime_from_timestamp, list_of_days, timestamp_from_string
+from ..tools import datetime_from_timestamp, timestamp_from_string
 
 logger = logging.getLogger(__name__)
 
+DESCRIPTION_TABLE = f"""
+Created by the pipe-segment: {__version__}.
+Daily segments identity processed in segment step."""
 
 DESCRIPTION_COUNT = "Number of times the unique field value occured for this segment for this day"
 DESCRIPTION_SHIPNAME = "Array of unique shipnames (unnormalized) for this segment for this day."
@@ -286,6 +287,7 @@ class SegmentIdentityPipeline:
         self.options = options
         self.beam_options = beam_options
         self.cloud_options = beam_options.view_as(GoogleCloudOptions)
+        assert self.cloud_options.project is not None
         self.date_range = parse_date_range(self.options.date_range)
         self.bq_helper = BigQueryHelper(
             bq_client=bigquery.Client(project=self.cloud_options.project),
@@ -324,22 +326,20 @@ class SegmentIdentityPipeline:
 
     @property
     def destination_table(self):
-        return DateShardedTable(
-            table_id_prefix=self.options.dest_segment_identity,
-            description=f"""Created by the pipe-segment: {__version__}.
-                Daily segments identity processed in segment step.""",
+        return DatePartitionedTable(
+            table_id=self.options.dest_segment_identity,
+            description=f"Created by the pipe-segment: {__version__}.\n"
+                        "Daily segments identity processed in segment step.",
             schema=self.dest_segment_identity_schema,
+            partitioning_field="summary_timestamp",
         )
 
-    def prepare_output_tables(self, start_date, end_date):
-        # list_of_days doesn't include the end date. However, in daily mode,
-        # start and end date are the same day.
-        for date in list_of_days(start_date, end_date + timedelta(days=1)):
-            shard = self.destination_table.build_shard(date)
-            self.bq_helper.ensure_table_exists(shard)
-            self.bq_helper.run_query(
-                query=shard.clear_query()
-            )
+    def prepare_output_tables(self):
+        start_date, end_date = self.options.date_range.split(",")
+        self.bq_helper.ensure_table_exists(self.destination_table)
+        self.bq_helper.run_query(
+            query=self.destination_table.clear_query(start_date, end_date)
+        )
 
     def pipeline(self):
         pipeline = beam.Pipeline(options=self.beam_options)
@@ -347,17 +347,19 @@ class SegmentIdentityPipeline:
         start_dt, end_dt = [datetime_from_timestamp(ts) for ts in self.date_range]
 
         logger.info("Preparing output tables")
-        self.prepare_output_tables(start_dt, end_dt)
+        self.prepare_output_tables()
 
         _ = (
             pipeline
             | "ReadDailySegments" >> self.source_segments()
             | "SummarizeIdentifiers" >> self.summarize_identifiers
             | "RenameTimestamp" >> self.rename_timestamp
-            | "WriteSegmentIdentity" >> write_sink(
-                sink_table=self.destination_table.table_id_prefix,
-                schema=self.destination_table.schema,
+            | "WriteSegmentIdentity" >> beam.io.WriteToBigQuery(
+                self.destination_table.table_id,
+                schema={"fields": self.destination_table.schema},
+                create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
             )
+
         )
         return pipeline
 

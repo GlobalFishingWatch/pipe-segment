@@ -1,20 +1,32 @@
 from datetime import timedelta
-from importlib import resources
-
-from google.cloud import bigquery
 from jinja2 import Template
+from importlib import resources
 
 import apache_beam as beam
 from apache_beam import PTransform, io
+from google.cloud import bigquery
 from pipe_segment.utils.bq_tools import BigQueryHelper, DatePartitionedTable
 from pipe_segment.version import __version__
 
 
+DESCRIPTION_TABLE = """
+Created by the pipe-segment: {ver}
+* It identifies, at the hourly level,
+* how much time a given satellite's clock differs
+* from the median of all the other satellite's clocks.
+* https://github.com/GlobalFishingWatch/pipe-segment
+* Source Satellite: {in_normalized_sat_offset_messages_table}
+* Source Norad: {in_norad_to_receiver_table}
+* Source Satellite Positions: {in_sat_positions_table}
+* Date: {end_date}"""
+
+
 def make_schema():
-    schema = {"fields": []}
+    """Returns the schema fields array."""
+    schema = []
 
     def add_field(name, field_type, mode="REQUIRED", description=""):
-        schema["fields"].append(
+        schema.append(
             dict(
                 name=name,
                 type=field_type,
@@ -65,7 +77,7 @@ def make_schema():
             "Anomalously large values are another way to infer that the satellite clocks are off, "
             "however this has been superseded by the dt field.")
         )
-    return schema["fields"]
+    return schema
 
 
 class SatelliteOffsets(PTransform):
@@ -91,10 +103,8 @@ class SatelliteOffsets(PTransform):
         ] | "MergeSatOffsets" >> beam.Flatten()
 
     def _sat_offset_iter(self):
-        with resources.path(
-            'pipe_segment.transform.assets', 'satellite_offsets.sql.j2'
-        ) as template_filepath:
-            with open(template_filepath) as f:
+        with resources.path('pipe_segment.transform.assets', 'satellite_offsets.sql.j2') as t:
+            with open(t) as f:
                 template = Template(f.read())
 
         for start_window, end_window in self._get_query_windows():
@@ -129,7 +139,6 @@ class SatelliteOffsetsWrite(PTransform):
         return xs | "WriteSatOffsets" >> io.WriteToBigQuery(
             self.dest_table,
             schema={"fields": self.schema},
-            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
             create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
         )
 
@@ -142,18 +151,10 @@ class SatelliteOffsetsWrite(PTransform):
 
         start_date, end_date = options.date_range.split(",")
 
+        formatting = dict(**vars(options), ver=__version__, end_date=end_date)
         table = DatePartitionedTable(
             table_id=options.out_sat_offsets_table,
-            description=f"""
-                Created by pipe-segment: {__version__}
-                * It identifies, at the hourly level,
-                * how much time a given satellite's clock differs
-                * from the median of all the other satellite's clocks.
-                * https://github.com/GlobalFishingWatch/pipe-segment
-                * Source Satellite: {options.in_normalized_sat_offset_messages_table}
-                * Source Norad: {options.in_norad_to_receiver_table}
-                * Source Satellite Positions: {options.in_sat_positions_table}
-                * Date: {end_date}""",
+            description=DESCRIPTION_TABLE.format(**formatting),
             schema=make_schema(),
             partitioning_field="hour",
         )

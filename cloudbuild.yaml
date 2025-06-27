@@ -4,8 +4,7 @@ steps:
     'build',
     '-t', '${_IMAGE_NAME}:test',
     '-f', 'Dockerfile',
-    '--target',
-    'dev',
+    '--target', 'dev',
     '.',
   ]
 
@@ -23,8 +22,7 @@ steps:
     '-t', '${_IMAGE_NAME}:${TAG_NAME}',
     '-t', '${_IMAGE_NAME}:latest',
     '-f', 'Dockerfile',
-    '--target',
-    'prod',
+    '--target', 'prod',
     '.',
   ]
 
