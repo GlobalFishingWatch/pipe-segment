@@ -1,7 +1,10 @@
 from google.cloud import bigquery
+from pipe_segment import tools
+from pipe_segment.cli.commands import validator
 from pipe_segment.utils.bq_tools import BigQueryHelper, DatePartitionedTable, Schemas
 from pipe_segment.utils.template_tools import format_query
 from pipe_segment.version import __version__
+from datetime import timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -49,20 +52,22 @@ class SegmentVesselDailyPipeline:
 
     def run(self):
         # run the query and store the values in the partitioned field.
-        _, end = self.options.date_range.split(",")
+        start, end = map(lambda x: validator.valid_date(x), self.options.date_range.split(","))
+
         logger.info("Formatting the query with the parameters.")
-        query = format_query(
-            QUERY,
-            date=end,
-            window_days=self.options.window_days,
-            single_ident_min_freq=self.options.single_ident_min_freq,
-            most_common_min_freq=self.options.most_common_min_freq,
-            spoofing_threshold=self.options.spoofing_threshold,
-            segment_identity=self.options.source_segment_identity,
-        )
-        logger.info("Running the Segment Vessel Daily query.")
         table = self.get_output_table()
-        self.bq_helper.run_query_into_table(query=query, table=table)
+        for single_day in list(tools.list_of_days(start, end + timedelta(days=1))):
+            query = format_query(
+                QUERY,
+                date=single_day,
+                window_days=self.options.window_days,
+                single_ident_min_freq=self.options.single_ident_min_freq,
+                most_common_min_freq=self.options.most_common_min_freq,
+                spoofing_threshold=self.options.spoofing_threshold,
+                segment_identity=self.options.source_segment_identity,
+            )
+            logger.info(f"Running the Segment Vessel Daily query for {single_day}.")
+            self.bq_helper.run_query_into_table(query=query, table=table)
 
 
 def run(*args, **kwargs):
