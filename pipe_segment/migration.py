@@ -12,12 +12,12 @@ import logging
 import argparse
 import sys
 from pipe_segment.utils.bq_tools import DatePartitionedTable, Schemas, BigQueryHelper
-from pipe_segment.version import __version__
-from pipe_segment.schemas import message_schema, segment_schema
-from pipe_segment.transform.fragment import Fragment
-from pipe_segment.segment_identity.pipeline import DEST_SEGMENT_IDENTITY_SCHEMA
+# from pipe_segment.version import __version__
+# from pipe_segment.schemas import message_schema, segment_schema
+# from pipe_segment.transform.fragment import Fragment
+# from pipe_segment.segment_identity.pipeline import DEST_SEGMENT_IDENTITY_SCHEMA
 from pipe_segment.segment_vessel.segment_vessel_daily import (
-    SCHEMA_PATH as SCHEMA_SEGMENTVESSELDAILY_PATH,
+    #     SCHEMA_PATH as SCHEMA_SEGMENTVESSELDAILY_PATH,
     description
 )
 from google.cloud import bigquery
@@ -33,6 +33,7 @@ SELECT * FROM `{table_id}_{year}*`
 
 
 def define_tables(dataset_out):
+    """
     messages_segmented = DatePartitionedTable(
         table_id=f"{dataset_out}.messages_segmented",
         schema=message_schema.message_output_schema,
@@ -67,12 +68,21 @@ def define_tables(dataset_out):
         schema=Schemas.load_json_schema(SCHEMA_SEGMENTVESSELDAILY_PATH),
         partitioning_field="day",
     )
+    """
+
+    raw_port_events = DatePartitionedTable(
+        table_id=f"{dataset_out}.raw_port_events",
+        description=description("Migrating raw port_events sharded to partitioned."),
+        schema=Schemas.load_json_schema("./assets/schemas/raw_port_events.schema.json"),
+        partitioning_field="timestamp",
+    )
     return [
-        messages_segmented,
-        segments,
-        fragments,
-        segment_identity_daily,
-        segment_vessel_daily
+        # messages_segmented,
+        # segments,
+        # fragments,
+        # segment_identity_daily,
+        # segment_vessel_daily,
+        raw_port_events,
     ]
 
 
@@ -103,7 +113,9 @@ def migrate(args):
     ]
     bq_helper = BigQueryHelper(bq_client, labels)
     tables = define_tables(args.dataset_out)
-    prepare_output_tables(bq_helper, args.data_available, args.dataset_in, args.dataset_out, tables)
+    prepare_output_tables(
+        bq_helper,
+        args.data_available, args.dataset_in, args.dataset_out, tables)
 
 
 def run(args) -> int:
