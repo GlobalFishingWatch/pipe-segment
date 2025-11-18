@@ -1,0 +1,122 @@
+[
+    {
+        "name": "encounter_id",
+        "mode": "REQUIRED",
+        "type": "STRING",
+        "description": "Unique encounter ID.",
+        "fields":
+        []
+    },
+    {
+        "name": "start_time",
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP",
+        "description": "The start timestamp of the encounter (UTC).",
+        "fields":
+        []
+    },
+    {
+        "name": "end_time",
+        "mode": "REQUIRED",
+        "type": "TIMESTAMP",
+        "description": "The end timestamp of the encounter (UTC).",
+        "fields":
+        []
+    },
+    {
+        "name": "mean_latitude",
+        "mode": "REQUIRED",
+        "type": "FLOAT",
+        "description": "The mean latitude. These values are calculated for the raw segments when these values are computed as means over the interpolated points.",
+        "fields":
+        []
+    },
+    {
+        "name": "mean_longitude",
+        "mode": "REQUIRED",
+        "type": "FLOAT",
+        "description": "The mean longitude. These values are calculated for the raw segments when these values are computed as means over the interpolated points.",
+        "fields":
+        []
+    },
+    {
+        "name": "median_distance_km",
+        "mode": "REQUIRED",
+        "type": "FLOAT",
+        "description": "The median distance, measured in km.",
+        "fields":
+        []
+    },
+    {
+        "name": "median_speed_knots",
+        "mode": "REQUIRED",
+        "type": "FLOAT",
+        "description": "The median speed, measured in knots.",
+        "fields":
+        []
+    },
+    {
+        "name": "start_lat",
+        "mode": "REQUIRED",
+        "type": "FLOAT",
+        "description": "The beginning latitude where the encounter takes place.",
+        "fields":
+        []
+    },
+    {
+        "name": "start_lon",
+        "mode": "REQUIRED",
+        "type": "FLOAT",
+        "description": "The beginning longitude where the encounter takes place.",
+        "fields":
+        []
+    },
+    {
+        "name": "end_lat",
+        "mode": "REQUIRED",
+        "type": "FLOAT",
+        "description": "The end latitude where the encounter finished.",
+        "fields":
+        []
+    },
+    {
+        "name": "end_lon",
+        "mode": "REQUIRED",
+        "type": "FLOAT",
+        "description": "The end longitude where the encounter finished.",
+        "fields":
+        []
+    },
+    {
+        "name": "vessel_1_seg_id",
+        "mode": "REQUIRED",
+        "type": "STRING",
+        "description": "The segment id of the vessel 1.",
+        "fields":
+        []
+    },
+    {
+        "name": "vessel_1_point_count",
+        "mode": "REQUIRED",
+        "type": "INTEGER",
+        "description": "The amount of the points of contact during encounter by vessel 1.",
+        "fields":
+        []
+    },
+    {
+        "name": "vessel_2_seg_id",
+        "mode": "REQUIRED",
+        "type": "STRING",
+        "description": "The segment id of the vessel 2.",
+        "fields":
+        []
+    },
+    {
+        "name": "vessel_2_point_count",
+        "mode": "REQUIRED",
+        "type": "INTEGER",
+        "description": "The amount of the points of contact during encounter by vessel 2.",
+        "fields":
+        []
+    }
+]
