@@ -23,7 +23,7 @@ which are broadcasting using the same MMSI at the same time.
 [docker compose plugin]: https://docs.docker.com/compose/install/linux/
 [examples]: examples/
 [git installed]: https://git-scm.com/downloads
-[git workflow documentation]: GIT-WORKFLOW.md
+[git workflow documentation]: GITHUB-FLOW.md
 [Makefile]: Makefile
 [pip-tools]: https://pip-tools.readthedocs.io/en/stable/
 [requirements.txt]: requirements.txt

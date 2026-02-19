@@ -115,3 +115,7 @@ output/
 
 #osx
 .DS_Store
+
+# Terraform
+.terraform
+.terraform.lock.hcl
