@@ -1,50 +1,62 @@
 # ---------------------------------------------------------------------------------------
-# BASE
+# BUILDER (install dependencies)
 # ---------------------------------------------------------------------------------------
-FROM python:3.8 AS base
+FROM python:3.12-slim-bookworm AS builder
 
-# Configure the working directory
-RUN mkdir -p /opt/project
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gcc g++ build-essential git && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /install
+
+COPY requirements.txt .
+
+RUN pip install --upgrade pip && \
+    pip install --prefix=/install -r requirements.txt
+
+# ---------------------------------------------------------------------------------------
+# PRODUCTION IMAGE
+# ---------------------------------------------------------------------------------------
+FROM python:3.12-slim-bookworm AS prod
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
 WORKDIR /opt/project
 
-# Copy files from official SDK image, including script/dependencies.
-COPY --from=apache/beam_python3.8_sdk:2.56.0 /opt/apache/beam /opt/apache/beam
+# COPY DEPENDENCIES
+COPY --from=builder /install /usr/local
 
-# Install SDK. (needed for Python SDK)
-RUN pip install --no-cache-dir apache-beam[gcp]==2.56.0
-
-# Install application dependencies
-COPY requirements.txt /opt/requirements.txt
-RUN pip install --no-cache-dir -r /opt/requirements.txt
-
-# Set the entrypoint to Apache Beam SDK launcher.
+# APACHE BEAM INTEGRATION
+COPY --from=apache/beam_python3.12_sdk:2.71.0 /opt/apache/beam /opt/apache/beam
 ENTRYPOINT ["/opt/apache/beam/boot"]
 
-# ---------------------------------------------------------------------------------------
-# PROD
-# ---------------------------------------------------------------------------------------
-FROM base AS prod
-
-# Install app package
+# INSTALL PACKAGE
 COPY . /opt/project
-RUN pip install .
+RUN pip install --no-cache-dir --no-deps . && \
+    rm -rf /root/.cache/pip && \
+    rm -rf /opt/project/*
+
+# Temporary until assets packaged properly
+COPY ./assets /opt/project/assets
 
 # ---------------------------------------------------------------------------------------
-# DEV
+# DEVELOPMENT IMAGE
 # ---------------------------------------------------------------------------------------
-FROM base AS dev
+FROM builder AS dev
 
-COPY ./requirements/dev.txt ./
-COPY ./requirements/test.txt ./
+WORKDIR /opt/project
 
-RUN pip install --no-cache-dir -r dev.txt
-RUN pip install --no-cache-dir -r test.txt
-
-# Install app package
 COPY . /opt/project
-ENV PYTHONPATH /opt/project
-RUN cd /usr/local/lib/python3.8/site-packages && \
-    python /opt/project/setup.py develop
+RUN pip install -e .[lint,dev,build] && \
+    pip install -r requirements-test.txt
 
-# Set the entrypoint to Apache Beam SDK launcher.
-ENTRYPOINT ["pipe"]
+# ---------------------------------------------------------------------------------------
+# TEST IMAGE
+# ---------------------------------------------------------------------------------------
+FROM prod AS test
+
+COPY ./tests /opt/project/tests
+COPY ./requirements-test.txt /opt/project/
+RUN pip install -r requirements-test.txt

@@ -2,10 +2,10 @@
 
 <p align="center">
   <a href="https://codecov.io/gh/GlobalFishingWatch/pipe-segment">
-    <img alt="Coverage" src="https://codecov.io/gh/GlobalFishingWatch/pipe-segment/branch/develop/graph/badge.svg?token=OO2L9SXVG0">
+    <img alt="Coverage" src="https://codecov.io/gh/GlobalFishingWatch/pipe-segment/branch/main/graph/badge.svg?token=OO2L9SXVG0">
   </a>
   <a>
-    <img alt="Python versions" src="https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12-blue">
+    <img alt="Python versions" src="https://img.shields.io/badge/python-3.12%20%7C%203.13-blue">
   </a>
   <a>
     <img alt="Last release" src="https://img.shields.io/github/v/release/GlobalFishingWatch/pipe-segment">
@@ -31,54 +31,52 @@ which are broadcasting using the same MMSI at the same time.
 [Semantic Versioning]: https://semver.org
 
 
-If you are going to be contribuiting, jump directly to the [How to contribute](#how-to-contribute) section.
-If you just want to run the pipeline, use the following instructions.
+## Usage
 
-# How to run
+### System Dependencies
+
+Install Docker Engine using the [docker official instructions] (avoid snap packages)
+and the [docker compose plugin]. No other system dependencies are required.
+
+### Installation
 
 First, make sure you have [git installed], and [configure a SSH-key for GitHub].
+
 Then, clone the repository:
 ```bash
 git clone git@github.com:GlobalFishingWatch/pipe-segment.git
 ```
 
+Create virtual environment and activate it:
+```shell
+python -m venv .venv
+. ./.venv/bin/activate
+```
+
+Install dependencies
+```shell
+make install
+```
+
+Make sure you can run unit tests
+```shell
+make test
+```
+
+Make sure you can build the docker image:
+```shell
+make docker-build
+```
+
+In order to be able to connect to BigQuery, authenticate and configure the project:
+```shell
+make docker-gcp
+```
+
 You can check the [examples](examples/) folder to see how to run the pipe
 
 
-## Dependencies
-
-Install Docker Engine using the [docker official instructions] (avoid snap packages)
-and the [docker compose plugin]. No other dependencies are required.
-
-## Google Cloud setup
-
-The pipeline reads it's input from (and write its output to) BigQuery,
-so you need to first authenticate with your google cloud account inside the docker images.
-
-1. Create external volume to share GCP authentication across containers:
-```bash
-docker volume create --name=gcp
-```
-
-2. Run authentication service
-```bash
-docker compose run gcloud auth application-default login
-```
-
-3. Configure the project:
-```bash
-docker compose run gcloud config set project world-fishing-827
-docker compose run gcloud auth application-default set-quota-project world-fishing-827
-```
-
-## Building docker image
-
-To build the docker image, run:
-```bash
-docker compose build
-```
-
-## CLI
+### CLI
 
 The pipeline includes a CLI that can be used to start both local test runs and
 remote full runs.
@@ -104,48 +102,15 @@ If you want to know the parameters of one of the processes, run for example:
 docker compose run dev segment --help
 ```
 
-# How to contribute
+## How to contribute
 
 The [Makefile] should ease the development process.
 
-## Git Workflow
+### Git Workflow
 
 Please refer to our [git workflow documentation] to know how to manage branches in this repository.
 
-## Setup the environment
-
-Create a virtual environment:
-```shell
-make venv
-. .venv/bin/activate
-```
-
-Authenticate to google cloud and set up project (not necessary if you already did it on this machine):
-```shell
-make gcp
-```
-
-Install dependencies:
-```shell
-make install
-```
-
-Run unit tests:
-```shell
-make test
-```
-
-Run unit tests & integration tests (uses [bigquery-emulator]):
-```shell
-make testintegration
-```
-
-Run unit tests and integration inside docker container:
-```shell
-make testdocker
-```
-
-## Updating dependencies
+### Updating dependencies
 
 The [requirements.txt] contains all transitive dependencies pinned to specific versions.
 This file is compiled automatically with [pip-tools], based on [requirements/prod.in].
@@ -161,7 +126,7 @@ make reqs
 If you want to upgrade all dependencies to latest available versions
 (compatible with restrictions declared), just run:
 ```shell
-make upgrade-reqs
+make reqs-upgrade
 ```
 
 ## Schema

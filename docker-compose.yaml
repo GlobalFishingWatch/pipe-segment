@@ -1,35 +1,25 @@
 services:
-  build_config: &build_config
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: dev
-
   dev:
     image: gfw/pipe-segment-dev
-    <<: *build_config
+    build:
+      context: .
+      target: dev
     volumes:
       - ".:/opt/project"
       - "gcp:/root/.config/"
-    entrypoint: "pipe"
+    entrypoint: /bin/bash
 
   test:
-    image: gfw/pipe-segment-dev
-    <<: *build_config
+    image: gfw/pipe-segment-test
     environment:
       BIGQUERY_HOST: bigquery
       INTEGRATION_TESTS: true
-    volumes:
-      - ".:/opt/project"
-    entrypoint: "pytest"
+    build:
+      context: .
+      target: test
+    entrypoint: "pytest -v"
     depends_on:
       - bigquery
-
-  gcloud:
-    image: google/cloud-sdk:latest
-    entrypoint: gcloud
-    volumes:
-      - "gcp:/root/.config/"
 
   bigquery:
     platform: linux/x86_64
