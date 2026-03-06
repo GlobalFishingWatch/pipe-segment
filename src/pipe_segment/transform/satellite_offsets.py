@@ -103,7 +103,7 @@ class SatelliteOffsets(PTransform):
         ] | "MergeSatOffsets" >> beam.Flatten()
 
     def _sat_offset_iter(self):
-        with resources.path('pipe_segment.transform.assets', 'satellite_offsets.sql.j2') as t:
+        with resources.path('pipe_segment.assets', 'satellite_offsets.sql.j2') as t:
             with open(t) as f:
                 template = Template(f.read())
 

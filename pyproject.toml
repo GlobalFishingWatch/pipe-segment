@@ -11,7 +11,7 @@ exclude = ["tests*"]
 namespaces = false
 
 [tool.setuptools.package-data]
-"assets" = ["*"]
+"pipe_segment" = ["assets/*"]
 
 [project]
 name = "pipe-segment"
