@@ -3,6 +3,8 @@
 # ---------------------------------------------------------------------------------------
 FROM python:3.12-slim-bookworm AS builder
 
+VOLUME ["/root/.config"]
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         gcc g++ build-essential git && \
@@ -18,7 +20,7 @@ RUN uv pip install --system --upgrade pip && \
     uv pip install --system build && \
     uv pip install --system --prefix=/install -r requirements.txt
 
-COPY pyproject.toml README.md .
+COPY pyproject.toml README.md MANIFEST.in ./
 COPY src ./src
 
 RUN uv pip install --system --prefix=/install .
@@ -38,9 +40,6 @@ COPY --from=apache/beam_python3.12_sdk:2.71.0 /opt/apache/beam /opt/apache/beam
 ENTRYPOINT ["/opt/apache/beam/boot"]
 
 WORKDIR /opt/project
-
-# Temporary until assets packaged properly
-COPY ./assets ./assets
 
 # ---------------------------------------------------------------------------------------
 # DEVELOPMENT IMAGE
@@ -62,3 +61,7 @@ COPY ./requirements-test.txt .
 RUN pip install -r requirements-test.txt
 
 COPY ./tests ./tests
+
+# Suppress all warnings during tests
+# To see/address warnings, run tests in your development environment.
+ENV PYTHONWARNINGS=ignore

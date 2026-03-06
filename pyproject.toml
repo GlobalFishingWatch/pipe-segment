@@ -10,16 +10,15 @@ where = ["src"]
 exclude = ["tests*"]
 namespaces = false
 
-[tool.setuptools.package-data]
-"pipe_segment" = ["assets/*"]
-
 [project]
 name = "pipe-segment"
 version = "5.0.3"
 description = "Divides vessel tracks into contiguous 'segments' separating out signals that come from two or more vessels which are broadcasting using the same MMSI at the same time."
 readme = "README.md"
 license = "Apache-2.0"
-authors = []
+authors = [
+  { name = "GFW Engineering Team", email = "engineering-team@globalfishingwatch.org" },
+]
 maintainers = []
 classifiers = [
     "Operating System :: OS Independent",
