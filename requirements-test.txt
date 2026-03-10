@@ -1,0 +1,3 @@
+pytest           # Core testing framework.
+pytest-cov        # Coverage plugin for pytest.
+pytest-mock      # Mocking plugin for pytest.

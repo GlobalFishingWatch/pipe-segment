@@ -2,23 +2,25 @@ from google.cloud import bigquery
 from pipe_segment.utils.bq_tools import BigQueryHelper, Schemas, SimpleTable
 from pipe_segment.utils.template_tools import format_query
 from pipe_segment.version import __version__
+from pipe_segment.schemas import get_schema_path
 import logging
 
 logger = logging.getLogger(__name__)
-SCHEMA_PATH = "./assets/schemas/vessel_info.schema.json"
-QUERY = "vessel_info.sql.j2"
+SCHEMA_PATH = get_schema_path("segment_info.schema.json")
+QUERY = "segment_info.sql.j2"
+CLUSTERING_FIELDS = "seg_id"
 
 
 def description(options: str) -> str:
     return f"""
-* Pipeline: vessel_info
+* Pipeline: segment_info
 * Version: pipe-segment:{__version__}
 * Arguments {options}
 """
 
 
-class VesselInfoPipeline:
-    """ Vessel info process"""
+class SegmentInfoPipeline:
+    """ Segment info process"""
     def __init__(self, options, extra_options):
         self.options = options
         self.bq_helper = BigQueryHelper(
@@ -41,6 +43,7 @@ class VesselInfoPipeline:
             table_id=self.options.destination,
             description=description(self.options),
             schema=Schemas.load_json_schema(SCHEMA_PATH),
+            clustering_field=CLUSTERING_FIELDS,
         )
 
     def run(self):
@@ -52,9 +55,9 @@ class VesselInfoPipeline:
             segment_identity_daily=self.options.source_segment_identity,
             segment_vessel_daily=self.options.source_segment_vessel,
         )
-        logger.info("Running the Vessel Info query.")
+        logger.info("Running the Segment Info query.")
         self.bq_helper.run_query_into_table(query=query, table=self.get_output_table())
 
 
 def run(*args, **kwargs):
-    return VesselInfoPipeline.build(*args, **kwargs).run()
+    return SegmentInfoPipeline.build(*args, **kwargs).run()

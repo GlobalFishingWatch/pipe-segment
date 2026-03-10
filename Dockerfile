@@ -1,50 +1,67 @@
 # ---------------------------------------------------------------------------------------
-# BASE
+# BUILDER
 # ---------------------------------------------------------------------------------------
-FROM python:3.8 AS base
+FROM python:3.12-slim-bookworm AS builder
 
-# Configure the working directory
-RUN mkdir -p /opt/project
-WORKDIR /opt/project
+VOLUME ["/root/.config"]
 
-# Copy files from official SDK image, including script/dependencies.
-COPY --from=apache/beam_python3.8_sdk:2.56.0 /opt/apache/beam /opt/apache/beam
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gcc g++ build-essential git && \
+    rm -rf /var/lib/apt/lists/*
 
-# Install SDK. (needed for Python SDK)
-RUN pip install --no-cache-dir apache-beam[gcp]==2.56.0
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Install application dependencies
-COPY requirements.txt /opt/requirements.txt
-RUN pip install --no-cache-dir -r /opt/requirements.txt
+WORKDIR /install
 
-# Set the entrypoint to Apache Beam SDK launcher.
+COPY requirements.txt .
+
+RUN uv pip install --system --upgrade pip && \
+    uv pip install --system build && \
+    uv pip install --system --prefix=/install -r requirements.txt
+
+COPY pyproject.toml README.md MANIFEST.in ./
+COPY src ./src
+
+RUN uv pip install --system --prefix=/install .
+# ---------------------------------------------------------------------------------------
+# PRODUCTION IMAGE
+# ---------------------------------------------------------------------------------------
+FROM python:3.12-slim-bookworm AS prod
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# COPY PYTHON PACKAGES
+COPY --from=builder /install /usr/local
+
+# APACHE BEAM INTEGRATION
+COPY --from=apache/beam_python3.12_sdk:2.71.0 /opt/apache/beam /opt/apache/beam
 ENTRYPOINT ["/opt/apache/beam/boot"]
 
-# ---------------------------------------------------------------------------------------
-# PROD
-# ---------------------------------------------------------------------------------------
-FROM base AS prod
-
-# Install app package
-COPY . /opt/project
-RUN pip install .
+WORKDIR /opt/project
 
 # ---------------------------------------------------------------------------------------
-# DEV
+# DEVELOPMENT IMAGE
 # ---------------------------------------------------------------------------------------
-FROM base AS dev
+FROM builder AS dev
 
-COPY ./requirements/dev.txt ./
-COPY ./requirements/test.txt ./
+WORKDIR /opt/project
 
-RUN pip install --no-cache-dir -r dev.txt
-RUN pip install --no-cache-dir -r test.txt
+COPY . .
+RUN uv pip install --system -e .[lint,dev,build] && \
+    uv pip install --system -r requirements-test.txt
 
-# Install app package
-COPY . /opt/project
-ENV PYTHONPATH /opt/project
-RUN cd /usr/local/lib/python3.8/site-packages && \
-    python /opt/project/setup.py develop
+# ---------------------------------------------------------------------------------------
+# TEST IMAGE
+# ---------------------------------------------------------------------------------------
+FROM prod AS test
 
-# Set the entrypoint to Apache Beam SDK launcher.
-ENTRYPOINT ["pipe"]
+COPY ./requirements-test.txt .
+RUN pip install -r requirements-test.txt
+
+COPY ./tests ./tests
+
+# Suppress all warnings during tests
+# To see/address warnings, run tests in your development environment.
+ENV PYTHONWARNINGS=ignore

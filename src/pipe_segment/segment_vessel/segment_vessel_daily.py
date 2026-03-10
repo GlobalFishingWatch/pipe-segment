@@ -5,10 +5,11 @@ from pipe_segment.utils.bq_tools import BigQueryHelper, DatePartitionedTable, Sc
 from pipe_segment.utils.template_tools import format_query
 from pipe_segment.version import __version__
 from datetime import timedelta
+from pipe_segment.schemas import get_schema_path
 import logging
 
 logger = logging.getLogger(__name__)
-SCHEMA_PATH = "./assets/schemas/segment_vessel_daily.schema.json"
+SCHEMA_PATH = get_schema_path("segment_vessel_daily.schema.json")
 QUERY = "segment_vessel_daily.sql.j2"
 PARTITION_FIELD = "day"
 

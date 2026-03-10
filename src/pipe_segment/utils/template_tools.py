@@ -1,6 +1,6 @@
 from jinja2 import (
     Environment,
-    FileSystemLoader,
+    PackageLoader,
     StrictUndefined,
 )
 
@@ -15,7 +15,7 @@ def format_query(template_file: str, **params) -> str:
     :param params: The dictionary of params to replace in the template.
     """
     jinja2_env = Environment(
-        loader=FileSystemLoader(["./assets/queries/"]), undefined=StrictUndefined
+        loader=PackageLoader("pipe_segment", "assets/queries"), undefined=StrictUndefined
     )
     sql_template = jinja2_env.get_template(template_file)
     formatted_template = sql_template.render(params)

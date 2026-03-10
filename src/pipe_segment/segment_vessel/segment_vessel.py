@@ -2,10 +2,11 @@ from google.cloud import bigquery
 from pipe_segment.utils.bq_tools import BigQueryHelper, Schemas, SimpleTable
 from pipe_segment.utils.template_tools import format_query
 from pipe_segment.version import __version__
+from pipe_segment.schemas import get_schema_path
 import logging
 
 logger = logging.getLogger(__name__)
-SCHEMA_PATH = "./assets/schemas/segment_vessel.schema.json"
+SCHEMA_PATH = get_schema_path("segment_vessel.schema.json")
 QUERY = "segment_vessel.sql.j2"
 
 
