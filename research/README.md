@@ -21,12 +21,12 @@ Both steps use the **same image** (`sdk_container_image = IMAGE:COMMIT_HASH`) an
 
 ## Prerequisites
 
-| Requirement | How |
-|-------------|-----|
-| Docker with **buildx** (multi-platform builds) | `docker buildx version` |
-| **GCP auth** for the `dev` service (volume `gcp`) | `make docker-gcp` |
-| **gcloud login** with **push** permission to the `IMAGE` registry | `gcloud auth login` |
-| Read/write access to the referenced **BigQuery tables** | — |
+| Requirement                                                       | How                     |
+| ----------------------------------------------------------------- | ----------------------- |
+| Docker with **buildx** (multi-platform builds)                    | `docker buildx version` |
+| **GCP auth** for the `dev` service (volume `gcp`)                 | `make docker-gcp`       |
+| **gcloud login** with **push** permission to the `IMAGE` registry | `gcloud auth login`     |
+| Read/write access to the referenced **BigQuery tables**           | —                       |
 
 > The script runs `gcloud auth configure-docker <registry-host>` automatically
 > (idempotent). That sets up the credential helper, but it does **not** replace
@@ -37,17 +37,12 @@ Both steps use the **same image** (`sdk_container_image = IMAGE:COMMIT_HASH`) an
 
 Edit the variables at the top of [`run_segment_pipeline.sh`](./run_segment_pipeline.sh):
 
-| Variable | Required | Description |
-|----------|:--------:|-------------|
-| `COMMIT_HASH` | **yes** | `gpsdio-segment` commit. The script aborts if it is still the placeholder. The image tag is derived from this. |
-| `IMAGE` | — | Artifact Registry path where the image is pushed. |
-| `DATE_RANGE` | — | Date range shared by both steps. Format `YYYY-MM-DD,YYYY-MM-DD`. |
-| `PROJECT`, `REGION` | — | Dataflow project and region. |
-| `SERVICE_ACCOUNT_EMAIL` | — | Service account the jobs run as. |
-| `JOB_NAME_PREFIX` | — | Job name prefix. A per-step + date suffix is appended. |
-| `segment` tables | — | `IN_NORMALIZED_MESSAGES_TABLE`, `OUT_SEGMENTED_MESSAGES_TABLE`, `OUT_SEGMENTS_TABLE`, `FRAGMENTS_TABLE`, `IN_NORMALIZED_SAT_OFFSET_MESSAGES_TABLE`, `IN_NORAD_TO_RECEIVER_TABLE`, `IN_SAT_POSITIONS_TABLE`, `OUT_SAT_OFFSETS_TABLE`. |
-| `segment_identity` tables | — | `SOURCE_SEGMENTS`, `SOURCE_FRAGMENTS`, `DEST_SEGMENT_IDENTITY`. |
-| Worker | — | `MAX_NUM_WORKERS`, `DISK_SIZE_GB`, `WORKER_MACHINE_TYPE`, `TEMP_LOCATION`, `STAGING_LOCATION`, `NETWORK`, `SUBNETWORK`. |
+| Variable                  | Required | Description                                                                                                    |
+| ------------------------- | :------: | -------------------------------------------------------------------------------------------------------------- |
+| `COMMIT_HASH`             | **yes**  | `gpsdio-segment` commit. The script aborts if it is still the placeholder. The image tag is derived from this. |
+| `DATE_RANGE`              | **yes**  | Date range shared by both steps. Format `YYYY-MM-DD,YYYY-MM-DD`.                                               |
+| `segment` tables          | **yes**  | `OUT_SEGMENTED_MESSAGES_TABLE`, `OUT_SEGMENTS_TABLE`, `OUT_SAT_OFFSETS_TABLE`.                                 |
+| `segment_identity` tables | **yes**  | `SOURCE_SEGMENTS`, `SOURCE_FRAGMENTS`, `DEST_SEGMENT_IDENTITY`.                                                |
 
 ## Usage
 
@@ -72,13 +67,13 @@ as long as it is inside the repo.
 
 ## Troubleshooting
 
-| Symptom | Likely cause / fix |
-|---------|--------------------|
-| `docker push` → **401 / 403** | No session or no push permission. `gcloud auth login` + verify access to the Artifact Registry repo. |
-| Auth error when launching the job | The `gcp` volume is not authenticated. Run `make docker-gcp`. |
-| **Duplicate job name** | A job with that name is already running. Wait for it to finish or change `DATE_RANGE` / `JOB_NAME_PREFIX`. |
-| Image does not start on workers (arch) | The build must be `linux/amd64` (already forced with `--platform`). On arm64 Macs this is mandatory. |
-| `ERROR: set COMMIT_HASH ...` | You did not edit `COMMIT_HASH` (still the placeholder). |
+| Symptom                                | Likely cause / fix                                                                                         |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `docker push` → **401 / 403**          | No session or no push permission. `gcloud auth login` + verify access to the Artifact Registry repo.       |
+| Auth error when launching the job      | The `gcp` volume is not authenticated. Run `make docker-gcp`.                                              |
+| **Duplicate job name**                 | A job with that name is already running. Wait for it to finish or change `DATE_RANGE` / `JOB_NAME_PREFIX`. |
+| Image does not start on workers (arch) | The build must be `linux/amd64` (already forced with `--platform`). On arm64 Macs this is mandatory.       |
+| `ERROR: set COMMIT_HASH ...`           | You did not edit `COMMIT_HASH` (still the placeholder).                                                    |
 
 ## Important note
 

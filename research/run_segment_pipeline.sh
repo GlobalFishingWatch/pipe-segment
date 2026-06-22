@@ -26,7 +26,7 @@ set -euo pipefail
 
 # --- gpsdio-segment / image --------------------------------------------------
 COMMIT_HASH="REPLACE_WITH_HASH"              # gpsdio-segment commit to use
-IMAGE="us-central1-docker.pkg.dev/gfw-int-infrastructure/core/pipe-segment"
+IMAGE="us-central1-docker.pkg.dev/world-fishing-827/development/pipe-segment-vi-926"
 IMAGE_TAG="${COMMIT_HASH}"                   # tag = hash, direct traceability
 SDK_CONTAINER_IMAGE="${IMAGE}:${IMAGE_TAG}"
 
@@ -36,30 +36,30 @@ DATE_RANGE="2026-06-13,2026-06-13"
 # --- Dataflow / GCP ----------------------------------------------------------
 PROJECT="world-fishing-827"
 REGION="us-central1"
-SERVICE_ACCOUNT_EMAIL="pipeline-ais-v3@gfw-research.iam.gserviceaccount.com"
-JOB_NAME_PREFIX="core-ais-v3--segment"       # a per-step suffix is appended
+SERVICE_ACCOUNT_EMAIL="research-and-development@world-fishing-827.iam.gserviceaccount.com"
+JOB_NAME_PREFIX="core-ais-v3-vi-926-segment"       # a per-step suffix is appended
 
 # --- tables: segment ---------------------------------------------------------
 IN_NORMALIZED_MESSAGES_TABLE="gfw-int-ais-datalake.vessel_transmissions_normalized_v1.messages"
-OUT_SEGMENTED_MESSAGES_TABLE="gfw-int-pipe-v3.pipe_ais_v3_internal.messages_segmented"
-OUT_SEGMENTS_TABLE="gfw-int-pipe-v3.pipe_ais_v3_internal.segments"
+OUT_SEGMENTED_MESSAGES_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.messages_segmented"
+OUT_SEGMENTS_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.segments"
 FRAGMENTS_TABLE="gfw-int-pipe-v3.pipe_ais_v3_internal.fragments"
 IN_NORMALIZED_SAT_OFFSET_MESSAGES_TABLE="gfw-int-ais-datalake.vessel_transmissions_normalized_v1.messages"
 IN_NORAD_TO_RECEIVER_TABLE="global-fishing-watch.pipe_static.norad_to_receiver_v20230510"
 IN_SAT_POSITIONS_TABLE="gfw-int-pipe-v3.satellite_positions.satellite_positions_one_second_resolution_"
-OUT_SAT_OFFSETS_TABLE="global-fishing-watch.pipe_ais_v3_published.satellite_timing_offsets"
+OUT_SAT_OFFSETS_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.satellite_timing_offsets"
 
 # --- tables: segment_identity ------------------------------------------------
-SOURCE_SEGMENTS="gfw-int-pipe-v3.pipe_ais_v3_internal.segments"
-SOURCE_FRAGMENTS="gfw-int-pipe-v3.pipe_ais_v3_internal.fragments"
-DEST_SEGMENT_IDENTITY="gfw-int-pipe-v3.pipe_ais_v3_internal.segment_identity_daily"
+SOURCE_SEGMENTS=$OUT_SEGMENTS_TABLE
+SOURCE_FRAGMENTS=$FRAGMENTS_TABLE
+DEST_SEGMENT_IDENTITY="world-fishing-8827.vi_924_segment_quick_fix_1.segment_identity_daily"
 
 # --- worker resources --------------------------------------------------------
 MAX_NUM_WORKERS=50
 DISK_SIZE_GB=50
 WORKER_MACHINE_TYPE="e2-standard-4"
-TEMP_LOCATION="gs://pipe-temp-us-central-ttl7/dataflow_temp"
-STAGING_LOCATION="gs://pipe-temp-us-central-ttl7/dataflow_staging"
+TEMP_LOCATION="gs://world-fishing-827-us-central1-dataflow/vi-926/dataflow_temp"
+STAGING_LOCATION="gs://world-fishing-827-us-central1-dataflow/vi-926/dataflow_staging"
 NETWORK="gfw-internal-network"
 SUBNETWORK="regions/${REGION}/subnetworks/gfw-internal-${REGION}"
 
