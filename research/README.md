@@ -41,7 +41,7 @@ Edit the variables at the top of [`run_segment_pipeline.sh`](./run_segment_pipel
 | ------------------------- | :------: | -------------------------------------------------------------------------------------------------------------- |
 | `COMMIT_HASH`             | **yes**  | `gpsdio-segment` commit. The script aborts if it is still the placeholder. The image tag is derived from this. |
 | `DATE_RANGE`              | **yes**  | Date range shared by both steps. Format `YYYY-MM-DD,YYYY-MM-DD`.                                               |
-| `segment` tables          | **yes**  | `OUT_SEGMENTED_MESSAGES_TABLE`, `OUT_SEGMENTS_TABLE`, `OUT_SAT_OFFSETS_TABLE`.                                 |
+| `segment` tables          | **yes**  | `OUT_SEGMENTED_MESSAGES_TABLE`, `OUT_SEGMENTS_TABLE`, `OUT_SAT_OFFSETS_TABLE` and `FRAGMENTS_TABLE`.           |
 | `segment_identity` tables | **yes**  | `SOURCE_SEGMENTS`, `SOURCE_FRAGMENTS`, `DEST_SEGMENT_IDENTITY`.                                                |
 
 ## Usage

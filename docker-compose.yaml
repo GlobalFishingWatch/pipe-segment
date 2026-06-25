@@ -21,6 +21,12 @@ services:
     depends_on:
       - bigquery
 
+  gcloud:
+    image: google/cloud-sdk:latest
+    volumes:
+      - "gcp:/root/.config/"
+    entrypoint: gcloud
+
   bigquery:
     platform: linux/x86_64
     ports:

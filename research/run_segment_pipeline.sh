@@ -43,7 +43,7 @@ JOB_NAME_PREFIX="core-ais-v3-vi-926-segment"       # a per-step suffix is append
 IN_NORMALIZED_MESSAGES_TABLE="gfw-int-ais-datalake.vessel_transmissions_normalized_v1.messages"
 OUT_SEGMENTED_MESSAGES_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.messages_segmented"
 OUT_SEGMENTS_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.segments"
-FRAGMENTS_TABLE="gfw-int-pipe-v3.pipe_ais_v3_internal.fragments"
+FRAGMENTS_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.fragments"
 IN_NORMALIZED_SAT_OFFSET_MESSAGES_TABLE="gfw-int-ais-datalake.vessel_transmissions_normalized_v1.messages"
 IN_NORAD_TO_RECEIVER_TABLE="global-fishing-watch.pipe_static.norad_to_receiver_v20230510"
 IN_SAT_POSITIONS_TABLE="gfw-int-pipe-v3.satellite_positions.satellite_positions_one_second_resolution_"
@@ -52,7 +52,7 @@ OUT_SAT_OFFSETS_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.satellite_ti
 # --- tables: segment_identity ------------------------------------------------
 SOURCE_SEGMENTS=$OUT_SEGMENTS_TABLE
 SOURCE_FRAGMENTS=$FRAGMENTS_TABLE
-DEST_SEGMENT_IDENTITY="world-fishing-8827.vi_924_segment_quick_fix_1.segment_identity_daily"
+DEST_SEGMENT_IDENTITY="world-fishing-827.vi_924_segment_quick_fix_1.segment_identity_daily"
 
 # --- worker resources --------------------------------------------------------
 MAX_NUM_WORKERS=50
@@ -180,7 +180,7 @@ run_step "build_and_push_image" step_build_push
 # 4. segment
 # =============================================================================
 step_segment() {
-  docker compose run --rm dev segment \
+  docker compose run --rm --entrypoint pipe-segment dev segment \
     --date_range="${DATE_RANGE}" \
     --in_normalized_messages_table="${IN_NORMALIZED_MESSAGES_TABLE}" \
     --out_segmented_messages_table="${OUT_SEGMENTED_MESSAGES_TABLE}" \
@@ -213,7 +213,7 @@ run_step "segment" step_segment
 # 5. segment_identity
 # =============================================================================
 step_segment_identity() {
-  docker compose run --rm dev segment_identity \
+  docker compose run --rm --entrypoint pipe-segment dev segment_identity \
     --date_range="${DATE_RANGE}" \
     --source_segments="${SOURCE_SEGMENTS}" \
     --source_fragments="${SOURCE_FRAGMENTS}" \
