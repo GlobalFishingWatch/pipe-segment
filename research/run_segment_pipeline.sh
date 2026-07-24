@@ -25,13 +25,14 @@ set -euo pipefail
 # =============================================================================
 
 # --- gpsdio-segment / image --------------------------------------------------
-COMMIT_HASH="REPLACE_WITH_HASH"              # gpsdio-segment commit to use
+# gpsdio-segment v.3.0.0 SHA: 16864b97a009544e9659f2b36349ae70b4400f7c
+COMMIT_HASH="16864b97a009544e9659f2b36349ae70b4400f7c" # gpsdio-segment commit hash to use
 IMAGE="us-central1-docker.pkg.dev/world-fishing-827/development/pipe-segment-vi-926"
 IMAGE_TAG="${COMMIT_HASH}"                   # tag = hash, direct traceability
 SDK_CONTAINER_IMAGE="${IMAGE}:${IMAGE_TAG}"
 
 # --- date range (shared by both steps) ---------------------------------------
-DATE_RANGE="2026-06-13,2026-06-13"
+DATE_RANGE="2024-01-01,2024-06-30"
 
 # --- Dataflow / GCP ----------------------------------------------------------
 PROJECT="world-fishing-827"
@@ -40,11 +41,12 @@ SERVICE_ACCOUNT_EMAIL="research-and-development@world-fishing-827.iam.gserviceac
 JOB_NAME_PREFIX="core-ais-v3-vi-926-segment"       # a per-step suffix is appended
 
 # --- tables: segment ---------------------------------------------------------
-IN_NORMALIZED_MESSAGES_TABLE="gfw-int-ais-datalake.vessel_transmissions_normalized_v1.messages"
+# subset from "gfw-int-ais-datalake.vessel_transmissions_normalized_v1.messages"
+IN_NORMALIZED_MESSAGES_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.normalized_messages_mmsi_test_set_v20260720" 
 OUT_SEGMENTED_MESSAGES_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.messages_segmented"
 OUT_SEGMENTS_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.segments"
 FRAGMENTS_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.fragments"
-IN_NORMALIZED_SAT_OFFSET_MESSAGES_TABLE="gfw-int-ais-datalake.vessel_transmissions_normalized_v1.messages"
+IN_NORMALIZED_SAT_OFFSET_MESSAGES_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.normalized_messages_mmsi_test_set_v20260720"
 IN_NORAD_TO_RECEIVER_TABLE="global-fishing-watch.pipe_static.norad_to_receiver_v20230510"
 IN_SAT_POSITIONS_TABLE="gfw-int-pipe-v3.satellite_positions.satellite_positions_one_second_resolution_"
 OUT_SAT_OFFSETS_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.satellite_timing_offsets"
@@ -166,13 +168,15 @@ run_step "build_dev_and_reqs" step_reqs
 step_build_push() {
   log "Configuring docker auth for ${REGISTRY_HOST} (idempotent)"
   gcloud auth configure-docker "${REGISTRY_HOST}" --quiet
-  log "Build linux/amd64 + push: ${SDK_CONTAINER_IMAGE}"
-  docker buildx build \
+  log "Build linux/amd64: ${SDK_CONTAINER_IMAGE}"
+  docker build \
     --platform linux/amd64 \
     --target prod \
     --tag "${SDK_CONTAINER_IMAGE}" \
-    --push \
+    --no-cache \
     .
+  log "Push: ${SDK_CONTAINER_IMAGE}"
+  docker push "${SDK_CONTAINER_IMAGE}"
 }
 run_step "build_and_push_image" step_build_push
 
