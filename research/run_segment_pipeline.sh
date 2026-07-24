@@ -26,7 +26,7 @@ set -euo pipefail
 
 # --- gpsdio-segment / image --------------------------------------------------
 # gpsdio-segment v.3.0.0 SHA: 16864b97a009544e9659f2b36349ae70b4400f7c
-COMMIT_HASH="16864b97a009544e9659f2b36349ae70b4400f7c" # gpsdio-segment commit hash to use
+COMMIT_HASH="7e877424df366868dbb697ac01760f31de0cb655" # gpsdio-segment commit hash to use
 IMAGE="us-central1-docker.pkg.dev/world-fishing-827/development/pipe-segment-vi-926"
 IMAGE_TAG="${COMMIT_HASH}"                   # tag = hash, direct traceability
 SDK_CONTAINER_IMAGE="${IMAGE}:${IMAGE_TAG}"
@@ -43,18 +43,18 @@ JOB_NAME_PREFIX="core-ais-v3-vi-926-segment"       # a per-step suffix is append
 # --- tables: segment ---------------------------------------------------------
 # subset from "gfw-int-ais-datalake.vessel_transmissions_normalized_v1.messages"
 IN_NORMALIZED_MESSAGES_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.normalized_messages_mmsi_test_set_v20260720" 
-OUT_SEGMENTED_MESSAGES_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.messages_segmented"
-OUT_SEGMENTS_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.segments"
-FRAGMENTS_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.fragments"
+OUT_SEGMENTED_MESSAGES_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.messages_segmented_drop_source_and_receiver"
+OUT_SEGMENTS_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.segments_drop_source_and_receiver"
+FRAGMENTS_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.fragments_drop_source_and_receiver"
 IN_NORMALIZED_SAT_OFFSET_MESSAGES_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.normalized_messages_mmsi_test_set_v20260720"
 IN_NORAD_TO_RECEIVER_TABLE="global-fishing-watch.pipe_static.norad_to_receiver_v20230510"
 IN_SAT_POSITIONS_TABLE="gfw-int-pipe-v3.satellite_positions.satellite_positions_one_second_resolution_"
-OUT_SAT_OFFSETS_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.satellite_timing_offsets"
+OUT_SAT_OFFSETS_TABLE="world-fishing-827.vi_924_segment_quick_fix_1.satellite_timing_offsets_drop_source_and_receiver"
 
 # --- tables: segment_identity ------------------------------------------------
 SOURCE_SEGMENTS=$OUT_SEGMENTS_TABLE
 SOURCE_FRAGMENTS=$FRAGMENTS_TABLE
-DEST_SEGMENT_IDENTITY="world-fishing-827.vi_924_segment_quick_fix_1.segment_identity_daily"
+DEST_SEGMENT_IDENTITY="world-fishing-827.vi_924_segment_quick_fix_1.segment_identity_daily_drop_source_and_receiver"
 
 # --- worker resources --------------------------------------------------------
 MAX_NUM_WORKERS=50

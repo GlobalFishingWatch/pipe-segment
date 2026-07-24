@@ -184,7 +184,7 @@ googleapis-common-protos[grpc]==1.72.0
     #   google-api-core
     #   grpc-google-iam-v1
     #   grpcio-status
-gpsdio-segment @ git+https://github.com/GlobalFishingWatch/gpsdio-segment.git@16864b97a009544e9659f2b36349ae70b4400f7c
+gpsdio-segment @ git+https://github.com/GlobalFishingWatch/gpsdio-segment.git@7e877424df366868dbb697ac01760f31de0cb655
     # via pipe-segment (setup.py)
 grpc-google-iam-v1==0.14.3
     # via
