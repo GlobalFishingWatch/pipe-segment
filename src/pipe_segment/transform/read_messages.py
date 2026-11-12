@@ -66,6 +66,10 @@ class ReadMessages(beam.PTransform):
         return [
             pcoll
             | f"ReadFromSrc{i}"
-            >> beam.io.ReadFromBigQuery(query=self.build_query(src), use_standard_sql=True)
+            >> beam.io.ReadFromBigQuery(
+                query=self.build_query(src),
+                use_standard_sql=True,
+                bigquery_job_labels=self.bq_helper.labels,
+            )
             for i, src in enumerate(self.sources)
         ] | beam.Flatten()

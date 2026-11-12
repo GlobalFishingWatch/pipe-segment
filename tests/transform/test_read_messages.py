@@ -1,6 +1,6 @@
 import os
 from datetime import date
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pytest
 
@@ -37,6 +37,7 @@ API_PORT = 9050
 @dataclass
 class BigQueryHelperMock():
     notfound_fails: int = 0
+    labels: dict = field(default_factory=dict)
 
     def fetch_table(self, table_ref) -> bigquery.Table:
         if self.notfound_fails > 0:
@@ -69,6 +70,24 @@ def test_read_messages(monkeypatch):
     op = ReadMessages(bq_helper, dummy_sources, date.today(), date.today(), ssvid_filter_query="")
     with TestPipeline() as p:
         p | op
+
+
+def test_read_messages_labels_every_read(monkeypatch):
+    read_calls = []
+
+    def fake_read(**kwargs):
+        read_calls.append(kwargs)
+        return beam.Create([])
+
+    monkeypatch.setattr(beam.io, "ReadFromBigQuery", fake_read)
+
+    labels = {"environment": "production", "stage": "segment--v5-0-4"}
+    bq_helper = BigQueryHelperMock(labels=labels)
+    dummy_sources = ["project1.dataset1.table1", "project2.dataset2.table2"]
+
+    _ = beam.Pipeline() | ReadMessages(bq_helper, dummy_sources, date.today(), date.today())
+
+    assert [call["bigquery_job_labels"] for call in read_calls] == [labels, labels]
 
 
 @pytest.mark.skipif(INTEGRATION_TESTS is None, reason="Integration tests disabled")
