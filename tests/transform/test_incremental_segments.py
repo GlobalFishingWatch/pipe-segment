@@ -1,17 +1,23 @@
 import json
+import pickle
 import random
+
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 import apache_beam as beam
 import pytest
+
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that, equal_to
+from google.cloud import bigquery
 
 from pipe_segment.transform.create_segment_map import CreateSegmentMap
 from pipe_segment.transform.create_segments import CreateSegments
-from pipe_segment.transform.full_history_segments import SEGMAP, SEGMENTS
-from pipe_segment.transform.incremental_segments import IncrementalSegments
+from pipe_segment.transform.full_history_segments import SEGMAP, SEGMENTS, FullHistorySegments
+from pipe_segment.transform.incremental_segments import IncrementalSegments, SegmentUpdater
+from pipe_segment.transform.read_prior_segments import ReadPriorSegments
+
 
 SSVID = "123456789"
 FIRST_DAY = datetime(2024, 4, 1, tzinfo=timezone.utc)
@@ -127,11 +133,11 @@ def prior_state_rows(segments, fragments):
 
 def day_by_day(fragments, days=DAYS, prior_rows=()):
     """Segment map and segments computed one run per day, each starting from the day before."""
-    transform = IncrementalSegments(prior_segments=None, merge_params={})
+    updater = SegmentUpdater({})
     segmap, segments = [], []
     for day in days:
         day_fragments = [f for f in fragments if f["timestamp"] == day.timestamp()]
-        outputs = list(transform.update((SSVID, {"fragments": day_fragments, "state": prior_rows})))
+        outputs = list(updater.update((SSVID, {"fragments": day_fragments, "state": prior_rows})))
         day_segmap = [o.value for o in outputs if getattr(o, "tag", None) == SEGMAP]
         day_segments = [o for o in outputs if not hasattr(o, "tag")]
         segmap.extend(day_segmap)
@@ -179,9 +185,9 @@ def test_range_of_days_matches_day_by_day():
 
     expected_segmap, expected_segments = day_by_day(fragments, last_days, prior_rows)
 
-    transform = IncrementalSegments(prior_segments=None, merge_params={})
+    updater = SegmentUpdater({})
     last_fragments = [f for f in fragments if f["timestamp"] >= last_days[0].timestamp()]
-    outputs = list(transform.update((SSVID, {"fragments": last_fragments, "state": prior_rows})))
+    outputs = list(updater.update((SSVID, {"fragments": last_fragments, "state": prior_rows})))
     segmap = [o.value for o in outputs if getattr(o, "tag", None) == SEGMAP]
     segments = [o for o in outputs if not hasattr(o, "tag")]
 
@@ -190,12 +196,12 @@ def test_range_of_days_matches_day_by_day():
 
 
 def test_state_without_new_fragments_yields_nothing():
-    transform = IncrementalSegments(prior_segments=None, merge_params={})
+    updater = SegmentUpdater({})
     fragments = make_fragments(random.Random(2), vessels=1)
     _, segments = day_by_day(fragments, DAYS[:1])
     state = prior_state_rows(segments, fragments)
 
-    assert list(transform.update((SSVID, {"fragments": [], "state": state}))) == []
+    assert list(updater.update((SSVID, {"fragments": [], "state": state}))) == []
 
 
 def test_incremental_segments_pipeline():
@@ -226,3 +232,40 @@ def test_incremental_segments_pipeline():
             equal_to(normalized(expected_segments)),
             label="CheckSegments",
         )
+
+
+class UnpicklableClient:
+    """Refuses to be pickled, like a BigQuery client does."""
+
+    def __reduce__(self):
+        raise pickle.PicklingError("Pickling client objects is explicitly not supported.")
+
+
+class BigQueryHelperWithClient:
+    labels = {}
+
+    def __init__(self):
+        self.client = UnpicklableClient()
+
+    def fetch_table(self, table_id):
+        return bigquery.Table(table_id)
+
+
+def test_incremental_segments_graph_does_not_pickle_the_bigquery_client():
+    prior_segments = ReadPriorSegments(
+        BigQueryHelperWithClient(), "p.d.segments", "p.d.fragments", DAYS[0].date()
+    )
+
+    p = TestPipeline()
+    new_fragments = p | beam.Create([])
+    new_fragments | IncrementalSegments(prior_segments=prior_segments, merge_params={})
+
+
+def test_full_history_segments_graph_does_not_pickle_the_bigquery_client():
+    transform = FullHistorySegments(
+        BigQueryHelperWithClient(), "p.d.fragments", DAYS[1].date(), DAYS[1].date(), {}
+    )
+
+    p = TestPipeline()
+    new_fragments = p | beam.Create([])
+    new_fragments | transform

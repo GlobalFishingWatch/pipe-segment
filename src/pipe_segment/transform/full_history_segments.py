@@ -20,6 +20,10 @@ def timestamp_to_date(ts: float) -> dt.date:
     return datetime_from_timestamp(ts).date()
 
 
+def in_date_range(segment, start_date, end_date):
+    return start_date <= timestamp_to_date(segment["timestamp"]) <= end_date
+
+
 def strip_identity_and_destination(fragment):
     x = fragment.copy()
     x["identities"] = []
@@ -58,9 +62,6 @@ class FullHistorySegments(beam.PTransform):
     def verify(self):
         """Nothing to check: it does not depend on the output of previous runs."""
 
-    def in_date_range(self, segment):
-        return self.start_date <= timestamp_to_date(segment["timestamp"]) <= self.end_date
-
     def expand(self, new_fragments):
         existing_fragments = new_fragments.pipeline | ReadFragments(
             self.bq_helper,
@@ -93,7 +94,8 @@ class FullHistorySegments(beam.PTransform):
             | "AddSegidKey" >> beam.Map(lambda x: (x["seg_id"], x))
             | "GroupBySegId" >> beam.GroupByKey()
             | "AddCumulativeData" >> CreateSegments()
-            | "FilterSegsToDateRange" >> beam.Filter(self.in_date_range)
+            | "FilterSegsToDateRange"
+            >> beam.Filter(in_date_range, self.start_date, self.end_date)
         )
 
         return {SEGMAP: segmap, SEGMENTS: segments}

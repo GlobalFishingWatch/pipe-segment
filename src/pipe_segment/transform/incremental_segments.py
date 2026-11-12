@@ -12,26 +12,18 @@ from pipe_segment.transform.read_prior_segments import ReadPriorSegments
 from pipe_segment.transform.segment_state import SegmentState
 
 
-class IncrementalSegments(beam.PTransform):
-    """Builds the segment map and the segments starting from the segments of the day before.
+class SegmentUpdater:
+    """Matches the new fragments of a vessel with its open segments and computes its segments.
 
-    Matching only looks at the segments open the day before, and the cumulative values are
-    already in the segments of that day, so the fragments written before the date range
-    are not needed. Each vessel is processed in one step: it is matched with its open
-    segments and its segments-days are computed right after.
+    It holds no BigQuery objects, so Beam can pickle it to send it to the workers.
 
     Args:
-        prior_segments: transform that reads the state of the segments before the date range.
         merge_params: parameters of the matcher.
     """
 
-    def __init__(self, prior_segments: ReadPriorSegments, merge_params: Dict):
-        self.prior_segments = prior_segments
+    def __init__(self, merge_params: Dict):
         self.segment_map = CreateSegmentMap(merge_params)
         self.segments = CreateSegments()
-
-    def verify(self):
-        self.prior_segments.verify()
 
     def update(self, item: Tuple[Any, Dict]) -> Generator:
         """Matches the new fragments of a vessel and computes its segments-days.
@@ -62,6 +54,27 @@ class IncrementalSegments(beam.PTransform):
                 (seg_id, seg_fragments), prior_by_seg_id.get(seg_id)
             )
 
+
+class IncrementalSegments(beam.PTransform):
+    """Builds the segment map and the segments starting from the segments of the day before.
+
+    Matching only looks at the segments open the day before, and the cumulative values are
+    already in the segments of that day, so the fragments written before the date range
+    are not needed. Each vessel is processed in one step: it is matched with its open
+    segments and its segments-days are computed right after.
+
+    Args:
+        prior_segments: transform that reads the state of the segments before the date range.
+        merge_params: parameters of the matcher.
+    """
+
+    def __init__(self, prior_segments: ReadPriorSegments, merge_params: Dict):
+        self.prior_segments = prior_segments
+        self.updater = SegmentUpdater(merge_params)
+
+    def verify(self):
+        self.prior_segments.verify()
+
     def expand(self, new_fragments):
         prior_state = new_fragments.pipeline | self.prior_segments
         keyed_fragments = new_fragments | "AddSsvidKey" >> beam.Map(lambda x: (x["ssvid"], x))
@@ -69,7 +82,8 @@ class IncrementalSegments(beam.PTransform):
         outputs = (
             {"fragments": keyed_fragments, "state": prior_state}
             | "GroupBySsvid" >> beam.CoGroupByKey()
-            | "UpdateSegments" >> beam.FlatMap(self.update).with_outputs(SEGMAP, main=SEGMENTS)
+            | "UpdateSegments"
+            >> beam.FlatMap(self.updater.update).with_outputs(SEGMAP, main=SEGMENTS)
         )
 
         return {SEGMAP: outputs[SEGMAP], SEGMENTS: outputs[SEGMENTS]}
