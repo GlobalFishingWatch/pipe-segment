@@ -76,6 +76,12 @@ class Segment(Command):
             "--bins_per_day", default=4, metavar=' ', type=valid_positive_int,
             help="Amount of containers per day to tag fragments and messages.")
         add(
+            "--incremental", action="store_true",
+            help=("Start from the segments of the day before the first day in date_range, "
+                  "instead of matching again the whole history of fragments. It fails if "
+                  "the segments table has no rows for that day. The first run of a "
+                  "pipeline, and any rebuild, must run without this flag."))
+        add(
             "--out_fragments_table", default=None, metavar=' ', type=valid_table_reference,
             help=("Output table for fragments. This parameter allows to specify a different "
                   "table from the one you use to read fragments from, which is useful on "

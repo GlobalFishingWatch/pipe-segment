@@ -6,6 +6,25 @@ from pipe_segment import pipeline
 from pipe_segment.segment_identity import pipeline as identity_pipeline
 
 
+def test_cli_incremental_flag(monkeypatch):
+    options = {}
+    monkeypatch.setattr(pipeline, "run", lambda args, extra_args: options.update(vars(args)))
+    dummy_table = 'dummy_proj.dummy_dataset.dummy_table'
+    required = [
+        'segment',
+        '--in_normalized_messages_table', dummy_table,
+        '--out_segmented_messages_table', dummy_table,
+        '--fragments_table', dummy_table,
+        '--out_segments_table', dummy_table,
+    ]
+
+    main.run(required)
+    assert options["incremental"] is False
+
+    main.run([*required, '--incremental'])
+    assert options["incremental"] is True
+
+
 def test_cli(monkeypatch, tmp_path):
 
     # TODO: replace this monkey patch when design allows for more easy testing.
