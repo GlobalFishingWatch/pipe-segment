@@ -305,6 +305,7 @@ class SegmentPipeline:
                 self.options.in_sat_positions_table,
                 start_date,
                 end_date,
+                self.bq_helper.labels,
             )
 
             if self.options.out_sat_offsets_table:
