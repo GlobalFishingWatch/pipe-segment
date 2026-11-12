@@ -1,0 +1,27 @@
+#standardSQL
+#
+# State of the segments at the end of a day: one row per segment that has a fragment on `day`.
+# It joins the segment-day with its fragment to get the last message of the fragment,
+# which is what the next day needs to score its fragments against the open segments.
+#
+SELECT
+    s.seg_id,
+    s.frag_id,
+    s.ssvid,
+    CAST(UNIX_MICROS(s.first_timestamp) AS FLOAT64) / 1000000 AS first_timestamp,
+    s.cumulative_msg_count,
+    s.cumulative_identities,
+    s.cumulative_destinations,
+    CAST(UNIX_MICROS(f.last_msg_timestamp) AS FLOAT64) / 1000000 AS last_msg_timestamp,
+    f.last_msg_lat,
+    f.last_msg_lon,
+    f.last_msg_course,
+    f.last_msg_speed
+FROM `{{ segments_table }}` AS s
+JOIN `{{ fragments_table }}` AS f
+    ON s.frag_id = f.frag_id
+WHERE DATE(s.timestamp) = '{{ day }}'
+    AND DATE(f.timestamp) = '{{ day }}'
+{% if ssvid_filter_query %}
+    AND s.ssvid IN ({{ ssvid_filter_query }})
+{% endif %}

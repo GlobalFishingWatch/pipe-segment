@@ -5,6 +5,7 @@ from gpsdio_segment.matcher import Matcher
 from typing import Iterable, Generator, Any, Optional, List, Tuple, Set, Dict
 
 from ..tools import datetime_from_timestamp
+from .segment_state import SegmentState
 from .util import by_day
 
 
@@ -85,8 +86,26 @@ class CreateSegmentMap(beam.PTransform):
         self, ssvid_frags: Tuple[Any, Iterable[Dict]]
     ) -> Generator[Dict, None, None]:
         ssvid, frags = ssvid_frags
+        yield from self.merge_fragments_with_state(ssvid, frags)
+
+    def merge_fragments_with_state(
+        self,
+        ssvid: Any,
+        frags: Iterable[Dict],
+        prior_states: Iterable[SegmentState] = (),
+    ) -> Generator[Dict, None, None]:
+        """Matches the fragments of a vessel with the segments open before the first one.
+
+        Args:
+            ssvid: the vessel.
+            frags: the fragments to match, of one or more days.
+            prior_states: the segments open at the end of the day before the first fragment.
+                When empty, the first day starts with no open segments.
+        """
+        frags = list(frags)
         frag_map = {x["frag_id"]: x for x in frags}
-        open_segs: Dict[str, str] = {}
+        frag_map.update({state.frag_id: state.as_last_fragment() for state in prior_states})
+        open_segs: Dict[str, str] = {state.seg_id: state.frag_id for state in prior_states}
         new_fragments: Set[str]
         for day, new_fragments in self.frags_by_day(frags):
             # Compute how well fragments from today match earlier segments

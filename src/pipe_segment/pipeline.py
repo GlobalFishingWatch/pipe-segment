@@ -12,13 +12,17 @@ from apache_beam.options.pipeline_options import (
 )
 from apache_beam.runners import PipelineState
 from pipe_segment.schemas import message_schema, segment_schema
-from pipe_segment.transform.create_segment_map import CreateSegmentMap
-from pipe_segment.transform.create_segments import CreateSegments
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
 from pipe_segment.transform.fragment import Fragment
+from pipe_segment.transform.full_history_segments import (
+    SEGMAP,
+    SEGMENTS,
+    FullHistorySegments,
+)
+from pipe_segment.transform.incremental_segments import IncrementalSegments
 from pipe_segment.transform.invalid_values import filter_invalid_values
-from pipe_segment.transform.read_fragments import ReadFragments
 from pipe_segment.transform.read_messages import ReadMessages
+from pipe_segment.transform.read_prior_segments import ReadPriorSegments
 from pipe_segment.transform.satellite_offsets import (
     SatelliteOffsets,
     SatelliteOffsetsWrite,
@@ -46,10 +50,6 @@ DEFAULT_MERGE_PARAMS = "{}"
 DEFAULT_SEGMENT_PARAMS = "{\"max_hours\": 24}"
 
 
-def timestamp_to_date(ts: float) -> dt.date:
-    return datetime_from_timestamp(ts).date()
-
-
 def safe_date(ts):
     if ts is None:
         return None
@@ -71,13 +71,6 @@ def time_bin_ndx(dtime, time_bins):
 def time_bin_key(x, time_bins):
     dtime = datetime_from_timestamp(x["timestamp"])
     return x["ssvid"], x["frag_id"], str(dtime.date()), time_bin_ndx(dtime, time_bins)
-
-
-def strip_identity_and_destination(fragment):
-    x = fragment.copy()
-    x["identities"] = []
-    x["destinations"] = []
-    return x
 
 
 class SegmentPipeline:
@@ -148,6 +141,28 @@ class SegmentPipeline:
             self.fragments_output_table,
         ]
 
+    def segmenter(self, start_date, end_date):
+        """Returns the transform that builds the segment map and the segments."""
+        if self.options.incremental:
+            return IncrementalSegments(
+                prior_segments=ReadPriorSegments(
+                    self.bq_helper,
+                    self.options.in_segments_table or self.options.out_segments_table,
+                    self.options.fragments_table,
+                    start_date - dt.timedelta(days=1),
+                    ssvid_filter_query=self.options.ssvid_filter_query,
+                ),
+                merge_params=self.merge_params,
+            )
+
+        return FullHistorySegments(
+            self.bq_helper,
+            self.options.fragments_table,
+            start_date,
+            end_date,
+            self.merge_params,
+        )
+
     def write_to_date_partitioned_table(self, table: DatePartitionedTable):
         return beam.io.WriteToBigQuery(
             table=table.table_id,
@@ -172,6 +187,9 @@ class SegmentPipeline:
     def pipeline(self):
         start_date = safe_date(self.date_range[0])
         end_date = safe_date(self.date_range[1])
+
+        segmenter = self.segmenter(start_date, end_date)
+        segmenter.verify()
 
         logger.info("Preparing output tables")
         self.prepare_output_tables(start_date, end_date)
@@ -241,25 +259,9 @@ class SegmentPipeline:
         _ = new_fragments | "WriteFragments" >> self.write_to_date_partitioned_table(
             self.fragments_output_table)
 
-        logger.info("Adding ReadFragments transform...")
-        existing_fragments = pipeline | ReadFragments(
-            self.bq_helper,
-            self.options.fragments_table,
-            # TODO should be able to use single lookback, but would have to
-            # lookback at fragments not segments or something otherwise complicated
-            start_date=None,  # start_date - timedelta(days=1),
-            end_date=start_date - dt.timedelta(days=1),
-        )
-
-        all_fragments = (new_fragments, existing_fragments) | beam.Flatten()
-
-        segmap_src = (
-            all_fragments
-            | "StripIdentity" >> beam.Map(strip_identity_and_destination)
-            | "AddSsvidKey" >> beam.Map(lambda x: (x["ssvid"], x))
-            | "GroupBySsvid" >> beam.GroupByKey()
-            | CreateSegmentMap(self.merge_params)
-        )
+        logger.info("Adding Segmenter transform...")
+        segmented = new_fragments | "Segmenter" >> segmenter
+        segmap_src = segmented[SEGMAP]
 
         logger.info("Adding TagWithFragIdAndTimeBin transform...")
         bins_per_day = self.options.bins_per_day
@@ -285,29 +287,9 @@ class SegmentPipeline:
             | "WriteMessages" >> self.write_to_date_partitioned_table(self.messages_output_table)
         )
 
-        logger.info("Adding AddFragidKey transform...")
-        frag_segmap = segmap_src | "AddFragidKey" >> beam.Map(
-            lambda x: (x["frag_id"], x)
-        )
-
-        logger.info("Adding AddKeyToFragments transform...")
-        tagged_fragments = all_fragments | "AddKeyToFragments" >> beam.Map(
-            lambda x: (x["frag_id"], x)
-        )
-
         logger.info("Adding WriteSegments transform...")
-        _ = (
-            {"segmap": frag_segmap, "target": tagged_fragments}
-            | "GroupSegsWithMap" >> beam.CoGroupByKey()
-            | "TagSegsWithsSegId" >> TagWithSegId()
-            | "AddSegidKey" >> beam.Map(lambda x: (x["seg_id"], x))
-            | "GroupBySegId" >> beam.GroupByKey()
-            | "AddCumulativeData" >> CreateSegments()
-            | "FilterSegsToDateRange"
-            >> beam.Filter(
-                lambda x: start_date <= timestamp_to_date(x["timestamp"]) <= end_date
-            )
-            | "WriteSegments" >> self.write_to_date_partitioned_table(self.segments_output_table)
+        _ = segmented[SEGMENTS] | "WriteSegments" >> self.write_to_date_partitioned_table(
+            self.segments_output_table
         )
 
         return pipeline

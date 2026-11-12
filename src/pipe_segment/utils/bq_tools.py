@@ -135,6 +135,19 @@ class BigQueryHelper:
         )
         logger.info(f"Query job {rows.job_id} done. Total rows {rows.total_rows}.")
 
+    def fetch_scalar(self, query: str):
+        """
+        Runs a query that returns a single row with a single column and returns its value,
+        tagging the query process with the labels
+        """
+        rows = self.client.query_and_wait(
+            query,
+            job_config=bigquery.QueryJobConfig(
+                labels=self.labels,
+            ),
+        )
+        return next(iter(rows))[0]
+
     def run_query_into_table(self, *, query: str, table):
         """
         Runs a query and inserts the results into a given table
