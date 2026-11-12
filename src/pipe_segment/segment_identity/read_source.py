@@ -19,11 +19,12 @@ SOURCE_QUERY_TEMPLATE = """
 
 
 class ReadSource(beam.PTransform):
-    def __init__(self, source_segments, source_fragments, start_ts, end_ts):
+    def __init__(self, source_segments, source_fragments, start_ts, end_ts, labels):
         self.source_segments = source_segments.replace("bq://", "").replace(":", ".")
         self.source_fragments = source_fragments.replace("bq://", "").replace(":", ".")
         self.start_ts = int(start_ts)
         self.end_ts = int(end_ts)
+        self.labels = labels
 
     def read_source(self):
         query = SOURCE_QUERY_TEMPLATE.format(
@@ -35,6 +36,7 @@ class ReadSource(beam.PTransform):
         return beam.io.ReadFromBigQuery(
             query=query,
             use_standard_sql=True,
+            bigquery_job_labels=self.labels,
         )
 
     def expand(self, pcoll):

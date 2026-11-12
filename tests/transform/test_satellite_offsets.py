@@ -39,7 +39,9 @@ def test_satellite_offsets(monkeypatch):
     start_date = datetime(2024, 1, 1)
     end_date = datetime(2024, 1, 1)
 
-    query_op = SatelliteOffsets(dummy_table, dummy_table, dummy_table, start_date, end_date)
+    query_op = SatelliteOffsets(
+        dummy_table, dummy_table, dummy_table, start_date, end_date, labels={}
+    )
     write_op = SatelliteOffsetsWrite(OptionsMock())
 
     # messages = []
@@ -47,3 +49,23 @@ def test_satellite_offsets(monkeypatch):
 
         p | query_op
         p | write_op
+
+
+def test_satellite_offsets_labels_every_read(monkeypatch):
+    read_calls = []
+
+    def fake_read(**kwargs):
+        read_calls.append(kwargs)
+        return beam.Create([])
+
+    monkeypatch.setattr(beam.io, "ReadFromBigQuery", fake_read)
+
+    labels = {"environment": "production", "stage": "segment--v5-0-4"}
+    # Over 800 days, so the offsets are read in two windows.
+    query_op = SatelliteOffsets(
+        "", "", "", datetime(2022, 1, 1), datetime(2024, 6, 1), labels=labels
+    )
+
+    _ = beam.Pipeline() | query_op
+
+    assert [call["bigquery_job_labels"] for call in read_calls] == [labels, labels]
