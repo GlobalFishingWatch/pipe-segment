@@ -21,8 +21,11 @@ def test_cli_incremental_flag(monkeypatch):
     main.run(required)
     assert options["incremental"] is False
 
-    main.run([*required, '--incremental'])
+    assert options["in_segments_table"] is None
+
+    main.run([*required, '--incremental', '--in_segments_table', dummy_table])
     assert options["incremental"] is True
+    assert options["in_segments_table"] == dummy_table
 
 
 def test_cli(monkeypatch, tmp_path):

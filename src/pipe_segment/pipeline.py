@@ -147,7 +147,7 @@ class SegmentPipeline:
             return IncrementalSegments(
                 prior_segments=ReadPriorSegments(
                     self.bq_helper,
-                    self.options.out_segments_table,
+                    self.options.in_segments_table or self.options.out_segments_table,
                     self.options.fragments_table,
                     start_date - dt.timedelta(days=1),
                     ssvid_filter_query=self.options.ssvid_filter_query,

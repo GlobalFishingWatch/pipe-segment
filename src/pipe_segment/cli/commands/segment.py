@@ -82,6 +82,11 @@ class Segment(Command):
                   "the segments table has no rows for that day. The first run of a "
                   "pipeline, and any rebuild, must run without this flag."))
         add(
+            "--in_segments_table", default=None, metavar=' ', type=valid_table_reference,
+            help=("Table to read the segments of the day before date_range from, in "
+                  "incremental mode. Defaults to out_segments_table. It allows to read from "
+                  "production data and write to a scratch dataset."))
+        add(
             "--out_fragments_table", default=None, metavar=' ', type=valid_table_reference,
             help=("Output table for fragments. This parameter allows to specify a different "
                   "table from the one you use to read fragments from, which is useful on "
