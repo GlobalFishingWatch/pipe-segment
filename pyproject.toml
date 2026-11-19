@@ -21,6 +21,7 @@ readme = "README.md"
 license = "Apache-2.0"
 authors = [
   { name = "GFW Engineering Team", email = "engineering-team@globalfishingwatch.org" },
+  { name = "GFW Research Team", email = "research-team@globalfishingwatch.org" },
 ]
 maintainers = [
   { name = "Tomás J. Link", email = "tomas.link@globalfishingwatch.org" },
