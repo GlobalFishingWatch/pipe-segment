@@ -87,7 +87,15 @@ class Segment(Command):
             "--in_segments_table", default=None, metavar=' ', type=valid_table_reference,
             help=("Table to read the segments of the day before date_range from, in "
                   "incremental mode. Defaults to out_segments_table. It allows to read from "
-                  "production data and write to a scratch dataset."))
+                  "production data and write to a scratch dataset. The segments are joined "
+                  "with the fragments of in_fragments_table."))
+        add(
+            "--in_fragments_table", default=None, metavar=' ', type=valid_table_reference,
+            help=("Table to read the fragments of the day before date_range from, in "
+                  "incremental mode. They are joined with the segments of in_segments_table, "
+                  "so it must be the fragments table that those segments were built from. "
+                  "Defaults to out_fragments_table, or fragments_table if it is not set, "
+                  "as out_segments_table is the default of in_segments_table."))
         add(
             "--out_fragments_table", default=None, metavar=' ', type=valid_table_reference,
             help=("Output table for fragments. This parameter allows to specify a different "

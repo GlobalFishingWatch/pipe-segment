@@ -134,6 +134,20 @@ class SegmentPipeline:
         )
 
     @property
+    def prior_segments_table(self) -> str:
+        """Table to read the segments of the day before the date range from."""
+        return self.options.in_segments_table or self.options.out_segments_table
+
+    @property
+    def prior_fragments_table(self) -> str:
+        """Table to read the fragments of the day before the date range from.
+
+        It follows the same rule as prior_segments_table, an output table by default, so
+        the segments are joined with the fragments of the same run.
+        """
+        return self.options.in_fragments_table or self.fragments_output_table.table_id
+
+    @property
     def date_partitioned_output_tables(self) -> list:
         return [
             self.messages_output_table,
@@ -147,8 +161,8 @@ class SegmentPipeline:
             return IncrementalSegments(
                 prior_segments=ReadPriorSegments(
                     self.bq_helper,
-                    self.options.in_segments_table or self.options.out_segments_table,
-                    self.options.fragments_table,
+                    self.prior_segments_table,
+                    self.prior_fragments_table,
                     start_date - dt.timedelta(days=1),
                     ssvid_filter_query=self.options.ssvid_filter_query,
                 ),
