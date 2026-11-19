@@ -5,38 +5,39 @@ FROM python:3.12-slim-bookworm AS builder
 
 VOLUME ["/root/.config"]
 
+# git: gpsdio-segment is installed from a git URL.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        gcc g++ build-essential git && \
+    apt-get install -y --no-install-recommends git && \
     rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# Use uv for high-speed installs
+COPY --from=ghcr.io/astral-sh/uv:0.10.9 /uv /usr/local/bin/uv
 
-WORKDIR /install
+ENV UV_COMPILE_BYTECODE=1
 
-COPY requirements.txt .
-
+# Install dependencies BEFORE copying source so an edit under src/
+# doesn't invalidate the cache of the (expensive) requirements-install layer.
+COPY pyproject.toml requirements.txt README.md MANIFEST.in ./
 RUN uv pip install --system --upgrade pip && \
     uv pip install --system build && \
     uv pip install --system --prefix=/install -r requirements.txt
 
-COPY pyproject.toml README.md MANIFEST.in ./
 COPY src ./src
+RUN uv pip install --system --prefix=/install --no-deps .
 
-RUN uv pip install --system --prefix=/install .
 # ---------------------------------------------------------------------------------------
 # PRODUCTION IMAGE
 # ---------------------------------------------------------------------------------------
 FROM python:3.12-slim-bookworm AS prod
 
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONDONTWRITEBYTECODE=1
 
 # COPY PYTHON PACKAGES
 COPY --from=builder /install /usr/local
 
 # APACHE BEAM INTEGRATION
-COPY --from=apache/beam_python3.12_sdk:2.71.0 /opt/apache/beam /opt/apache/beam
+# IMPORTANT: this version must match the apache-beam pin in requirements.txt.
+COPY --from=apache/beam_python3.12_sdk:2.76.0 /opt/apache/beam /opt/apache/beam
 ENTRYPOINT ["/opt/apache/beam/boot"]
 
 WORKDIR /opt/project
@@ -45,6 +46,10 @@ WORKDIR /opt/project
 # DEVELOPMENT IMAGE
 # ---------------------------------------------------------------------------------------
 FROM builder AS dev
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends make && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/project
 
