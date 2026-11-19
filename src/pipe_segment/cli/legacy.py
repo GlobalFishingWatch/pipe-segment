@@ -1,4 +1,5 @@
-import sys
+"""Legacy command-line interface, for the commands not migrated to gfw-common's CLI yet."""
+
 import logging
 import argparse
 
@@ -8,7 +9,6 @@ from pipe_segment.cli.commands import (
     SegmentIdentity,
     SegmentVesselDaily,
     SegmentInfo,
-    VesselInfo,
     SegmentVessel,
 )
 
@@ -82,7 +82,7 @@ class PIPE(CLI):
     ]
 
     COMMANDS = [
-        Segment, SegmentIdentity, SegmentVesselDaily, SegmentInfo, SegmentVessel, VesselInfo
+        Segment, SegmentIdentity, SegmentVesselDaily, SegmentInfo, SegmentVessel
     ]
 
     @staticmethod
@@ -95,11 +95,3 @@ class PIPE(CLI):
 
 def run(args):
     PIPE(args).execute()
-
-
-def main():
-    run(sys.argv[1:])
-
-
-if __name__ == '__main__':
-    main()
