@@ -59,9 +59,6 @@ class FullHistorySegments(beam.PTransform):
         self.end_date = end_date
         self.merge_params = merge_params
 
-    def verify(self):
-        """Nothing to check: it does not depend on the output of previous runs."""
-
     def expand(self, new_fragments):
         existing_fragments = new_fragments.pipeline | ReadFragments(
             self.bq_helper,

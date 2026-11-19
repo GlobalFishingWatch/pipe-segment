@@ -5,7 +5,6 @@ from typing import Optional
 
 import apache_beam as beam
 
-from pipe_segment.utils.bq_tools import BigQueryHelper
 from pipe_segment.utils.template_tools import format_query
 
 
@@ -16,26 +15,36 @@ class ReadPriorSegments(beam.PTransform):
     """Reads the state of the segments at the end of a day, keyed by ssvid.
 
     Args:
-        bq_helper: helper to run queries and to label them.
-        segments_table: table with the segments-days.
-        fragments_table: table with the fragments.
-        day: day to read the state from. It is the day before the first day to process.
-        ssvid_filter_query: optional query that returns the ssvids to keep.
+        segments_table:
+            Table with the segments-days.
+
+        fragments_table:
+            Table with the fragments.
+
+        day:
+            Day to read the state from. It is the day before the first day to process.
+
+        ssvid_filter_query:
+            Optional query that returns the ssvids to keep.
+
+        read_from_bigquery_kwargs:
+            Extra arguments for Beam's ``ReadFromBigQuery``, for example
+            the labels of the query job.
     """
 
     def __init__(
         self,
-        bq_helper: BigQueryHelper,
         segments_table: str,
         fragments_table: str,
         day: date,
         ssvid_filter_query: Optional[str] = None,
+        read_from_bigquery_kwargs: Optional[dict] = None,
     ):
-        self.bq_helper = bq_helper
         self.segments_table = segments_table
         self.fragments_table = fragments_table
         self.day = day
         self.ssvid_filter_query = ssvid_filter_query
+        self.read_from_bigquery_kwargs = read_from_bigquery_kwargs or {}
 
     def build_query(self) -> str:
         return format_query(
@@ -44,41 +53,6 @@ class ReadPriorSegments(beam.PTransform):
             fragments_table=self.fragments_table,
             day=self.day,
             ssvid_filter_query=self.ssvid_filter_query,
-        )
-
-    def verify(self):
-        """Fails if the segments table has no rows for the day but there is earlier history.
-
-        Starting from an empty state would create new segment ids for every open segment,
-        so the run must stop instead. If there are no fragments up to that day either, this
-        is the first run in the history and an empty state is correct.
-        """
-        count = self.bq_helper.fetch_scalar(
-            f"SELECT COUNT(*) FROM `{self.segments_table}` WHERE DATE(timestamp) = '{self.day}'"
-        )
-        if count > 0:
-            return
-
-        has_history = self.bq_helper.fetch_scalar(
-            f"""
-            SELECT EXISTS (
-              SELECT
-                timestamp
-              FROM `{self.fragments_table}`
-              WHERE DATE(timestamp) <= '{self.day}'
-            )
-            """
-        )
-        if not has_history:
-            logger.info(f"No fragments up to {self.day}: starting from an empty state.")
-            return
-
-        raise ValueError(
-            f"Table {self.segments_table} has no segments on {self.day}, but "
-            f"{self.fragments_table} has fragments up to that day. "
-            "An incremental run needs the segments of the day before the date range. "
-            "Run the previous days first, or run without --incremental to rebuild "
-            "from the whole fragment history."
         )
 
     def expand(self, pcoll):
@@ -90,8 +64,8 @@ class ReadPriorSegments(beam.PTransform):
             >> beam.io.ReadFromBigQuery(
                 query=query,
                 method=beam.io.ReadFromBigQuery.Method.EXPORT,
-                bigquery_job_labels=self.bq_helper.labels,
                 use_standard_sql=True,
+                **self.read_from_bigquery_kwargs,
             )
             | "KeyPriorSegmentsBySsvid" >> beam.Map(lambda row: (row["ssvid"], row))
         )

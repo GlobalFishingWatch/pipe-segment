@@ -11,6 +11,7 @@ from apache_beam.options.pipeline_options import (
     StandardOptions,
 )
 from apache_beam.runners import PipelineState
+from pipe_segment.hooks import verify_messages_exist_hook, verify_prior_segments_hook
 from pipe_segment.schemas import message_schema, segment_schema
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
 from pipe_segment.transform.fragment import Fragment
@@ -142,8 +143,8 @@ class SegmentPipeline:
     def prior_fragments_table(self) -> str:
         """Table to read the fragments of the day before the date range from.
 
-        It follows the same rule as prior_segments_table, an output table by default, so
-        the segments are joined with the fragments of the same run.
+        It follows the same rule as :attr:`prior_segments_table`, an output table by default,
+        so the segments are joined with the fragments of the same run.
         """
         return self.options.in_fragments_table or self.fragments_output_table.table_id
 
@@ -160,11 +161,11 @@ class SegmentPipeline:
         if self.options.incremental:
             return IncrementalSegments(
                 prior_segments=ReadPriorSegments(
-                    self.bq_helper,
                     self.prior_segments_table,
                     self.prior_fragments_table,
                     start_date - dt.timedelta(days=1),
                     ssvid_filter_query=self.options.ssvid_filter_query,
+                    read_from_bigquery_kwargs={"bigquery_job_labels": self.bq_helper.labels},
                 ),
                 merge_params=self.merge_params,
             )
@@ -184,18 +185,85 @@ class SegmentPipeline:
             create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
         )
 
-    def prepare_output_tables(self, start_date, end_date):
+    def ensure_output_tables(self):
+        """Creates the output tables that do not exist yet. It does not delete any data."""
         for table in self.date_partitioned_output_tables:
             self.bq_helper.ensure_table_exists(table)
+
+        if self.options.out_sat_offsets_table:
+            SatelliteOffsetsWrite.ensure_output_table(self.options, self.cloud_options)
+
+    def clear_output_tables(self, start_date, end_date):
+        """Deletes the rows of the date range from the output tables.
+
+        Args:
+            start_date:
+                First day to delete, included.
+
+            end_date:
+                Last day to delete, included.
+        """
+        for table in self.date_partitioned_output_tables:
             self.bq_helper.run_query(
                 query=table.clear_query(start_date, end_date),
             )
 
         if self.options.out_sat_offsets_table:
-            SatelliteOffsetsWrite.prepare_output_tables(
-                self.options,
-                self.cloud_options
-            )
+            SatelliteOffsetsWrite.clear_output_table(self.options, self.cloud_options)
+
+    def prepare_output_tables(self, start_date, end_date):
+        """Gets the output tables ready for the date range, and runs the checks.
+
+        The tables must exist for the checks to read them (on the first run they do not),
+        and the date range is cleared last, so a failed check does not delete anything.
+
+        Args:
+            start_date:
+                First day to process, included.
+
+            end_date:
+                Last day to process, included.
+        """
+        logger.info("Ensuring the output tables exist")
+        self.ensure_output_tables()
+
+        logger.info("Running the checks")
+        for hook in self.precondition_hooks(start_date, end_date):
+            hook(self)
+
+        logger.info("Clearing the date range of the output tables")
+        self.clear_output_tables(start_date, end_date)
+
+    def precondition_hooks(self, start_date, end_date) -> list:
+        """Returns the checks to run before the output tables are cleared.
+
+        Only an incremental run depends on the data written by previous runs.
+
+        Args:
+            start_date:
+                First day to process, included.
+
+            end_date:
+                Last day to process, included.
+
+        Returns:
+            The hooks, in the order to run them. There are none if the run is not incremental.
+        """
+        if not self.options.incremental:
+            return []
+
+        labels = self.bq_helper.labels
+        return [
+            verify_messages_exist_hook(
+                self.source_tables, start_date, end_date, labels=labels
+            ),
+            verify_prior_segments_hook(
+                self.prior_segments_table,
+                self.prior_fragments_table,
+                start_date - dt.timedelta(days=1),
+                labels=labels,
+            ),
+        ]
 
     # TODO: consider breaking up
     def pipeline(self):
@@ -209,11 +277,7 @@ class SegmentPipeline:
             end_date=end_date,
             ssvid_filter_query=self.options.ssvid_filter_query,
         )
-        if self.options.incremental:
-            read_messages.verify()
-
         segmenter = self.segmenter(start_date, end_date)
-        segmenter.verify()
 
         logger.info("Preparing output tables")
         self.prepare_output_tables(start_date, end_date)

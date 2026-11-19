@@ -72,9 +72,6 @@ class IncrementalSegments(beam.PTransform):
         self.prior_segments = prior_segments
         self.updater = SegmentUpdater(merge_params)
 
-    def verify(self):
-        self.prior_segments.verify()
-
     def expand(self, new_fragments):
         prior_state = new_fragments.pipeline | self.prior_segments
         keyed_fragments = new_fragments | "AddSsvidKey" >> beam.Map(lambda x: (x["ssvid"], x))

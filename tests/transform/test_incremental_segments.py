@@ -16,7 +16,6 @@ from pipe_segment.transform.create_segment_map import CreateSegmentMap
 from pipe_segment.transform.create_segments import CreateSegments
 from pipe_segment.transform.full_history_segments import SEGMAP, SEGMENTS, FullHistorySegments
 from pipe_segment.transform.incremental_segments import IncrementalSegments, SegmentUpdater
-from pipe_segment.transform.read_prior_segments import ReadPriorSegments
 
 
 SSVID = "123456789"
@@ -249,16 +248,6 @@ class BigQueryHelperWithClient:
 
     def fetch_table(self, table_id):
         return bigquery.Table(table_id)
-
-
-def test_incremental_segments_graph_does_not_pickle_the_bigquery_client():
-    prior_segments = ReadPriorSegments(
-        BigQueryHelperWithClient(), "p.d.segments", "p.d.fragments", DAYS[0].date()
-    )
-
-    p = TestPipeline()
-    new_fragments = p | beam.Create([])
-    new_fragments | IncrementalSegments(prior_segments=prior_segments, merge_params={})
 
 
 def test_full_history_segments_graph_does_not_pickle_the_bigquery_client():

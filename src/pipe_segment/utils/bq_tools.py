@@ -105,8 +105,21 @@ class DatePartitionedTable:
 
 class BigQueryHelper:
     def __init__(self, bq_client, labels):
+        """Initializes the helper.
+
+        Args:
+            bq_client:
+                BigQuery client.
+
+            labels:
+                Labels to set on the tables and queries, as a dict or as a list of
+                "key=value" entries.
+        """
         self.client = bq_client
-        self.labels = dict([entry.split("=") for entry in labels])
+        if isinstance(labels, dict):
+            self.labels = dict(labels)
+        else:
+            self.labels = dict([entry.split("=") for entry in labels])
 
     def ensure_table_exists(self, table):
         """

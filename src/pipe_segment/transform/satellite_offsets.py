@@ -143,21 +143,57 @@ class SatelliteOffsetsWrite(PTransform):
         )
 
     @classmethod
-    def prepare_output_tables(cls, options, cloud_options):
-        bq_helper = BigQueryHelper(
-            bq_client=bigquery.Client(project=cloud_options.project),
-            labels=cloud_options.labels,
-        )
+    def output_table(cls, options):
+        """Returns the definition of the output table.
 
+        Args:
+            options:
+                Options of the segment pipeline.
+
+        Returns:
+            The table.
+        """
         start_date, end_date = options.date_range.split(",")
 
         formatting = dict(**vars(options), ver=__version__, end_date=end_date)
-        table = DatePartitionedTable(
+        return DatePartitionedTable(
             table_id=options.out_sat_offsets_table,
             description=DESCRIPTION_TABLE.format(**formatting),
             schema=make_schema(),
             partitioning_field="hour",
         )
 
-        bq_helper.ensure_table_exists(table)
-        bq_helper.run_query(query=table.clear_query(start_date, end_date))
+    @classmethod
+    def bq_helper(cls, cloud_options):
+        return BigQueryHelper(
+            bq_client=bigquery.Client(project=cloud_options.project),
+            labels=cloud_options.labels,
+        )
+
+    @classmethod
+    def ensure_output_table(cls, options, cloud_options):
+        """Creates the output table if it does not exist. It does not delete any data.
+
+        Args:
+            options:
+                Options of the segment pipeline.
+
+            cloud_options:
+                Google Cloud options of the pipeline, with the project and the labels.
+        """
+        cls.bq_helper(cloud_options).ensure_table_exists(cls.output_table(options))
+
+    @classmethod
+    def clear_output_table(cls, options, cloud_options):
+        """Deletes the rows of the date range from the output table.
+
+        Args:
+            options:
+                Options of the segment pipeline, with the date range.
+
+            cloud_options:
+                Google Cloud options of the pipeline, with the project and the labels.
+        """
+        start_date, end_date = options.date_range.split(",")
+        table = cls.output_table(options)
+        cls.bq_helper(cloud_options).run_query(query=table.clear_query(start_date, end_date))

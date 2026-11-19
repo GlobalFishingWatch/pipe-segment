@@ -1,5 +1,7 @@
 import logging
 
+from datetime import date
+
 from jinja2 import Template
 
 import apache_beam as beam
@@ -14,6 +16,66 @@ FILTER_TEMPLATE = """
     BETWEEN '{{ start_date.strftime(date_format) }}'
     AND '{{ end_date.strftime(date_format) }}'
 """
+
+
+def build_filter(bq_source: BigQuerySource, start_date: date, end_date: date) -> str:
+    """Returns the condition that keeps the rows of the source between the two dates.
+
+    Args:
+        bq_source:
+            The source table of the messages.
+
+        start_date:
+            First day to keep, included.
+
+        end_date:
+            Last day to keep, included.
+
+    Returns:
+        The condition, to use in a ``WHERE`` clause.
+    """
+    filtering_field = bq_source.filtering_field
+    if '-' in bq_source.date_format:
+        filtering_field = f"DATE({filtering_field})"
+    return Template(FILTER_TEMPLATE).render({
+        'start_date': start_date,
+        'end_date': end_date,
+        'filter_field': filtering_field,
+        'date_format': bq_source.date_format,
+    })
+
+
+def build_days_query(sources: list, start_date: date, end_date: date) -> str:
+    """Returns a query that counts the days with messages between the dates, in all sources.
+
+    Args:
+        sources:
+            The :class:`BigQuerySource` of each table with messages.
+
+        start_date:
+            First day, included.
+
+        end_date:
+            Last day, included.
+
+    Returns:
+        The query.
+    """
+    selects = []
+    for source in sources:
+        if "-" in source.date_format:
+            day = source.filtering_field
+        else:
+            day = f"PARSE_DATE('{source.date_format}', {source.filtering_field})"
+        selects.append(f"""
+                SELECT
+                  {day} AS day
+                FROM `{source.qualified_source}`
+                WHERE {build_filter(source, start_date, end_date)}
+            """)
+
+    union = "\nUNION ALL\n".join(selects)
+    return f"SELECT COUNT(DISTINCT day) FROM ({union})"
 
 
 class ReadMessages(beam.PTransform):
@@ -41,7 +103,7 @@ class ReadMessages(beam.PTransform):
               CAST(UNIX_MICROS(timestamp) AS FLOAT64) / 1000000  AS timestamp,
                 * except (timestamp)
             FROM `{bq_source.qualified_source}`
-            WHERE {self._build_filter(bq_source)}
+            WHERE {build_filter(bq_source, self.start_date, self.end_date)}
         )
         """
         if self.ssvid_filter_query is not None:
@@ -50,49 +112,6 @@ class ReadMessages(beam.PTransform):
         logger.debug(f"QUERY:\n{query}")
 
         return query
-
-    def _build_filter(self, bq_source: BigQuerySource):
-        filtering_field = bq_source.filtering_field
-        if '-' in bq_source.date_format:
-            filtering_field = f"DATE({filtering_field})"
-        return Template(FILTER_TEMPLATE).render({
-            'start_date': self.start_date,
-            'end_date': self.end_date,
-            'filter_field': filtering_field,
-            'date_format': bq_source.date_format,
-        })
-
-    def _build_days_query(self, sources: list) -> str:
-        selects = []
-        for source in sources:
-            if "-" in source.date_format:
-                day = source.filtering_field
-            else:
-                day = f"PARSE_DATE('{source.date_format}', {source.filtering_field})"
-            selects.append(f"""
-                SELECT
-                  {day} AS day
-                FROM `{source.qualified_source}`
-                WHERE {self._build_filter(source)}
-            """)
-
-        union = "\nUNION ALL\n".join(selects)
-        return f"SELECT COUNT(DISTINCT day) FROM ({union})"
-
-    def verify(self):
-        """Fails if any day of the date range has no messages in the sources.
-
-        The days are counted over all the sources together.
-        """
-        n_days = (self.end_date - self.start_date).days + 1
-        sources = [BigQuerySource(self.bq_helper, src) for src in self.sources]
-        days_with_messages = self.bq_helper.fetch_scalar(self._build_days_query(sources))
-        if days_with_messages < n_days:
-            raise ValueError(
-                f"Only {days_with_messages} of {n_days} days between {self.start_date} and "
-                f"{self.end_date} have messages in {self.sources}. "
-                "An incremental run needs the messages of every day of the date range."
-            )
 
     def expand(self, pcoll):
         return [
