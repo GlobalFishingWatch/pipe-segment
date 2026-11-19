@@ -6,7 +6,6 @@ import argparse
 from rich.logging import RichHandler
 from pipe_segment.cli.commands import (
     Segment,
-    SegmentIdentity,
 )
 
 logger = logging.getLogger(__name__)
@@ -79,7 +78,7 @@ class PIPE(CLI):
     ]
 
     COMMANDS = [
-        Segment, SegmentIdentity
+        Segment
     ]
 
     @staticmethod
