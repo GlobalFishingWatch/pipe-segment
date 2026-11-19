@@ -59,7 +59,7 @@ Available Commands
   segment                     run the segmenter in dataflow
   segment_identity_daily      generate daily summary of identity messages
                               per segment
-  segment_vessel_daily        generate daily vessel_ids per segment
+  segment-vessel-daily        generate daily vessel_ids per segment
   segment-info                create a segment_info table with one row
                               per segment
   vessel-info                 create a vessel_info table with one row
@@ -75,11 +75,13 @@ docker compose run --rm --entrypoint pipe-segment dev segment --help
 
 The commands are being migrated to a new CLI, with kebab-case options, `--bq-in-*` and `--bq-out-*`
 for the tables, and a required `--project` and `--labels`. Each migrated command also accepts
-a config file with `-c`, see [config](config/). So far, `vessel-info`, `segment-info` and `segment-vessel` are migrated:
+a config file with `-c`, see [config](config/). So far, `vessel-info`, `segment-info`, `segment-vessel` and `segment-vessel-daily` are migrated.
+The date ranges are now `--start-date` and `--end-date`, and the end date is exclusive:
 ```shell
 docker compose run pipeline vessel-info -c config/vessel-info/example.yaml
 docker compose run pipeline segment-info -c config/segment-info/example.yaml
 docker compose run pipeline segment-vessel -c config/segment-vessel/example.yaml
+docker compose run pipeline segment-vessel-daily -c config/segment-vessel-daily/example.yaml
 ```
 
 ## Schema
