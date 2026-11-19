@@ -79,8 +79,10 @@ class Segment(Command):
             "--incremental", action="store_true",
             help=("Start from the segments of the day before the first day in date_range, "
                   "instead of matching again the whole history of fragments. It fails if "
-                  "the segments table has no rows for that day. The first run of a "
-                  "pipeline, and any rebuild, must run without this flag."))
+                  "a day of date_range has no input messages, or if the segments table has "
+                  "no rows for the day before while earlier fragments exist. On the first "
+                  "run of a pipeline, with no earlier fragments, it starts from an empty "
+                  "state."))
         add(
             "--in_segments_table", default=None, metavar=' ', type=valid_table_reference,
             help=("Table to read the segments of the day before date_range from, in "

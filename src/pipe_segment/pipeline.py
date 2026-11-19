@@ -188,6 +188,16 @@ class SegmentPipeline:
         start_date = safe_date(self.date_range[0])
         end_date = safe_date(self.date_range[1])
 
+        read_messages = ReadMessages(
+            bq_helper=self.bq_helper,
+            sources=self.source_tables,
+            start_date=start_date,
+            end_date=end_date,
+            ssvid_filter_query=self.options.ssvid_filter_query,
+        )
+        if self.options.incremental:
+            read_messages.verify()
+
         segmenter = self.segmenter(start_date, end_date)
         segmenter.verify()
 
@@ -200,13 +210,7 @@ class SegmentPipeline:
         logger.info("Adding ReadMessages transform...")
         messages = (
             pipeline
-            | ReadMessages(
-                bq_helper=self.bq_helper,
-                sources=self.source_tables,
-                start_date=start_date,
-                end_date=end_date,
-                ssvid_filter_query=self.options.ssvid_filter_query,
-            )
+            | read_messages
             | "FilterInvalidValues" >> beam.Map(filter_invalid_values)
         )
 

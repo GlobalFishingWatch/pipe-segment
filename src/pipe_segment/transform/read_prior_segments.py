@@ -47,20 +47,39 @@ class ReadPriorSegments(beam.PTransform):
         )
 
     def verify(self):
-        """Fails if the segments table has no rows for the day.
+        """Fails if the segments table has no rows for the day but there is earlier history.
 
         Starting from an empty state would create new segment ids for every open segment,
-        so the run must stop instead.
+        so the run must stop instead. If there are no fragments up to that day either, this
+        is the first run in the history and an empty state is correct.
         """
         count = self.bq_helper.fetch_scalar(
             f"SELECT COUNT(*) FROM `{self.segments_table}` WHERE DATE(timestamp) = '{self.day}'"
         )
-        if count == 0:
-            raise ValueError(
-                f"Table {self.segments_table} has no segments on {self.day}. "
-                "An incremental run needs the segments of the day before the date range. "
-                "Run without --incremental to rebuild from the whole fragment history."
+        if count > 0:
+            return
+
+        has_history = self.bq_helper.fetch_scalar(
+            f"""
+            SELECT EXISTS (
+              SELECT
+                timestamp
+              FROM `{self.fragments_table}`
+              WHERE DATE(timestamp) <= '{self.day}'
             )
+            """
+        )
+        if not has_history:
+            logger.info(f"No fragments up to {self.day}: starting from an empty state.")
+            return
+
+        raise ValueError(
+            f"Table {self.segments_table} has no segments on {self.day}, but "
+            f"{self.fragments_table} has fragments up to that day. "
+            "An incremental run needs the segments of the day before the date range. "
+            "Run the previous days first, or run without --incremental to rebuild "
+            "from the whole fragment history."
+        )
 
     def expand(self, pcoll):
         query = self.build_query()

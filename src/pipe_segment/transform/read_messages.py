@@ -62,6 +62,38 @@ class ReadMessages(beam.PTransform):
             'date_format': bq_source.date_format,
         })
 
+    def _build_days_query(self, sources: list) -> str:
+        selects = []
+        for source in sources:
+            if "-" in source.date_format:
+                day = source.filtering_field
+            else:
+                day = f"PARSE_DATE('{source.date_format}', {source.filtering_field})"
+            selects.append(f"""
+                SELECT
+                  {day} AS day
+                FROM `{source.qualified_source}`
+                WHERE {self._build_filter(source)}
+            """)
+
+        union = "\nUNION ALL\n".join(selects)
+        return f"SELECT COUNT(DISTINCT day) FROM ({union})"
+
+    def verify(self):
+        """Fails if any day of the date range has no messages in the sources.
+
+        The days are counted over all the sources together.
+        """
+        n_days = (self.end_date - self.start_date).days + 1
+        sources = [BigQuerySource(self.bq_helper, src) for src in self.sources]
+        days_with_messages = self.bq_helper.fetch_scalar(self._build_days_query(sources))
+        if days_with_messages < n_days:
+            raise ValueError(
+                f"Only {days_with_messages} of {n_days} days between {self.start_date} and "
+                f"{self.end_date} have messages in {self.sources}. "
+                "An incremental run needs the messages of every day of the date range."
+            )
+
     def expand(self, pcoll):
         return [
             pcoll
