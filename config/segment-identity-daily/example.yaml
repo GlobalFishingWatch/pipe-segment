@@ -1,0 +1,22 @@
+# Query parameters:
+bq_in_segments: "world-fishing-827.scratch_tomas_ttl30d.internal__segments"
+bq_in_fragments: "world-fishing-827.scratch_tomas_ttl30d.internal__fragments"
+bq_out_segment_identity_daily: "world-fishing-827.scratch_tomas_ttl30d.internal__segment_identity_daily"
+start_date: "2025-01-01"
+end_date: "2025-01-02"
+
+# Apache Beam / Dataflow options:
+project: world-fishing-827
+runner: DataflowRunner
+max_num_workers: 100
+region: us-central1
+subnetwork: regions/us-central1/subnetworks/gfw-internal-us-central1
+temp_location: "gs://gfw-dataflow-temp-staging-ttl-7/segment/temp"
+staging_location: "gs://gfw-dataflow-temp-staging-ttl-7/segment/staging"
+
+# Labels for cost tracking (label values: lowercase letters, digits, '_' and '-').
+labels:
+  environment: development
+  resource_creator: tomas-link
+  project: ais
+  stage: segment
