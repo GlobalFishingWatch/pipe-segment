@@ -1,4 +1,5 @@
 from google.cloud import bigquery
+from pipe_segment.pipelines.segment_vessel.config import SegmentVesselConfig
 from pipe_segment.utils.bq_tools import BigQueryHelper, Schemas, SimpleTable
 from pipe_segment.utils.template_tools import format_query
 from pipe_segment.version import __version__
@@ -10,27 +11,23 @@ SCHEMA_PATH = get_schema_path("segment_vessel.schema.json")
 QUERY = "segment_vessel.sql.j2"
 
 
-def description(options: str) -> str:
+def description(config: SegmentVesselConfig) -> str:
     return f"""
 * Pipeline: segment_vessel
 * Version: pipe-segment:{__version__}
-* Arguments {options}
+* Arguments {config}
 """
 
 
 class SegmentVesselPipeline:
     """ Segment vessel process"""
-    def __init__(self, options, extra_options):
-        self.options = options
+    def __init__(self, config: SegmentVesselConfig):
+        self.config = config
         self.bq_helper = BigQueryHelper(
-            bq_client=bigquery.Client(project=options.project),
-            labels=options.labels,
+            bq_client=bigquery.Client(project=config.project),
+            labels=config.labels,
         )
         self.prepare_output_tables()
-
-    @classmethod
-    def build(cls, options, extra_args):
-        return cls(options, extra_args)
 
     def prepare_output_tables(self):
         table = self.get_output_table()
@@ -39,8 +36,8 @@ class SegmentVesselPipeline:
 
     def get_output_table(self):
         return SimpleTable(
-            table_id=self.options.destination,
-            description=description(self.options),
+            table_id=self.config.bq_out_segment_vessel,
+            description=description(self.config),
             schema=Schemas.load_json_schema(SCHEMA_PATH),
         )
 
@@ -49,11 +46,7 @@ class SegmentVesselPipeline:
         logger.info("Formatting the query with the parameters.")
         query = format_query(
             QUERY,
-            segment_vessel_daily=self.options.source_segment_vessel_daily,
+            segment_vessel_daily=self.config.bq_in_segment_vessel_daily,
         )
         logger.info("Running the Segment vessel query.")
         self.bq_helper.run_query_into_table(query=query, table=self.get_output_table())
-
-
-def run(*args, **kwargs):
-    return SegmentVesselPipeline.build(*args, **kwargs).run()

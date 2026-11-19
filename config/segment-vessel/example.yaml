@@ -1,0 +1,13 @@
+# Query parameters:
+bq_in_segment_vessel_daily: "world-fishing-827.scratch_tomas_ttl30d.internal__segment_vessel_daily"
+bq_out_segment_vessel: "world-fishing-827.scratch_tomas_ttl30d.internal__segment_vessel"
+
+# GCP project that runs the queries and is billed for them:
+project: world-fishing-827
+
+# Labels for cost tracking (label values: lowercase letters, digits, '_' and '-').
+labels:
+  environment: development
+  resource_creator: tomas-link
+  project: ais
+  stage: segment
