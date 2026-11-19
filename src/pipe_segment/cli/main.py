@@ -1,7 +1,4 @@
-"""Command-line interface of pipe-segment, built on gfw-common's CLI.
-
-The commands that are not migrated yet run on the legacy CLI.
-"""
+"""Command-line interface of pipe-segment, built on gfw-common's CLI."""
 
 import sys
 
@@ -11,8 +8,8 @@ from gfw.common.cli import CLI, labels_option
 from gfw.common.cli.formatting import default_formatter
 from gfw.common.logging import LoggerConfig
 
-from pipe_segment.cli import legacy
 from pipe_segment.cli.commands import (
+    MessagesSegmented,
     SegmentIdentityDaily,
     SegmentInfo,
     SegmentVessel,
@@ -29,6 +26,16 @@ DESCRIPTION = (
     "from two or more vessels which are broadcasting using the same MMSI at the same time."
 )
 EXAMPLES = (
+    "pipe-segment segment "
+    "--bq-in-normalized-messages project.dataset.messages_normalized "
+    "--bq-out-segmented-messages project.dataset.messages_segmented "
+    "--bq-out-segments project.dataset.segments "
+    "--bq-out-fragments project.dataset.fragments "
+    "--start-date 2025-01-01 --end-date 2025-01-02 "
+    "--project my-project "
+    "--labels environment=development resource_creator=tomas-link",
+    "pipe-segment messages-segmented -c config/messages-segmented/example.yaml",
+    "pipe-segment messages-segmented -c config/messages-segmented/incremental.yaml",
     "pipe-segment vessel-info "
     "--bq-in-segment-identity-daily project.dataset.segment_identity_daily "
     "--bq-in-segment-vessel-daily project.dataset.segment_vessel_daily "
@@ -66,13 +73,18 @@ EXAMPLES = (
     "pipe-segment segment-identity-daily -c config/segment-identity-daily/example.yaml",
 )
 
-COMMANDS = [VesselInfo, SegmentInfo, SegmentVessel, SegmentVesselDaily, SegmentIdentityDaily]
+COMMANDS = [
+    MessagesSegmented,
+    SegmentIdentityDaily,
+    SegmentVesselDaily,
+    SegmentVessel,
+    SegmentInfo,
+    VesselInfo,
+]
 
 
 def run(args: list[str]) -> Any:
     """Executes the command given in ``args``.
-
-    Commands that are not migrated yet run on the legacy CLI.
 
     Args:
         args:
@@ -81,10 +93,6 @@ def run(args: list[str]) -> Any:
     Returns:
         The result of the command.
     """
-    names = {command().name for command in COMMANDS}
-    if not names.intersection(args):
-        return legacy.run(args)
-
     cli = CLI(
         name=NAME,
         description=DESCRIPTION,

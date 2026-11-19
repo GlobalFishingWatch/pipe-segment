@@ -452,9 +452,7 @@ requests==2.32.5
     #   keyrings-google-artifactregistry-auth
     #   opentelemetry-resourcedetector-gcp
 rich==14.3.4
-    # via
-    #   pipe-segment (pyproject.toml)
-    #   gfw-common
+    # via gfw-common
 roman==5.2
     # via shipdataprocess
 rsa==4.9.1

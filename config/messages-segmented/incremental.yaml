@@ -1,0 +1,32 @@
+# Incremental run: it starts from the segments of the day before start_date, which a previous
+# run of the same pipeline wrote, instead of matching the whole history of fragments again.
+# To read that state from production and write to a scratch dataset, also pass
+# bq_in_segments and bq_in_fragments.
+
+# Query parameters:
+bq_in_normalized_messages: "world-fishing-827.pipe_ais_sources_v20220628.pipe_nmea_normalized_"
+bq_out_segmented_messages: "world-fishing-827.scratch_tomas_ttl30d.internal__messages_segmented"
+bq_out_segments: "world-fishing-827.scratch_tomas_ttl30d.internal__segments"
+bq_out_fragments: "world-fishing-827.scratch_tomas_ttl30d.internal__fragments"
+start_date: "2025-01-02"
+end_date: "2025-01-03"
+incremental: true
+
+# Apache Beam / Dataflow options:
+project: world-fishing-827
+runner: DataflowRunner
+wait_for_job: true
+max_num_workers: 100
+region: us-central1
+network: gfw-internal-network
+subnetwork: regions/us-central1/subnetworks/gfw-internal-us-central1
+use_public_ips: false
+temp_location: "gs://gfw-dataflow-temp-staging-ttl-7/segment/temp"
+staging_location: "gs://gfw-dataflow-temp-staging-ttl-7/segment/staging"
+
+# Labels for cost tracking (label values: lowercase letters, digits, '_' and '-').
+labels:
+  environment: development
+  resource_creator: tomas-link
+  project: ais
+  stage: segment

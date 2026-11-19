@@ -21,7 +21,7 @@ which are broadcasting using the same MMSI at the same time.
 [preparing the development environment]: https://github.com/GlobalFishingWatch/python-app-template/blob/main/CONTRIBUTING.md#preparing-the-development-environment
 [git workflow]: https://github.com/GlobalFishingWatch/python-app-template/blob/main/CONTRIBUTING.md#git-workflow
 [python-app-template]: https://github.com/GlobalFishingWatch/python-app-template
-[examples]: examples/
+[config]: config/
 [Makefile]: Makefile
 
 # Development
@@ -45,7 +45,7 @@ No repository-specific system dependency is required.
 
 # Usage
 
-You can check the [examples] folder to see how to run the pipe.
+The [config] folder has a sample config file for each command, to run it with `-c`.
 
 ### CLI
 
@@ -56,7 +56,8 @@ With `docker compose run --rm --entrypoint pipe-segment dev --help` you can see 
 ```bash
 $ docker compose run --rm --entrypoint pipe-segment dev --help
 Available Commands
-  segment                     run the segmenter in dataflow
+  messages-segmented          segment the messages in dataflow: writes the segmented
+                              messages, the fragments and the segments
   segment-identity-daily      generate daily summary of identity messages
                               per segment
   segment-vessel-daily        generate daily vessel_ids per segment
@@ -70,19 +71,23 @@ Available Commands
 
 If you want to know the parameters of one of the processes, run for example:
 ```shell
-docker compose run --rm --entrypoint pipe-segment dev segment --help
+docker compose run pipeline messages-segmented --help
 ```
 
-The commands are being migrated to a new CLI, with kebab-case options, `--bq-in-*` and `--bq-out-*`
-for the tables, and a required `--project` and `--labels`. Each migrated command also accepts
-a config file with `-c`, see [config](config/). So far, all but `segment` are migrated.
-The date ranges are now `--start-date` and `--end-date`, and the end date is exclusive:
+The commands take kebab-case options, `--bq-in-*` and `--bq-out-*` for the tables, and a required
+`--project` (the project that runs the queries and the jobs, and is billed for them) and `--labels`.
+The date range is `--start-date` and `--end-date`, and the end date is exclusive. Every command
+also accepts its options in a config file with `-c`, and the options in the command line take
+precedence. For the Beam commands (`messages-segmented` and `segment-identity-daily`), the config file or the
+command line can also have any Apache Beam pipeline option:
 ```shell
-docker compose run pipeline vessel-info -c config/vessel-info/example.yaml
-docker compose run pipeline segment-info -c config/segment-info/example.yaml
-docker compose run pipeline segment-vessel -c config/segment-vessel/example.yaml
-docker compose run pipeline segment-vessel-daily -c config/segment-vessel-daily/example.yaml
+docker compose run pipeline messages-segmented -c config/messages-segmented/example.yaml
+docker compose run pipeline messages-segmented -c config/messages-segmented/incremental.yaml
 docker compose run pipeline segment-identity-daily -c config/segment-identity-daily/example.yaml
+docker compose run pipeline segment-vessel-daily -c config/segment-vessel-daily/example.yaml
+docker compose run pipeline segment-vessel -c config/segment-vessel/example.yaml
+docker compose run pipeline segment-info -c config/segment-info/example.yaml
+docker compose run pipeline vessel-info -c config/vessel-info/example.yaml
 ```
 
 ## Schema

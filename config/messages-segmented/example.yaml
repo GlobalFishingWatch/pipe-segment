@@ -1,0 +1,37 @@
+# Query parameters:
+bq_in_normalized_messages: "world-fishing-827.pipe_ais_sources_v20220628.pipe_nmea_normalized_"
+bq_out_segmented_messages: "world-fishing-827.scratch_tomas_ttl30d.internal__messages_segmented"
+bq_out_segments: "world-fishing-827.scratch_tomas_ttl30d.internal__segments"
+bq_out_fragments: "world-fishing-827.scratch_tomas_ttl30d.internal__fragments"
+start_date: "2025-01-01"
+end_date: "2025-01-02"
+
+# Satellite timing correction (it runs only if all of these inputs are given):
+bq_in_sat_offset_messages: "world-fishing-827.pipe_ais_sources_v20220628.pipe_nmea_normalized_"
+bq_in_norad_to_receiver: "world-fishing-827.pipe_static.norad_to_receiver_v20230510"
+bq_in_sat_positions: "world-fishing-827.satellite_positions_v20190208.satellite_positions_one_second_resolution_"
+bq_out_sat_offsets: "world-fishing-827.scratch_tomas_ttl30d.published__satellite_timing_offsets"
+
+# Only for testing: trims the messages down to these ssvids.
+ssvid_filter_query: '"311046100","261027110","319887000"'
+
+# Apache Beam / Dataflow options:
+project: world-fishing-827
+runner: DataflowRunner
+wait_for_job: true
+max_num_workers: 600
+worker_machine_type: e2-standard-4
+disk_size_gb: 50
+region: us-central1
+network: gfw-internal-network
+subnetwork: regions/us-central1/subnetworks/gfw-internal-us-central1
+use_public_ips: false
+temp_location: "gs://gfw-dataflow-temp-staging-ttl-7/segment/temp"
+staging_location: "gs://gfw-dataflow-temp-staging-ttl-7/segment/staging"
+
+# Labels for cost tracking (label values: lowercase letters, digits, '_' and '-').
+labels:
+  environment: development
+  resource_creator: tomas-link
+  project: ais
+  stage: segment

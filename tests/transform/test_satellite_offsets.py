@@ -1,7 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
+from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
 from pipe_segment.transform.satellite_offsets import (
     SatelliteOffsets,
     SatelliteOffsetsWrite,
@@ -22,12 +23,21 @@ class WriteToBigQueryMock(beam.io.WriteToBigQuery):
         return pcoll | beam.Map(self._table)
 
 
-class OptionsMock:
-    date_range = '2024-01-01, 2024-01-01'
-    in_normalized_sat_offset_messages_table = "project.dummy_table"
-    in_norad_to_receiver_table = "project.dummy_table"
-    in_sat_positions_table = "project.dummy_table"
-    out_sat_offsets_table = "project.dummy_table"
+def make_config():
+    return MessagesSegmentedConfig(
+        project="project",
+        bq_in_normalized_messages="project.dummy_table",
+        bq_out_segmented_messages="project.dummy_table",
+        bq_out_segments="project.dummy_table",
+        bq_out_fragments="project.dummy_table",
+        bq_in_sat_offset_messages="project.dummy_table",
+        bq_in_norad_to_receiver="project.dummy_table",
+        bq_in_sat_positions="project.dummy_table",
+        bq_out_sat_offsets="project.dummy_table",
+        start_date=date(2024, 1, 1),
+        end_date=date(2024, 1, 2),
+        labels={"environment": "test"},
+    )
 
 
 def test_satellite_offsets(monkeypatch):
@@ -42,7 +52,7 @@ def test_satellite_offsets(monkeypatch):
     query_op = SatelliteOffsets(
         dummy_table, dummy_table, dummy_table, start_date, end_date, labels={}
     )
-    write_op = SatelliteOffsetsWrite(OptionsMock())
+    write_op = SatelliteOffsetsWrite(make_config())
 
     # messages = []
     with TestPipeline() as p:
