@@ -1,5 +1,10 @@
 untracked/
+output/
 *.ipynb
+.pytest_cache/
+.ruff_cache/
+
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -26,7 +31,6 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-MANIFEST
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -48,7 +52,6 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
-.pytest_cache
 
 # Translations
 *.mo
@@ -56,8 +59,6 @@ coverage.xml
 
 # Django stuff:
 *.log
-.static_storage/
-.media/
 local_settings.py
 
 # Flask stuff:
@@ -76,9 +77,6 @@ target/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# pyenv
-.python-version
-
 # celery beat schedule file
 celerybeat-schedule
 
@@ -91,8 +89,6 @@ celerybeat-schedule
 env/
 venv/
 ENV/
-env.bak/
-venv.bak/
 
 # Spyder project settings
 .spyderproject
@@ -107,15 +103,15 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# pycharm
-.idea/
-
-# local output
-output/
-
-#osx
-.DS_Store
+# Pycharm
+.idea
 
 # Terraform
 .terraform
 .terraform.lock.hcl
+
+# uv
+uv.lock
+
+# Local outputs, examples and caches
+workdir/

@@ -1,5 +1,8 @@
 # Changelog
 
+This file stops at v3.4.1. Later releases are described in the
+[GitHub releases](https://github.com/GlobalFishingWatch/pipe-segment/releases).
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a
