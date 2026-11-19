@@ -12,6 +12,7 @@ from apache_beam.options.pipeline_options import (
 )
 from apache_beam.runners import PipelineState
 from pipe_segment.hooks import verify_messages_exist_hook, verify_prior_segments_hook
+from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
 from pipe_segment.schemas import message_schema, segment_schema
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
 from pipe_segment.transform.fragment import Fragment
@@ -34,7 +35,7 @@ from pipe_segment.transform.whitelist_messages_segmented import WhitelistFields
 from pipe_segment.utils.bq_tools import BigQueryHelper, DatePartitionedTable
 from pipe_segment.version import __version__
 
-from .tools import datetime_from_timestamp, timestamp_from_string
+from .tools import datetime_from_timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +58,6 @@ def safe_date(ts):
     return datetime_from_timestamp(ts).date()
 
 
-def parse_date_range(s):
-    # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
-    return list(map(timestamp_from_string, s.split(",")) if s is not None else (None, None))
-
-
 def time_bin_ndx(dtime, time_bins):
     reltime = dtime - dt.datetime(dtime.year, dtime.month, dtime.day, tzinfo=dt.timezone.utc)
     ndx = int(time_bins * (reltime / dt.timedelta(hours=24)))
@@ -75,22 +71,17 @@ def time_bin_key(x, time_bins):
 
 
 class SegmentPipeline:
-    def __init__(self, options, beam_options):
-        self.options = options
+    def __init__(self, config: MessagesSegmentedConfig, beam_options: PipelineOptions):
+        self.config = config
         self.beam_options = beam_options
         self.cloud_options = beam_options.view_as(GoogleCloudOptions)
         assert self.cloud_options.project is not None
-        self.date_range = parse_date_range(self.options.date_range)
+        # The end date of the config is exclusive, but the pipeline works with the last day.
+        self.last_day = config.end_date - dt.timedelta(days=1)
         self.bq_helper = BigQueryHelper(
             bq_client=bigquery.Client(project=self.cloud_options.project),
-            labels=self.cloud_options.labels,
+            labels=config.labels,
         )
-
-    @classmethod
-    def build(cls, options, beam_args):
-        beam_options = PipelineOptions(beam_args)
-
-        return cls(options, beam_options)
 
     @property
     def merge_params(self):
@@ -102,12 +93,12 @@ class SegmentPipeline:
 
     @property
     def source_tables(self) -> list:
-        return self.options.in_normalized_messages_table.split(",")
+        return self.config.bq_in_normalized_messages.split(",")
 
     @property
     def messages_output_table(self) -> DatePartitionedTable:
         return DatePartitionedTable(
-            table_id=self.options.out_segmented_messages_table,
+            table_id=self.config.bq_out_segmented_messages,
             schema=message_schema.message_output_schema,
             description=f"Created by pipe-segment:{__version__}.\n"
                         "Daily satellite messages segmented processed in segment step.",
@@ -117,7 +108,7 @@ class SegmentPipeline:
     @property
     def segments_output_table(self) -> DatePartitionedTable:
         return DatePartitionedTable(
-            table_id=self.options.out_segments_table,
+            table_id=self.config.bq_out_segments,
             schema=segment_schema.segment_schema,
             description=f"Created by pipe-segment:{__version__}.\n"
                         "Daily segments processed in segment step.",
@@ -127,7 +118,7 @@ class SegmentPipeline:
     @property
     def fragments_output_table(self) -> DatePartitionedTable:
         return DatePartitionedTable(
-            table_id=self.options.out_fragments_table or self.options.fragments_table,
+            table_id=self.config.bq_out_fragments,
             schema=Fragment.schema,
             description=f"Created by pipe-segment:{__version__}.\n"
                         "Daily fragments processed in segment step.",
@@ -135,18 +126,18 @@ class SegmentPipeline:
         )
 
     @property
-    def prior_segments_table(self) -> str:
+    def in_segments_table(self) -> str:
         """Table to read the segments of the day before the date range from."""
-        return self.options.in_segments_table or self.options.out_segments_table
+        return self.config.bq_in_segments or self.config.bq_out_segments
 
     @property
-    def prior_fragments_table(self) -> str:
-        """Table to read the fragments of the day before the date range from.
+    def in_fragments_table(self) -> str:
+        """Table to read the fragments from.
 
-        It follows the same rule as :attr:`prior_segments_table`, an output table by default,
+        It follows the same rule as :attr:`in_segments_table`, an output table by default,
         so the segments are joined with the fragments of the same run.
         """
-        return self.options.in_fragments_table or self.fragments_output_table.table_id
+        return self.config.bq_in_fragments or self.config.bq_out_fragments
 
     @property
     def date_partitioned_output_tables(self) -> list:
@@ -158,13 +149,13 @@ class SegmentPipeline:
 
     def segmenter(self, start_date, end_date):
         """Returns the transform that builds the segment map and the segments."""
-        if self.options.incremental:
+        if self.config.incremental:
             return IncrementalSegments(
                 prior_segments=ReadPriorSegments(
-                    self.prior_segments_table,
-                    self.prior_fragments_table,
+                    self.in_segments_table,
+                    self.in_fragments_table,
                     start_date - dt.timedelta(days=1),
-                    ssvid_filter_query=self.options.ssvid_filter_query,
+                    ssvid_filter_query=self.config.ssvid_filter_query,
                     read_from_bigquery_kwargs={"bigquery_job_labels": self.bq_helper.labels},
                 ),
                 merge_params=self.merge_params,
@@ -172,7 +163,7 @@ class SegmentPipeline:
 
         return FullHistorySegments(
             self.bq_helper,
-            self.options.fragments_table,
+            self.in_fragments_table,
             start_date,
             end_date,
             self.merge_params,
@@ -190,8 +181,8 @@ class SegmentPipeline:
         for table in self.date_partitioned_output_tables:
             self.bq_helper.ensure_table_exists(table)
 
-        if self.options.out_sat_offsets_table:
-            SatelliteOffsetsWrite.ensure_output_table(self.options, self.cloud_options)
+        if self.config.bq_out_sat_offsets:
+            SatelliteOffsetsWrite.ensure_output_table(self.config)
 
     def clear_output_tables(self, start_date, end_date):
         """Deletes the rows of the date range from the output tables.
@@ -208,8 +199,8 @@ class SegmentPipeline:
                 query=table.clear_query(start_date, end_date),
             )
 
-        if self.options.out_sat_offsets_table:
-            SatelliteOffsetsWrite.clear_output_table(self.options, self.cloud_options)
+        if self.config.bq_out_sat_offsets:
+            SatelliteOffsetsWrite.clear_output_table(self.config)
 
     def prepare_output_tables(self, start_date, end_date):
         """Gets the output tables ready for the date range, and runs the checks.
@@ -249,7 +240,7 @@ class SegmentPipeline:
         Returns:
             The hooks, in the order to run them. There are none if the run is not incremental.
         """
-        if not self.options.incremental:
+        if not self.config.incremental:
             return []
 
         labels = self.bq_helper.labels
@@ -258,8 +249,8 @@ class SegmentPipeline:
                 self.source_tables, start_date, end_date, labels=labels
             ),
             verify_prior_segments_hook(
-                self.prior_segments_table,
-                self.prior_fragments_table,
+                self.in_segments_table,
+                self.in_fragments_table,
                 start_date - dt.timedelta(days=1),
                 labels=labels,
             ),
@@ -267,15 +258,15 @@ class SegmentPipeline:
 
     # TODO: consider breaking up
     def pipeline(self):
-        start_date = safe_date(self.date_range[0])
-        end_date = safe_date(self.date_range[1])
+        start_date = self.config.start_date
+        end_date = self.last_day
 
         read_messages = ReadMessages(
             bq_helper=self.bq_helper,
             sources=self.source_tables,
             start_date=start_date,
             end_date=end_date,
-            ssvid_filter_query=self.options.ssvid_filter_query,
+            ssvid_filter_query=self.config.ssvid_filter_query,
         )
         segmenter = self.segmenter(start_date, end_date)
 
@@ -292,34 +283,30 @@ class SegmentPipeline:
             | "FilterInvalidValues" >> beam.Map(filter_invalid_values)
         )
 
-        if (
-            self.options.in_normalized_sat_offset_messages_table
-            and self.options.in_norad_to_receiver_table
-            and self.options.in_sat_positions_table
-        ):
+        if self.config.sat_offsets_enabled:
             logger.info("Adding SatelliteOffsets transform...")
 
             satellite_offsets = pipeline | SatelliteOffsets(
-                self.options.in_normalized_sat_offset_messages_table,
-                self.options.in_norad_to_receiver_table,
-                self.options.in_sat_positions_table,
+                self.config.bq_in_sat_offset_messages,
+                self.config.bq_in_norad_to_receiver,
+                self.config.bq_in_sat_positions,
                 start_date,
                 end_date,
                 self.bq_helper.labels,
             )
 
-            if self.options.out_sat_offsets_table:
+            if self.config.bq_out_sat_offsets:
                 logger.info("Adding SatelliteOffsetsWrite transform...")
                 _ = (
                     satellite_offsets
-                    | SatelliteOffsetsWrite(self.options)
+                    | SatelliteOffsetsWrite(self.config)
                 )
 
             logger.info("Adding FilterBadSatelliteTimes transform...")
             messages = messages | FilterBadSatelliteTimes(
                 satellite_offsets,
-                max_timing_offset_s=self.options.max_timing_offset_s,
-                bad_hour_padding=self.options.bad_hour_padding,
+                max_timing_offset_s=self.config.max_timing_offset_s,
+                bad_hour_padding=self.config.bad_hour_padding,
             )
 
         logger.info("Adding MessagesAddKey and GroupBySsvidAndDay transforms...")
@@ -347,7 +334,7 @@ class SegmentPipeline:
         segmap_src = segmented[SEGMAP]
 
         logger.info("Adding TagWithFragIdAndTimeBin transform...")
-        bins_per_day = self.options.bins_per_day
+        bins_per_day = self.config.bins_per_day
         msg_segmap = segmap_src | TagWithFragIdAndTimeBin(
             start_date, end_date, bins_per_day
         )
@@ -387,7 +374,7 @@ class SegmentPipeline:
         success_states = set([PipelineState.DONE])
 
         if (
-            self.options.wait_for_job
+            self.config.wait_for_job
             or self.beam_options.view_as(StandardOptions).runner == "DirectRunner"
         ):
             logger.info("Waiting until job is done")
@@ -400,7 +387,3 @@ class SegmentPipeline:
         logger.info("returning with result.state=%s" % result.state)
 
         return 0 if result.state in success_states else 1
-
-
-def run(*args, **kwargs):
-    return SegmentPipeline.build(*args, **kwargs).run()
