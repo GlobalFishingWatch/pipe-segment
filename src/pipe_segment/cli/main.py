@@ -1,0 +1,85 @@
+"""Command-line interface of pipe-segment, built on gfw-common's CLI.
+
+The commands that are not migrated yet run on the legacy CLI.
+"""
+
+import sys
+
+from typing import Any
+
+from gfw.common.cli import CLI, labels_option
+from gfw.common.cli.formatting import default_formatter
+from gfw.common.logging import LoggerConfig
+
+from pipe_segment.cli import legacy
+from pipe_segment.cli.commands import VesselInfo
+from pipe_segment.cli.options import project_option
+from pipe_segment.version import __version__
+
+
+NAME = "pipe-segment"
+DESCRIPTION = (
+    "Divides vessel tracks into contiguous segments, separating out signals that come "
+    "from two or more vessels which are broadcasting using the same MMSI at the same time."
+)
+EXAMPLES = (
+    "pipe-segment vessel-info "
+    "--bq-in-segment-identity-daily project.dataset.segment_identity_daily "
+    "--bq-in-segment-vessel-daily project.dataset.segment_vessel_daily "
+    "--bq-out-vessel-info project.dataset.vessel_info "
+    "--project my-project "
+    "--labels environment=development resource_creator=tomas-link",
+    "pipe-segment vessel-info -c config/vessel-info/example.yaml",
+)
+
+COMMANDS = [VesselInfo]
+
+
+def run(args: list[str]) -> Any:
+    """Executes the command given in ``args``.
+
+    Commands that are not migrated yet run on the legacy CLI.
+
+    Args:
+        args:
+            Command-line arguments, without the program name.
+
+    Returns:
+        The result of the command.
+    """
+    names = {command().name for command in COMMANDS}
+    if not names.intersection(args):
+        return legacy.run(args)
+
+    cli = CLI(
+        name=NAME,
+        description=DESCRIPTION,
+        formatter=default_formatter(max_pos=120),
+        subcommands=COMMANDS,
+        options=[labels_option(), project_option()],  # Common options for all subcommands.
+        version=__version__,
+        examples=EXAMPLES,
+        logger_config=LoggerConfig(
+            warning_level=[
+                "apache_beam.runners.portability",
+                "apache_beam.runners.worker",
+                "apache_beam.transforms.core",
+                "apache_beam.io.filesystem",
+                "apache_beam.io.gcp.bigquery_tools",
+                "urllib3",
+            ]
+        ),
+        allow_unknown=True,
+    )
+
+    result, _ = cli.execute(args)
+    return result
+
+
+def main() -> None:
+    """Runs the CLI with the arguments of the command line."""
+    run(sys.argv[1:])
+
+
+if __name__ == "__main__":
+    main()
