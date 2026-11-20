@@ -17,73 +17,44 @@ a dataflow pipeline which divides vessel tracks into contiguous "segments",
 separating out noise and signals that may come from two or more vessels
 which are broadcasting using the same MMSI at the same time.
 
-[bigquery-emulator]: https://github.com/goccy/bigquery-emulator
-[configure a SSH-key for GitHub]: https://docs.github.com/en/authentication/connecting-to-github-with-ssh/adding-a-new-ssh-key-to-your-github-account
-[docker official instructions]: https://docs.docker.com/engine/install/
-[docker compose plugin]: https://docs.docker.com/compose/install/linux/
+[contributing guide]: https://github.com/GlobalFishingWatch/python-app-template/blob/main/CONTRIBUTING.md
+[preparing the development environment]: https://github.com/GlobalFishingWatch/python-app-template/blob/main/CONTRIBUTING.md#preparing-the-development-environment
+[git workflow]: https://github.com/GlobalFishingWatch/python-app-template/blob/main/CONTRIBUTING.md#git-workflow
+[python-app-template]: https://github.com/GlobalFishingWatch/python-app-template
 [examples]: examples/
-[git installed]: https://git-scm.com/downloads
-[git workflow documentation]: GITHUB-FLOW.md
 [Makefile]: Makefile
-[pip-tools]: https://pip-tools.readthedocs.io/en/stable/
-[requirements.txt]: requirements.txt
-[requirements/prod.in]: requirements/prod.in
-[Semantic Versioning]: https://semver.org
 
+# Development
 
-## Usage
+First, clone the repository:
 
-### System Dependencies
-
-Install Docker Engine using the [docker official instructions] (avoid snap packages)
-and the [docker compose plugin]. No other system dependencies are required.
-
-### Installation
-
-First, make sure you have [git installed], and [configure a SSH-key for GitHub].
-
-Then, clone the repository:
-```bash
-git clone git@github.com:GlobalFishingWatch/pipe-segment.git
-```
-
-Create virtual environment and activate it:
 ```shell
-python -m venv .venv
-. ./.venv/bin/activate
+git clone https://github.com/GlobalFishingWatch/pipe-segment.git
+cd pipe-segment
 ```
 
-Install dependencies
-```shell
-make install
-```
+Then, from the cloned repository, follow the [contributing guide]
+shared by the repositories created from [python-app-template]:
+[preparing the development environment] (Docker setup, installing dependencies)
+and the [git workflow].
 
-Make sure you can run unit tests
-```shell
-make test
-```
+The [Makefile] exposes the usual targets:
+`make docker-build`, `make docker-gcp`, `make docker-shell`, `make test`, `make format`, `make lint`,
+among others -- run `make help` for the full list.
+No repository-specific system dependency is required.
 
-Make sure you can build the docker image:
-```shell
-make docker-build
-```
+# Usage
 
-In order to be able to connect to BigQuery, authenticate and configure the project:
-```shell
-make docker-gcp
-```
-
-You can check the [examples](examples/) folder to see how to run the pipe
-
+You can check the [examples] folder to see how to run the pipe.
 
 ### CLI
 
 The pipeline includes a CLI that can be used to start both local test runs and
 remote full runs.
 
-Wtih `docker compose run dev --help` you can see the available processes:
+With `docker compose run pipeline --help` you can see the available processes:
 ```bash
-$ docker compose run dev --help
+$ docker compose run pipeline --help
 Available Commands
   segment                     run the segmenter in dataflow
   segment_identity_daily      generate daily summary of identity messages
@@ -99,34 +70,7 @@ Available Commands
 
 If you want to know the parameters of one of the processes, run for example:
 ```shell
-docker compose run dev segment --help
-```
-
-## How to contribute
-
-The [Makefile] should ease the development process.
-
-### Git Workflow
-
-Please refer to our [git workflow documentation] to know how to manage branches in this repository.
-
-### Updating dependencies
-
-The [requirements.txt] contains all transitive dependencies pinned to specific versions.
-This file is compiled automatically with [pip-tools], based on [requirements/prod.in].
-
-Use [requirements/prod.in] to specify high-level dependencies with restrictions.
-Do not modify [requirements.txt] manually.
-
-To re-compile dependencies, just run
-```shell
-make reqs
-```
-
-If you want to upgrade all dependencies to latest available versions
-(compatible with restrictions declared), just run:
-```shell
-make reqs-upgrade
+docker compose run pipeline segment --help
 ```
 
 ## Schema

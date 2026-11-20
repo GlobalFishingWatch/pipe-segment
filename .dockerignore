@@ -1,10 +1,11 @@
 .git
 .venv
-venv
 
 Dockerfile
 docker-compose.yaml
 
+cloudbuild
+docs
 examples
 notebooks
 sandbox
