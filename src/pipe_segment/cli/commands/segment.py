@@ -76,6 +76,27 @@ class Segment(Command):
             "--bins_per_day", default=4, metavar=' ', type=valid_positive_int,
             help="Amount of containers per day to tag fragments and messages.")
         add(
+            "--incremental", action="store_true",
+            help=("Start from the segments of the day before the first day in date_range, "
+                  "instead of matching again the whole history of fragments. It fails if "
+                  "a day of date_range has no input messages, or if the segments table has "
+                  "no rows for the day before while earlier fragments exist. On the first "
+                  "run of a pipeline, with no earlier fragments, it starts from an empty "
+                  "state."))
+        add(
+            "--in_segments_table", default=None, metavar=' ', type=valid_table_reference,
+            help=("Table to read the segments of the day before date_range from, in "
+                  "incremental mode. Defaults to out_segments_table. It allows to read from "
+                  "production data and write to a scratch dataset. The segments are joined "
+                  "with the fragments of in_fragments_table."))
+        add(
+            "--in_fragments_table", default=None, metavar=' ', type=valid_table_reference,
+            help=("Table to read the fragments of the day before date_range from, in "
+                  "incremental mode. They are joined with the segments of in_segments_table, "
+                  "so it must be the fragments table that those segments were built from. "
+                  "Defaults to out_fragments_table, or fragments_table if it is not set, "
+                  "as out_segments_table is the default of in_segments_table."))
+        add(
             "--out_fragments_table", default=None, metavar=' ', type=valid_table_reference,
             help=("Output table for fragments. This parameter allows to specify a different "
                   "table from the one you use to read fragments from, which is useful on "

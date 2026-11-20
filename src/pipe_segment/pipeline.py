@@ -11,14 +11,19 @@ from apache_beam.options.pipeline_options import (
     StandardOptions,
 )
 from apache_beam.runners import PipelineState
+from pipe_segment.hooks import verify_messages_exist_hook, verify_prior_segments_hook
 from pipe_segment.schemas import message_schema, segment_schema
-from pipe_segment.transform.create_segment_map import CreateSegmentMap
-from pipe_segment.transform.create_segments import CreateSegments
 from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
 from pipe_segment.transform.fragment import Fragment
+from pipe_segment.transform.full_history_segments import (
+    SEGMAP,
+    SEGMENTS,
+    FullHistorySegments,
+)
+from pipe_segment.transform.incremental_segments import IncrementalSegments
 from pipe_segment.transform.invalid_values import filter_invalid_values
-from pipe_segment.transform.read_fragments import ReadFragments
 from pipe_segment.transform.read_messages import ReadMessages
+from pipe_segment.transform.read_prior_segments import ReadPriorSegments
 from pipe_segment.transform.satellite_offsets import (
     SatelliteOffsets,
     SatelliteOffsetsWrite,
@@ -46,10 +51,6 @@ DEFAULT_MERGE_PARAMS = "{}"
 DEFAULT_SEGMENT_PARAMS = "{\"max_hours\": 24}"
 
 
-def timestamp_to_date(ts: float) -> dt.date:
-    return datetime_from_timestamp(ts).date()
-
-
 def safe_date(ts):
     if ts is None:
         return None
@@ -71,13 +72,6 @@ def time_bin_ndx(dtime, time_bins):
 def time_bin_key(x, time_bins):
     dtime = datetime_from_timestamp(x["timestamp"])
     return x["ssvid"], x["frag_id"], str(dtime.date()), time_bin_ndx(dtime, time_bins)
-
-
-def strip_identity_and_destination(fragment):
-    x = fragment.copy()
-    x["identities"] = []
-    x["destinations"] = []
-    return x
 
 
 class SegmentPipeline:
@@ -141,12 +135,48 @@ class SegmentPipeline:
         )
 
     @property
+    def prior_segments_table(self) -> str:
+        """Table to read the segments of the day before the date range from."""
+        return self.options.in_segments_table or self.options.out_segments_table
+
+    @property
+    def prior_fragments_table(self) -> str:
+        """Table to read the fragments of the day before the date range from.
+
+        It follows the same rule as :attr:`prior_segments_table`, an output table by default,
+        so the segments are joined with the fragments of the same run.
+        """
+        return self.options.in_fragments_table or self.fragments_output_table.table_id
+
+    @property
     def date_partitioned_output_tables(self) -> list:
         return [
             self.messages_output_table,
             self.segments_output_table,
             self.fragments_output_table,
         ]
+
+    def segmenter(self, start_date, end_date):
+        """Returns the transform that builds the segment map and the segments."""
+        if self.options.incremental:
+            return IncrementalSegments(
+                prior_segments=ReadPriorSegments(
+                    self.prior_segments_table,
+                    self.prior_fragments_table,
+                    start_date - dt.timedelta(days=1),
+                    ssvid_filter_query=self.options.ssvid_filter_query,
+                    read_from_bigquery_kwargs={"bigquery_job_labels": self.bq_helper.labels},
+                ),
+                merge_params=self.merge_params,
+            )
+
+        return FullHistorySegments(
+            self.bq_helper,
+            self.options.fragments_table,
+            start_date,
+            end_date,
+            self.merge_params,
+        )
 
     def write_to_date_partitioned_table(self, table: DatePartitionedTable):
         return beam.io.WriteToBigQuery(
@@ -155,23 +185,99 @@ class SegmentPipeline:
             create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
         )
 
-    def prepare_output_tables(self, start_date, end_date):
+    def ensure_output_tables(self):
+        """Creates the output tables that do not exist yet. It does not delete any data."""
         for table in self.date_partitioned_output_tables:
             self.bq_helper.ensure_table_exists(table)
+
+        if self.options.out_sat_offsets_table:
+            SatelliteOffsetsWrite.ensure_output_table(self.options, self.cloud_options)
+
+    def clear_output_tables(self, start_date, end_date):
+        """Deletes the rows of the date range from the output tables.
+
+        Args:
+            start_date:
+                First day to delete, included.
+
+            end_date:
+                Last day to delete, included.
+        """
+        for table in self.date_partitioned_output_tables:
             self.bq_helper.run_query(
                 query=table.clear_query(start_date, end_date),
             )
 
         if self.options.out_sat_offsets_table:
-            SatelliteOffsetsWrite.prepare_output_tables(
-                self.options,
-                self.cloud_options
-            )
+            SatelliteOffsetsWrite.clear_output_table(self.options, self.cloud_options)
+
+    def prepare_output_tables(self, start_date, end_date):
+        """Gets the output tables ready for the date range, and runs the checks.
+
+        The tables must exist for the checks to read them (on the first run they do not),
+        and the date range is cleared last, so a failed check does not delete anything.
+
+        Args:
+            start_date:
+                First day to process, included.
+
+            end_date:
+                Last day to process, included.
+        """
+        logger.info("Ensuring the output tables exist")
+        self.ensure_output_tables()
+
+        logger.info("Running the checks")
+        for hook in self.precondition_hooks(start_date, end_date):
+            hook(self)
+
+        logger.info("Clearing the date range of the output tables")
+        self.clear_output_tables(start_date, end_date)
+
+    def precondition_hooks(self, start_date, end_date) -> list:
+        """Returns the checks to run before the output tables are cleared.
+
+        Only an incremental run depends on the data written by previous runs.
+
+        Args:
+            start_date:
+                First day to process, included.
+
+            end_date:
+                Last day to process, included.
+
+        Returns:
+            The hooks, in the order to run them. There are none if the run is not incremental.
+        """
+        if not self.options.incremental:
+            return []
+
+        labels = self.bq_helper.labels
+        return [
+            verify_messages_exist_hook(
+                self.source_tables, start_date, end_date, labels=labels
+            ),
+            verify_prior_segments_hook(
+                self.prior_segments_table,
+                self.prior_fragments_table,
+                start_date - dt.timedelta(days=1),
+                labels=labels,
+            ),
+        ]
 
     # TODO: consider breaking up
     def pipeline(self):
         start_date = safe_date(self.date_range[0])
         end_date = safe_date(self.date_range[1])
+
+        read_messages = ReadMessages(
+            bq_helper=self.bq_helper,
+            sources=self.source_tables,
+            start_date=start_date,
+            end_date=end_date,
+            ssvid_filter_query=self.options.ssvid_filter_query,
+        )
+        segmenter = self.segmenter(start_date, end_date)
 
         logger.info("Preparing output tables")
         self.prepare_output_tables(start_date, end_date)
@@ -182,13 +288,7 @@ class SegmentPipeline:
         logger.info("Adding ReadMessages transform...")
         messages = (
             pipeline
-            | ReadMessages(
-                bq_helper=self.bq_helper,
-                sources=self.source_tables,
-                start_date=start_date,
-                end_date=end_date,
-                ssvid_filter_query=self.options.ssvid_filter_query,
-            )
+            | read_messages
             | "FilterInvalidValues" >> beam.Map(filter_invalid_values)
         )
 
@@ -241,25 +341,9 @@ class SegmentPipeline:
         _ = new_fragments | "WriteFragments" >> self.write_to_date_partitioned_table(
             self.fragments_output_table)
 
-        logger.info("Adding ReadFragments transform...")
-        existing_fragments = pipeline | ReadFragments(
-            self.bq_helper,
-            self.options.fragments_table,
-            # TODO should be able to use single lookback, but would have to
-            # lookback at fragments not segments or something otherwise complicated
-            start_date=None,  # start_date - timedelta(days=1),
-            end_date=start_date - dt.timedelta(days=1),
-        )
-
-        all_fragments = (new_fragments, existing_fragments) | beam.Flatten()
-
-        segmap_src = (
-            all_fragments
-            | "StripIdentity" >> beam.Map(strip_identity_and_destination)
-            | "AddSsvidKey" >> beam.Map(lambda x: (x["ssvid"], x))
-            | "GroupBySsvid" >> beam.GroupByKey()
-            | CreateSegmentMap(self.merge_params)
-        )
+        logger.info("Adding Segmenter transform...")
+        segmented = new_fragments | "Segmenter" >> segmenter
+        segmap_src = segmented[SEGMAP]
 
         logger.info("Adding TagWithFragIdAndTimeBin transform...")
         bins_per_day = self.options.bins_per_day
@@ -285,29 +369,9 @@ class SegmentPipeline:
             | "WriteMessages" >> self.write_to_date_partitioned_table(self.messages_output_table)
         )
 
-        logger.info("Adding AddFragidKey transform...")
-        frag_segmap = segmap_src | "AddFragidKey" >> beam.Map(
-            lambda x: (x["frag_id"], x)
-        )
-
-        logger.info("Adding AddKeyToFragments transform...")
-        tagged_fragments = all_fragments | "AddKeyToFragments" >> beam.Map(
-            lambda x: (x["frag_id"], x)
-        )
-
         logger.info("Adding WriteSegments transform...")
-        _ = (
-            {"segmap": frag_segmap, "target": tagged_fragments}
-            | "GroupSegsWithMap" >> beam.CoGroupByKey()
-            | "TagSegsWithsSegId" >> TagWithSegId()
-            | "AddSegidKey" >> beam.Map(lambda x: (x["seg_id"], x))
-            | "GroupBySegId" >> beam.GroupByKey()
-            | "AddCumulativeData" >> CreateSegments()
-            | "FilterSegsToDateRange"
-            >> beam.Filter(
-                lambda x: start_date <= timestamp_to_date(x["timestamp"]) <= end_date
-            )
-            | "WriteSegments" >> self.write_to_date_partitioned_table(self.segments_output_table)
+        _ = segmented[SEGMENTS] | "WriteSegments" >> self.write_to_date_partitioned_table(
+            self.segments_output_table
         )
 
         return pipeline

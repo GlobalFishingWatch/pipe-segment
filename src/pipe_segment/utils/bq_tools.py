@@ -105,8 +105,21 @@ class DatePartitionedTable:
 
 class BigQueryHelper:
     def __init__(self, bq_client, labels):
+        """Initializes the helper.
+
+        Args:
+            bq_client:
+                BigQuery client.
+
+            labels:
+                Labels to set on the tables and queries, as a dict or as a list of
+                "key=value" entries.
+        """
         self.client = bq_client
-        self.labels = dict([entry.split("=") for entry in labels])
+        if isinstance(labels, dict):
+            self.labels = dict(labels)
+        else:
+            self.labels = dict([entry.split("=") for entry in labels])
 
     def ensure_table_exists(self, table):
         """
@@ -134,6 +147,19 @@ class BigQueryHelper:
             ),
         )
         logger.info(f"Query job {rows.job_id} done. Total rows {rows.total_rows}.")
+
+    def fetch_scalar(self, query: str):
+        """
+        Runs a query that returns a single row with a single column and returns its value,
+        tagging the query process with the labels
+        """
+        rows = self.client.query_and_wait(
+            query,
+            job_config=bigquery.QueryJobConfig(
+                labels=self.labels,
+            ),
+        )
+        return next(iter(rows))[0]
 
     def run_query_into_table(self, *, query: str, table):
         """

@@ -18,13 +18,26 @@ def convert_idents(d: dict):
 
 
 class CreateSegments(beam.PTransform):
-    def update_msgs(self, items):
+    def update_msgs(self, items, prior=None):
+        """Adds the cumulative values to the fragments of a segment.
+
+        Args:
+            items: tuple of the segment id and its fragments.
+            prior: state of the segment at the end of the day before the first fragment,
+                or None when the fragments are the whole segment.
+        """
         _, frags = items
         frags = sorted(frags, key=lambda x: x["first_msg_timestamp"])
         first_timestamp = frags[0]["first_msg_timestamp"]
         cumulative_msgs = 0
         cumulative_idents = {}
         cumulative_dests = {}
+
+        if prior is not None:
+            first_timestamp = prior.first_timestamp
+            cumulative_msgs = prior.cumulative_msg_count
+            cumulative_idents = dict(prior.cumulative_identities)
+            cumulative_dests = dict(prior.cumulative_destinations)
 
         for _, daily_frags in by_day(frags):
             daily_msgs = 0
