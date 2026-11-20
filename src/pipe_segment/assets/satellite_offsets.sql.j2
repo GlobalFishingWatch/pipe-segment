@@ -3,8 +3,8 @@ WITH
 raw_position_messages AS (
     SELECT *,
         TIMESTAMP_TRUNC(timestamp, HOUR) hour,
-    FROM `{{source}}*`
-    WHERE _TABLE_SUFFIX BETWEEN "{{start_window.strftime('%Y%m%d')}}" AND "{{end_window.strftime('%Y%m%d')}}"
+    FROM `{{source}}`
+    WHERE DATE(timestamp) BETWEEN "{{start_window.strftime('%Y-%m-%d')}}" AND "{{end_window.strftime('%Y-%m-%d')}}"
         AND lat IS NOT NULL AND lon IS NOT NULL
         AND ABS(lat) <= 90 AND ABS(lon) <= 180
         AND course IS NOT NULL
