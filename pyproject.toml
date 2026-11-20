@@ -41,7 +41,6 @@ dependencies = [
     "newlinejson~=1.0",
     "pandas~=2.0",
     "python-stdnum~=1.20",
-    "rich~=14.0",
     "shipdataprocess~=0.8",
     "ujson~=5.10",
 ]

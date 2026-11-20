@@ -5,6 +5,7 @@ from importlib import resources
 import apache_beam as beam
 from apache_beam import PTransform, io
 from google.cloud import bigquery
+from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
 from pipe_segment.utils.bq_tools import BigQueryHelper, DatePartitionedTable
 from pipe_segment.version import __version__
 
@@ -130,12 +131,18 @@ class SatelliteOffsets(PTransform):
 
 
 class SatelliteOffsetsWrite(PTransform):
+    """Writes the satellite offsets to BigQuery.
 
-    def __init__(self, options):
-        self.source_table = options.in_normalized_sat_offset_messages_table
-        self.source_norad = options.in_norad_to_receiver_table
-        self.source_sat_positions = options.in_sat_positions_table
-        self.dest_table = options.out_sat_offsets_table
+    Args:
+        config:
+            Configuration of the segment pipeline.
+    """
+
+    def __init__(self, config: MessagesSegmentedConfig):
+        self.source_table = config.bq_in_sat_offset_messages
+        self.source_norad = config.bq_in_norad_to_receiver
+        self.source_sat_positions = config.bq_in_sat_positions
+        self.dest_table = config.bq_out_sat_offsets
         self.schema = make_schema()
 
     def expand(self, xs):
@@ -146,57 +153,64 @@ class SatelliteOffsetsWrite(PTransform):
         )
 
     @classmethod
-    def output_table(cls, options):
+    def output_table(cls, config: MessagesSegmentedConfig) -> DatePartitionedTable:
         """Returns the definition of the output table.
 
         Args:
-            options:
-                Options of the segment pipeline.
+            config:
+                Configuration of the segment pipeline.
 
         Returns:
             The table.
         """
-        start_date, end_date = options.date_range.split(",")
-
-        formatting = dict(**vars(options), ver=__version__, end_date=end_date)
         return DatePartitionedTable(
-            table_id=options.out_sat_offsets_table,
-            description=DESCRIPTION_TABLE.format(**formatting),
+            table_id=config.bq_out_sat_offsets,
+            description=DESCRIPTION_TABLE.format(
+                ver=__version__,
+                in_normalized_sat_offset_messages_table=config.bq_in_sat_offset_messages,
+                in_norad_to_receiver_table=config.bq_in_norad_to_receiver,
+                in_sat_positions_table=config.bq_in_sat_positions,
+                end_date=config.end_date - timedelta(days=1),
+            ),
             schema=make_schema(),
             partitioning_field="hour",
         )
 
     @classmethod
-    def bq_helper(cls, cloud_options):
+    def bq_helper(cls, config: MessagesSegmentedConfig) -> BigQueryHelper:
+        """Returns the helper that runs the queries of the output table.
+
+        Args:
+            config:
+                Configuration of the segment pipeline.
+
+        Returns:
+            The helper.
+        """
         return BigQueryHelper(
-            bq_client=bigquery.Client(project=cloud_options.project),
-            labels=cloud_options.labels,
+            bq_client=bigquery.Client(project=config.project),
+            labels=config.labels,
         )
 
     @classmethod
-    def ensure_output_table(cls, options, cloud_options):
+    def ensure_output_table(cls, config: MessagesSegmentedConfig) -> None:
         """Creates the output table if it does not exist. It does not delete any data.
 
         Args:
-            options:
-                Options of the segment pipeline.
-
-            cloud_options:
-                Google Cloud options of the pipeline, with the project and the labels.
+            config:
+                Configuration of the segment pipeline.
         """
-        cls.bq_helper(cloud_options).ensure_table_exists(cls.output_table(options))
+        cls.bq_helper(config).ensure_table_exists(cls.output_table(config))
 
     @classmethod
-    def clear_output_table(cls, options, cloud_options):
+    def clear_output_table(cls, config: MessagesSegmentedConfig) -> None:
         """Deletes the rows of the date range from the output table.
 
         Args:
-            options:
-                Options of the segment pipeline, with the date range.
-
-            cloud_options:
-                Google Cloud options of the pipeline, with the project and the labels.
+            config:
+                Configuration of the segment pipeline, with the date range.
         """
-        start_date, end_date = options.date_range.split(",")
-        table = cls.output_table(options)
-        cls.bq_helper(cloud_options).run_query(query=table.clear_query(start_date, end_date))
+        table = cls.output_table(config)
+        # The end date is exclusive, but the query that clears the table includes its last day.
+        last_day = config.end_date - timedelta(days=1)
+        cls.bq_helper(config).run_query(query=table.clear_query(config.start_date, last_day))
