@@ -8,7 +8,6 @@ from pipe_segment.cli.commands import (
     Segment,
     SegmentIdentity,
     SegmentVesselDaily,
-    SegmentInfo,
     SegmentVessel,
 )
 
@@ -82,7 +81,7 @@ class PIPE(CLI):
     ]
 
     COMMANDS = [
-        Segment, SegmentIdentity, SegmentVesselDaily, SegmentInfo, SegmentVessel
+        Segment, SegmentIdentity, SegmentVesselDaily, SegmentVessel
     ]
 
     @staticmethod
