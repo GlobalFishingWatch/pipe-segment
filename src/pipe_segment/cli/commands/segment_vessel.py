@@ -1,47 +1,50 @@
-import logging
+"""CLI command that creates the segment-vessel table."""
 
-from pipe_segment.segment_vessel import segment_vessel
-from pipe_segment.cli.commands.base import Command
-from pipe_segment.cli.commands.validator import (
-    valid_table_reference
-)
+from types import SimpleNamespace
+from typing import Any
 
-logger = logging.getLogger(__name__)
+from gfw.common.cli import Command, Option
+
+from pipe_segment.pipelines.segment_vessel import main
+from pipe_segment.pipelines.segment_vessel.config import SegmentVesselConfig
+
+
+DESCRIPTION = """\
+Creates the segment-vessel table: a many-to-many mapping between seg_id, vessel_id and
+ssvid, from the daily vessel_ids of the segments, over their whole history.
+
+The table is rebuilt from scratch every time.
+
+You can provide a configuration file or command-line arguments.
+The latter take precedence, so if you provide both, command-line arguments
+will overwrite options in the config file provided.
+"""
+
+HELP_VESSEL = "BigQuery table to read the daily vessel_ids of the segments from."
+HELP_OUTPUT = "BigQuery table in which to store the segment-vessel mapping (truncated every run)."
 
 
 class SegmentVessel(Command):
-    NAME = "segment_vessel"
-    HELP = "segment vessel pipeline."
-    EPILOG = "Example: pipe segment_vessel --help"
-    DEFAULT_PROJECT = "world-fishing-827"
+    """Creates the segment-vessel table."""
 
-    @classmethod
-    def add_to_subparsers(cls, subparsers):
-        p = subparsers.add_parser(
-            cls.NAME, help=cls.HELP, epilog=cls.EPILOG, formatter_class=cls.formatter())
+    @property
+    def name(self) -> str:
+        """The command's name."""
+        return "segment-vessel"
 
-        p.set_defaults(func=cls.run)
+    @property
+    def description(self) -> str:
+        """The command's description."""
+        return DESCRIPTION
 
-        required = p.add_argument_group("Required")
-        add = required.add_argument
-        add(
-            "--source_segment_vessel_daily", required=True, metavar='\b',
-            type=valid_table_reference,
-            help="Table, query or file to read segment vessel daily from.")
-        add(
-            "--destination", required=True, metavar='\b',
-            type=valid_table_reference,
-            help="Table to write segment vessel records.")
-        add(
-            "--labels", metavar='\b', action="append",
-            help="The labels that are using to identify the jobs and audit them.")
+    @property
+    def options(self) -> list[Option]:
+        """The command's options."""
+        return [
+            Option("--bq-in-segment-vessel-daily", type=str, required=True, help=HELP_VESSEL),
+            Option("--bq-out-segment-vessel", type=str, required=True, help=HELP_OUTPUT),
+        ]
 
-        optional = p.add_argument_group("Optional")
-        add = optional.add_argument
-        add(
-            "--project", metavar='\b', default=cls.DEFAULT_PROJECT,
-            help="The Google Cloud Project that will be billed to.")
-
-    @classmethod
-    def run(cls, args, extra_args):
-        segment_vessel.run(args, extra_args)
+    def run(self, config: SimpleNamespace, **kwargs: Any) -> Any:
+        """Runs the pipeline with the resolved configuration."""
+        return main.run(SegmentVesselConfig.from_namespace(config), **kwargs)
