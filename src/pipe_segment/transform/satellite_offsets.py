@@ -90,12 +90,13 @@ class SatelliteOffsets(PTransform):
     """
 
     def __init__(self, source_table, norad_to_receiver_tbl, sat_positions_tbl,
-                 start_date, end_date):
+                 start_date, end_date, labels):
         self.source_table = source_table
         self.norad_to_receiver_tbl = norad_to_receiver_tbl
         self.sat_positions_tbl = sat_positions_tbl
         self.start_date = start_date
         self.end_date = end_date
+        self.labels = labels
 
     def expand(self, xs):
         return [
@@ -115,7 +116,9 @@ class SatelliteOffsets(PTransform):
                 start_window=start_window,
                 end_window=end_window
             )
-            yield io.ReadFromBigQuery(query=query, use_standard_sql=True)
+            yield io.ReadFromBigQuery(
+                query=query, use_standard_sql=True, bigquery_job_labels=self.labels
+            )
 
     def _get_query_windows(self):
         start_date, end_date = self.start_date, self.end_date

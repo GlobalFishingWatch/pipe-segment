@@ -12,7 +12,7 @@ namespaces = false
 
 [project]
 name = "pipe-segment"
-version = "5.0.3"
+version = "5.1.0"
 description = "Divides vessel tracks into contiguous 'segments' separating out signals that come from two or more vessels which are broadcasting using the same MMSI at the same time."
 readme = "README.md"
 license = "Apache-2.0"

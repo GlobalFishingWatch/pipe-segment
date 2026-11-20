@@ -314,7 +314,8 @@ class SegmentIdentityPipeline:
             self.options.source_segments,
             self.options.source_fragments,
             from_ts,
-            to_ts)
+            to_ts,
+            self.bq_helper.labels)
 
     @property
     def summarize_identifiers(self):
