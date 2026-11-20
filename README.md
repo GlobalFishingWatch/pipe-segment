@@ -38,7 +38,7 @@ It also summarizes the identity that each segment broadcasts, and assigns vessel
 - [How it works](#how-it-works)
   * [Full history and incremental runs](#full-history-and-incremental-runs)
   * [How the vessel id is assigned](#how-the-vessel-id-is-assigned)
-- [Known issues](#known-issues)
+- [Limitations](#limitations)
 - [Development](#development)
 - [Usage](#usage)
   * [Using the CLI](#using-the-cli)
@@ -155,7 +155,8 @@ The table names are the production ones.
   4. The fragments are matched with the segments that were open the days before.
      A fragment either continues a segment, or starts a new one.
      The segments are written to `segments`, one row per segment and day, with the cumulative
-     counts and identities of the segment up to that day.
+     counts and identities of the segment up to that day. While a segment stays open, the
+     next days add to it, so what a row says about the segment is not final.
   5. Every message is tagged with the id of its segment and written to `messages_segmented`.
 
   The rows of the processed dates are deleted from the output tables before writing them.
@@ -233,23 +234,15 @@ It isn't the identity of a vessel across ssvids, which is assigned by later pipe
 
 </div>
 
-## Known issues
+## Limitations
 
 <div align="justify">
-
-The current behavior has some limitations that are known:
 
 - **Late data is not picked up.** The segments and the fragments of a day change only when that
   day is processed again. Messages that arrive late for a day that was already processed are
   not part of its segments, unless that day, and the next ones, are run again.
   This holds in both modes: the full history mode matches the fragments that are stored,
   it does not read the messages of previous days.
-- **The whole-history commands rebuild everything.** `segment-vessel`, `segment-info` and
-  `vessel-info` read all the daily tables and replace their output on every run,
-  and `messages-segmented` without `--incremental` matches the whole history every time.
-- **The segments of the day are not final.** A segment that continues the next day keeps
-  growing, so the summaries and the flags derived from them (like the `good_seg2` of the
-  `segs_activity` that [pipe-research] builds) can change until the segment closes.
 
 </div>
 
