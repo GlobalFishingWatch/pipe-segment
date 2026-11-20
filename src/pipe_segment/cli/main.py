@@ -12,7 +12,12 @@ from gfw.common.cli.formatting import default_formatter
 from gfw.common.logging import LoggerConfig
 
 from pipe_segment.cli import legacy
-from pipe_segment.cli.commands import SegmentInfo, SegmentVessel, VesselInfo
+from pipe_segment.cli.commands import (
+    SegmentInfo,
+    SegmentVessel,
+    SegmentVesselDaily,
+    VesselInfo,
+)
 from pipe_segment.cli.options import project_option
 from pipe_segment.version import __version__
 
@@ -43,9 +48,16 @@ EXAMPLES = (
     "--project my-project "
     "--labels environment=development resource_creator=tomas-link",
     "pipe-segment segment-vessel -c config/segment-vessel/example.yaml",
+    "pipe-segment segment-vessel-daily "
+    "--bq-in-segment-identity-daily project.dataset.segment_identity_daily "
+    "--bq-out-segment-vessel-daily project.dataset.segment_vessel_daily "
+    "--start-date 2025-01-01 --end-date 2025-01-02 "
+    "--project my-project "
+    "--labels environment=development resource_creator=tomas-link",
+    "pipe-segment segment-vessel-daily -c config/segment-vessel-daily/example.yaml",
 )
 
-COMMANDS = [VesselInfo, SegmentInfo, SegmentVessel]
+COMMANDS = [VesselInfo, SegmentInfo, SegmentVessel, SegmentVesselDaily]
 
 
 def run(args: list[str]) -> Any:

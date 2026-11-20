@@ -1,6 +1,6 @@
 from google.cloud import bigquery
 from pipe_segment import tools
-from pipe_segment.cli.commands import validator
+from pipe_segment.pipelines.segment_vessel_daily.config import SegmentVesselDailyConfig
 from pipe_segment.utils.bq_tools import BigQueryHelper, DatePartitionedTable, Schemas
 from pipe_segment.utils.template_tools import format_query
 from pipe_segment.version import __version__
@@ -14,62 +14,53 @@ QUERY = "segment_vessel_daily.sql.j2"
 PARTITION_FIELD = "day"
 
 
-def description(options: str) -> str:
+def description(config: SegmentVesselDailyConfig) -> str:
     return f"""
 * Pipeline: segment_vessel_daily
 * Version: pipe-segment:{__version__}
-* Arguments {options}
+* Arguments {config}
 """
 
 
 class SegmentVesselDailyPipeline:
     """ Segment vessel daily process"""
-    def __init__(self, options, extra_options):
-        self.options = options
+    def __init__(self, config: SegmentVesselDailyConfig):
+        self.config = config
         self.bq_helper = BigQueryHelper(
-            bq_client=bigquery.Client(project=options.project),
-            labels=options.labels,
+            bq_client=bigquery.Client(project=config.project),
+            labels=config.labels,
         )
         self.prepare_output_tables()
 
-    @classmethod
-    def build(cls, options, extra_args):
-        return cls(options, extra_args)
-
     def prepare_output_tables(self):
-        start_date, end_date = self.options.date_range.split(",")
+        # The end date is exclusive, but the query that clears the table includes its last day.
+        last_day = self.config.end_date - timedelta(days=1)
         table = self.get_output_table()
 
         self.bq_helper.ensure_table_exists(table)
-        self.bq_helper.run_query(query=table.clear_query(start_date, end_date))
+        self.bq_helper.run_query(query=table.clear_query(self.config.start_date, last_day))
 
     def get_output_table(self):
         return DatePartitionedTable(
-            table_id=self.options.destination,
-            description=description(self.options),
+            table_id=self.config.bq_out_segment_vessel_daily,
+            description=description(self.config),
             schema=Schemas.load_json_schema(SCHEMA_PATH),
             partitioning_field=PARTITION_FIELD,
         )
 
     def run(self):
         # run the query and store the values in the partitioned field.
-        start, end = map(lambda x: validator.valid_date(x), self.options.date_range.split(","))
-
         logger.info("Formatting the query with the parameters.")
         table = self.get_output_table()
-        for single_day in list(tools.list_of_days(start, end + timedelta(days=1))):
+        for single_day in list(tools.list_of_days(self.config.start_date, self.config.end_date)):
             query = format_query(
                 QUERY,
                 date=single_day,
-                window_days=self.options.window_days,
-                single_ident_min_freq=self.options.single_ident_min_freq,
-                most_common_min_freq=self.options.most_common_min_freq,
-                spoofing_threshold=self.options.spoofing_threshold,
-                segment_identity=self.options.source_segment_identity,
+                window_days=self.config.window_days,
+                single_ident_min_freq=self.config.single_ident_min_freq,
+                most_common_min_freq=self.config.most_common_min_freq,
+                spoofing_threshold=self.config.spoofing_threshold,
+                segment_identity=self.config.bq_in_segment_identity_daily,
             )
             logger.info(f"Running the Segment Vessel Daily query for {single_day}.")
             self.bq_helper.run_query_into_table(query=query, table=table)
-
-
-def run(*args, **kwargs):
-    return SegmentVesselDailyPipeline.build(*args, **kwargs).run()

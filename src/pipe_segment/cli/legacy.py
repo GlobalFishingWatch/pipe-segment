@@ -7,7 +7,6 @@ from rich.logging import RichHandler
 from pipe_segment.cli.commands import (
     Segment,
     SegmentIdentity,
-    SegmentVesselDaily,
 )
 
 logger = logging.getLogger(__name__)
@@ -80,7 +79,7 @@ class PIPE(CLI):
     ]
 
     COMMANDS = [
-        Segment, SegmentIdentity, SegmentVesselDaily
+        Segment, SegmentIdentity
     ]
 
     @staticmethod
