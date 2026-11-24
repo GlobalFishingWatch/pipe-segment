@@ -121,12 +121,10 @@ def run(args: list[str]) -> Any:
 def main() -> None:
     """Runs the CLI with the arguments of the command line.
 
-    Exits with the command's result if it is an exit code, so that a failed job fails the
-    process (and the Airflow task that runs it).
+    A job that does not finish in DONE raises, so that the process (and the Airflow task that
+    runs it) fails.
     """
-    result = run(sys.argv[1:])
-    if isinstance(result, int):
-        sys.exit(result)
+    run(sys.argv[1:])
 
 
 if __name__ == "__main__":

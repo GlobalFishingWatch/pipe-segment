@@ -4,22 +4,7 @@ from importlib import resources
 
 import apache_beam as beam
 from apache_beam import PTransform, io
-from google.cloud import bigquery
 from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
-from pipe_segment.utils.bq_tools import BigQueryHelper, DatePartitionedTable
-from pipe_segment.version import __version__
-
-
-DESCRIPTION_TABLE = """
-Created by the pipe-segment: {ver}
-* It identifies, at the hourly level,
-* how much time a given satellite's clock differs
-* from the median of all the other satellite's clocks.
-* https://github.com/GlobalFishingWatch/pipe-segment
-* Source Satellite: {in_normalized_sat_offset_messages_table}
-* Source Norad: {in_norad_to_receiver_table}
-* Source Satellite Positions: {in_sat_positions_table}
-* Date: {end_date}"""
 
 
 def make_schema():
@@ -151,66 +136,3 @@ class SatelliteOffsetsWrite(PTransform):
             schema={"fields": self.schema},
             create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
         )
-
-    @classmethod
-    def output_table(cls, config: MessagesSegmentedConfig) -> DatePartitionedTable:
-        """Returns the definition of the output table.
-
-        Args:
-            config:
-                Configuration of the segment pipeline.
-
-        Returns:
-            The table.
-        """
-        return DatePartitionedTable(
-            table_id=config.bq_out_sat_offsets,
-            description=DESCRIPTION_TABLE.format(
-                ver=__version__,
-                in_normalized_sat_offset_messages_table=config.bq_in_sat_offset_messages,
-                in_norad_to_receiver_table=config.bq_in_norad_to_receiver,
-                in_sat_positions_table=config.bq_in_sat_positions,
-                end_date=config.end_date - timedelta(days=1),
-            ),
-            schema=make_schema(),
-            partitioning_field="hour",
-        )
-
-    @classmethod
-    def bq_helper(cls, config: MessagesSegmentedConfig) -> BigQueryHelper:
-        """Returns the helper that runs the queries of the output table.
-
-        Args:
-            config:
-                Configuration of the segment pipeline.
-
-        Returns:
-            The helper.
-        """
-        return BigQueryHelper(
-            bq_client=bigquery.Client(project=config.project),
-            labels=config.labels,
-        )
-
-    @classmethod
-    def ensure_output_table(cls, config: MessagesSegmentedConfig) -> None:
-        """Creates the output table if it does not exist. It does not delete any data.
-
-        Args:
-            config:
-                Configuration of the segment pipeline.
-        """
-        cls.bq_helper(config).ensure_table_exists(cls.output_table(config))
-
-    @classmethod
-    def clear_output_table(cls, config: MessagesSegmentedConfig) -> None:
-        """Deletes the rows of the date range from the output table.
-
-        Args:
-            config:
-                Configuration of the segment pipeline, with the date range.
-        """
-        table = cls.output_table(config)
-        # The end date is exclusive, but the query that clears the table includes its last day.
-        last_day = config.end_date - timedelta(days=1)
-        cls.bq_helper(config).run_query(query=table.clear_query(config.start_date, last_day))

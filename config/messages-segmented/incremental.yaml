@@ -4,7 +4,7 @@
 # bq_in_segments and bq_in_fragments.
 
 # Query parameters:
-bq_in_normalized_messages: "world-fishing-827.pipe_ais_sources_v20220628.pipe_nmea_normalized_"
+bq_in_normalized_messages: "gfw-int-ais-datalake.vessel_transmissions_normalized_v1.messages"
 bq_out_segmented_messages: "world-fishing-827.scratch_tomas_ttl30d.internal__messages_segmented"
 bq_out_segments: "world-fishing-827.scratch_tomas_ttl30d.internal__segments"
 bq_out_fragments: "world-fishing-827.scratch_tomas_ttl30d.internal__fragments"
