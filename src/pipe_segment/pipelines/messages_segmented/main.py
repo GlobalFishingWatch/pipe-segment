@@ -1,9 +1,12 @@
 """Entry point of the messages-segmented pipeline."""
 
 import datetime as dt
+
 from typing import Any, Callable
 
 import apache_beam as beam
+
+from google.cloud import bigquery
 
 from gfw.common.beam.pipeline.base import Pipeline
 from gfw.common.beam.pipeline.hooks import (
@@ -14,8 +17,6 @@ from gfw.common.beam.pipeline.hooks import (
 from gfw.common.beam.transforms import ReadFromBigQuery, WriteToBigQueryWrapper
 from gfw.common.bigquery.helper import BigQueryHelper
 from gfw.common.bigquery.table_config import TableConfig
-from google.cloud import bigquery
-
 from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
 from pipe_segment.pipelines.messages_segmented.dag import MessagesSegmentedDag
 from pipe_segment.pipelines.messages_segmented.hooks import (

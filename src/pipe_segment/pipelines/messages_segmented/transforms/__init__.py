@@ -25,6 +25,9 @@ from pipe_segment.pipelines.messages_segmented.transforms.satellite_offsets impo
     SatelliteOffsets,
     SatelliteOffsetsWrite,
 )
+from pipe_segment.pipelines.messages_segmented.transforms.segment_state import (
+    SegmentState,
+)
 from pipe_segment.pipelines.messages_segmented.transforms.tag_with_fragid_and_timebin import (
     TagWithFragIdAndTimeBin,
 )
@@ -34,6 +37,7 @@ from pipe_segment.pipelines.messages_segmented.transforms.tag_with_seg_id import
 from pipe_segment.pipelines.messages_segmented.transforms.whitelist_messages_segmented import (
     WhitelistFields,
 )
+
 
 __all__ = [
     "SEGMAP",
@@ -46,6 +50,7 @@ __all__ = [
     "IncrementalSegments",
     "SatelliteOffsets",
     "SatelliteOffsetsWrite",
+    "SegmentState",
     "TagWithFragIdAndTimeBin",
     "TagWithSegId",
     "WhitelistFields",

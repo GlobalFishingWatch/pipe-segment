@@ -7,7 +7,9 @@ from typing import Any, Callable
 
 import apache_beam as beam
 import ujson
+
 from apache_beam.pvalue import PCollection
+
 from gfw.common.beam.pipeline.dag import Dag
 from gfw.common.beam.transforms import ReadFromBigQuery
 from gfw.common.query import Query
@@ -32,6 +34,7 @@ from pipe_segment.pipelines.messages_segmented.transforms import (
     filter_invalid_values,
 )
 from pipe_segment.tools import datetime_from_timestamp
+
 
 logger = logging.getLogger(__name__)
 

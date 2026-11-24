@@ -1,18 +1,15 @@
 import datetime as dt
+
 from typing import Dict
 
 import apache_beam as beam
 
-from pipe_segment.pipelines.messages_segmented.transforms.create_segment_map import (
-    CreateSegmentMap,
-)
-from pipe_segment.pipelines.messages_segmented.transforms.create_segments import (
-    CreateSegments,
-)
-from pipe_segment.pipelines.messages_segmented.transforms.tag_with_seg_id import (
-    TagWithSegId,
-)
 from pipe_segment.tools import datetime_from_timestamp
+
+from .create_segment_map import CreateSegmentMap
+from .create_segments import CreateSegments
+from .tag_with_seg_id import TagWithSegId
+
 
 SEGMAP = "segmap"
 SEGMENTS = "segments"

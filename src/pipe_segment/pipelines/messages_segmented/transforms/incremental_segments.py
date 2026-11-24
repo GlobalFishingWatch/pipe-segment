@@ -2,21 +2,13 @@ from collections import defaultdict
 from typing import Any, Dict, Generator, Tuple
 
 import apache_beam as beam
+
 from apache_beam.pvalue import TaggedOutput
 
-from pipe_segment.pipelines.messages_segmented.transforms.create_segment_map import (
-    CreateSegmentMap,
-)
-from pipe_segment.pipelines.messages_segmented.transforms.create_segments import (
-    CreateSegments,
-)
-from pipe_segment.pipelines.messages_segmented.transforms.full_history_segments import (
-    SEGMAP,
-    SEGMENTS,
-)
-from pipe_segment.pipelines.messages_segmented.transforms.segment_state import (
-    SegmentState,
-)
+from .create_segment_map import CreateSegmentMap
+from .create_segments import CreateSegments
+from .full_history_segments import SEGMAP, SEGMENTS
+from .segment_state import SegmentState
 
 
 class SegmentUpdater:
