@@ -24,6 +24,7 @@ will overwrite options in the config file provided.
 HELP_IDENTITY = "BigQuery table to read the daily identities of the segments from."
 HELP_VESSEL = "BigQuery table to read the daily vessel_ids of the segments from."
 HELP_OUTPUT = "BigQuery table in which to store the segment info (truncated on every run)."
+HELP_DRY_RUN = "If True, executes the query in dry run mode."
 HELP_MIN_FREQ = (
     "Minimal frequency (between 0 and 1) that defines a ssvid that has a single dominant "
     "identity."
@@ -51,6 +52,7 @@ class SegmentInfo(Command):
             Option("--bq-in-segment-vessel-daily", type=str, required=True, help=HELP_VESSEL),
             Option("--bq-out-segment-info", type=str, required=True, help=HELP_OUTPUT),
             Option("--most-common-min-freq", type=float, default=0.05, help=HELP_MIN_FREQ),
+            Option("--dry-run", type=bool, help=HELP_DRY_RUN),
         ]
 
     @property
