@@ -56,6 +56,13 @@ def test_cli_passes_the_most_common_min_freq(run: MagicMock) -> None:
     assert run.call_args.args[0].most_common_min_freq == 0.2
 
 
+def test_cli_passes_the_dry_run(run: MagicMock) -> None:
+    """Checks that the CLI passes the dry run option to the config."""
+    main.run([*BASE_ARGS, "--dry-run"])
+
+    assert run.call_args.args[0].dry_run is True
+
+
 @pytest.mark.parametrize(
     "option",
     [
