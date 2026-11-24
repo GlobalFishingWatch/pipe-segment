@@ -1,17 +1,18 @@
 import datetime as dt
-
 from typing import Dict
 
 import apache_beam as beam
 
-from pipe_segment.tools import datetime_from_timestamp
 from pipe_segment.pipelines.messages_segmented.transforms.create_segment_map import (
     CreateSegmentMap,
 )
-from pipe_segment.pipelines.messages_segmented.transforms.create_segments import CreateSegments
-from pipe_segment.pipelines.messages_segmented.transforms.read_fragments import ReadFragments
-from pipe_segment.pipelines.messages_segmented.transforms.tag_with_seg_id import TagWithSegId
-
+from pipe_segment.pipelines.messages_segmented.transforms.create_segments import (
+    CreateSegments,
+)
+from pipe_segment.pipelines.messages_segmented.transforms.tag_with_seg_id import (
+    TagWithSegId,
+)
+from pipe_segment.tools import datetime_from_timestamp
 
 SEGMAP = "segmap"
 SEGMENTS = "segments"
@@ -39,36 +40,26 @@ class FullHistorySegments(beam.PTransform):
     keeps only the segments-days of the date range.
 
     Args:
-        fragments_table: table to read the fragments written before the date range from.
+        existing_fragments: transform that reads the fragments written before the date range.
         start_date: first day to write segments for.
         end_date: last day to write segments for.
         merge_params: parameters of the matcher.
-        labels: labels of the query jobs that read the fragments.
     """
 
     def __init__(
         self,
-        fragments_table: str,
+        existing_fragments: beam.PTransform,
         start_date: dt.date,
         end_date: dt.date,
         merge_params: Dict,
-        labels: Dict,
     ):
-        self.labels = labels
-        self.fragments_table = fragments_table
+        self.existing_fragments = existing_fragments
         self.start_date = start_date
         self.end_date = end_date
         self.merge_params = merge_params
 
     def expand(self, new_fragments):
-        existing_fragments = new_fragments.pipeline | ReadFragments(
-            self.fragments_table,
-            # TODO should be able to use single lookback, but would have to
-            # lookback at fragments not segments or something otherwise complicated
-            start_date=None,  # start_date - timedelta(days=1),
-            end_date=self.start_date - dt.timedelta(days=1),
-            labels=self.labels,
-        )
+        existing_fragments = new_fragments.pipeline | self.existing_fragments
 
         all_fragments = (new_fragments, existing_fragments) | beam.Flatten()
 

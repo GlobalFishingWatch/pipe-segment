@@ -10,8 +10,13 @@ import ujson
 from apache_beam.pvalue import PCollection
 from gfw.common.beam.pipeline.dag import Dag
 from gfw.common.beam.transforms import ReadFromBigQuery
+from gfw.common.query import Query
 from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
-from pipe_segment.pipelines.messages_segmented.queries import MessagesQuery
+from pipe_segment.pipelines.messages_segmented.queries import (
+    FragmentsQuery,
+    MessagesQuery,
+    PriorSegmentsQuery,
+)
 from pipe_segment.pipelines.messages_segmented.transforms.filter_bad_satellite_times import (
     FilterBadSatelliteTimes,
 )
@@ -26,9 +31,6 @@ from pipe_segment.pipelines.messages_segmented.transforms.incremental_segments i
 )
 from pipe_segment.pipelines.messages_segmented.transforms.invalid_values import (
     filter_invalid_values,
-)
-from pipe_segment.pipelines.messages_segmented.transforms.read_prior_segments import (
-    ReadPriorSegments,
 )
 from pipe_segment.pipelines.messages_segmented.transforms.satellite_offsets import (
     SatelliteOffsets,
@@ -119,26 +121,41 @@ class MessagesSegmentedDag(Dag):
         """Parameters of the fragmenter."""
         return ujson.loads(DEFAULT_SEGMENT_PARAMS)
 
+    def read(self, query: Query, label: str) -> beam.PTransform:
+        """Returns the transform that reads a query from BigQuery, labeling its job."""
+        return ReadFromBigQuery.from_query(
+            query,
+            label=label,
+            read_from_bigquery_factory=self.read_from_bigquery_factory,
+            read_from_bigquery_kwargs={"bigquery_job_labels": self.config.labels},
+        )
+
     def segmenter(self, start_date: dt.date, last_day: dt.date) -> beam.PTransform:
         """Returns the transform that builds the segment map and the segments."""
         if self.config.incremental:
+            prior_segments = PriorSegmentsQuery(
+                segments_table=self.config.in_segments_table,
+                fragments_table=self.config.in_fragments_table,
+                day=start_date - dt.timedelta(days=1),
+                ssvid_filter_query=self.config.ssvid_filter_query,
+            )
             return IncrementalSegments(
-                prior_segments=ReadPriorSegments(
-                    self.config.in_segments_table,
-                    self.config.in_fragments_table,
-                    start_date - dt.timedelta(days=1),
-                    ssvid_filter_query=self.config.ssvid_filter_query,
-                    read_from_bigquery_kwargs={"bigquery_job_labels": self.config.labels},
-                ),
+                prior_segments=self.read(prior_segments, "ReadPriorSegments"),
                 merge_params=self.merge_params,
             )
 
+        # TODO should be able to use single lookback, but would have to
+        # lookback at fragments not segments or something otherwise complicated.
+        # Without a start date, the query reads all the fragments.
+        existing_fragments = FragmentsQuery(
+            source=self.config.in_fragments_table,
+            end_date=start_date - dt.timedelta(days=1),
+        )
         return FullHistorySegments(
-            self.config.in_fragments_table,
+            self.read(existing_fragments, "ReadFragments"),
             start_date,
             last_day,
             self.merge_params,
-            self.config.labels,
         )
 
     def apply(self, pipeline: beam.Pipeline) -> PCollection:
@@ -152,16 +169,14 @@ class MessagesSegmentedDag(Dag):
         # The end date of the config is exclusive, but the transforms work with the last day.
         last_day = config.end_date - dt.timedelta(days=1)
 
-        read_messages = ReadFromBigQuery.from_query(
+        read_messages = self.read(
             MessagesQuery(
                 source=config.bq_in_normalized_messages,
                 start_date=start_date,
                 end_date=last_day,
                 ssvid_filter_query=config.ssvid_filter_query,
             ),
-            label="ReadMessages",
-            read_from_bigquery_factory=self.read_from_bigquery_factory,
-            read_from_bigquery_kwargs={"bigquery_job_labels": config.labels},
+            "ReadMessages",
         )
         segmenter = self.segmenter(start_date, last_day)
 

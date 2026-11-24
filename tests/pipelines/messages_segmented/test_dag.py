@@ -103,6 +103,27 @@ def test_the_messages_are_read_from_the_day_before_the_end_date_with_the_labels(
     assert read["bigquery_job_labels"] == {"environment": "test"}
 
 
+def test_a_full_history_run_reads_all_the_fragments_and_no_prior_segments() -> None:
+    """Checks that the fragments are read by their table, with the labels, and no state is."""
+    _, reads = apply_graph(make_config(incremental=False))
+
+    queries = [" ".join(read["query"].split()) for read in reads]
+    (fragments,) = [query for query in queries if "project.dataset.fragments`" in query]
+    assert "WHERE" not in fragments
+    assert not any("AS s JOIN" in query for query in queries)
+    assert all(read["bigquery_job_labels"] == {"environment": "test"} for read in reads)
+
+
+def test_an_incremental_run_reads_the_prior_segments_of_the_day_before_the_range() -> None:
+    """Checks that the state is read from the day before the start date."""
+    _, reads = apply_graph(make_config(incremental=True))
+
+    queries = [" ".join(read["query"].split()) for read in reads]
+    (prior,) = [query for query in queries if "AS s JOIN" in query]
+    assert "DATE(s.timestamp) = '2023-12-31'" in prior
+    assert all(read["bigquery_job_labels"] == {"environment": "test"} for read in reads)
+
+
 @pytest.mark.parametrize("incremental", [False, True])
 def test_the_graph_writes_the_messages_the_fragments_and_the_segments(incremental: bool) -> None:
     """Checks that the graph has the steps of the segmentation, in both modes."""

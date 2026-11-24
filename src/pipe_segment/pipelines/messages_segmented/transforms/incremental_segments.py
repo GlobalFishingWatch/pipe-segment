@@ -2,21 +2,21 @@ from collections import defaultdict
 from typing import Any, Dict, Generator, Tuple
 
 import apache_beam as beam
-
 from apache_beam.pvalue import TaggedOutput
 
 from pipe_segment.pipelines.messages_segmented.transforms.create_segment_map import (
     CreateSegmentMap,
 )
-from pipe_segment.pipelines.messages_segmented.transforms.create_segments import CreateSegments
+from pipe_segment.pipelines.messages_segmented.transforms.create_segments import (
+    CreateSegments,
+)
 from pipe_segment.pipelines.messages_segmented.transforms.full_history_segments import (
     SEGMAP,
     SEGMENTS,
 )
-from pipe_segment.pipelines.messages_segmented.transforms.read_prior_segments import (
-    ReadPriorSegments,
+from pipe_segment.pipelines.messages_segmented.transforms.segment_state import (
+    SegmentState,
 )
-from pipe_segment.pipelines.messages_segmented.transforms.segment_state import SegmentState
 
 
 class SegmentUpdater:
@@ -71,16 +71,21 @@ class IncrementalSegments(beam.PTransform):
     segments and its segments-days are computed right after.
 
     Args:
-        prior_segments: transform that reads the state of the segments before the date range.
+        prior_segments: transform that reads the state of the segments before the date range,
+            one row per segment.
         merge_params: parameters of the matcher.
     """
 
-    def __init__(self, prior_segments: ReadPriorSegments, merge_params: Dict):
+    def __init__(self, prior_segments: beam.PTransform, merge_params: Dict):
         self.prior_segments = prior_segments
         self.updater = SegmentUpdater(merge_params)
 
     def expand(self, new_fragments):
-        prior_state = new_fragments.pipeline | self.prior_segments
+        prior_state = (
+            new_fragments.pipeline
+            | self.prior_segments
+            | "KeyPriorSegmentsBySsvid" >> beam.Map(lambda row: (row["ssvid"], row))
+        )
         keyed_fragments = new_fragments | "AddSsvidKey" >> beam.Map(lambda x: (x["ssvid"], x))
 
         outputs = (

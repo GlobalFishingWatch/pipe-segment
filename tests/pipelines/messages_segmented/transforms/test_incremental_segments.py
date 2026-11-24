@@ -220,7 +220,7 @@ def test_incremental_segments_pipeline():
     expected_segmap, expected_segments = day_by_day(fragments, [next_day], state)
 
     transform = IncrementalSegments(
-        prior_segments=beam.Create([(SSVID, row) for row in state]),
+        prior_segments=beam.Create(state),
         merge_params={},
     )
 
