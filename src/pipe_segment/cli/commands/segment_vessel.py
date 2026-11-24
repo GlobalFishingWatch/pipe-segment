@@ -21,6 +21,7 @@ will overwrite options in the config file provided.
 """
 
 HELP_VESSEL = "BigQuery table to read the daily vessel_ids of the segments from."
+HELP_DRY_RUN = "If True, executes the query in dry run mode."
 HELP_OUTPUT = "BigQuery table in which to store the segment-vessel mapping (truncated every run)."
 
 
@@ -43,6 +44,7 @@ class SegmentVessel(Command):
         return [
             Option("--bq-in-segment-vessel-daily", type=str, required=True, help=HELP_VESSEL),
             Option("--bq-out-segment-vessel", type=str, required=True, help=HELP_OUTPUT),
+            Option("--dry-run", type=bool, help=HELP_DRY_RUN),
         ]
 
     @property

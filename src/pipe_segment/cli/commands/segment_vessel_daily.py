@@ -33,6 +33,7 @@ HELP_MIN_FREQ = (
     "Minimal frequency (between 0 and 1) that defines a ssvid that has a single dominant "
     "identity."
 )
+HELP_DRY_RUN = "If True, only executes the queries of the days, in dry run mode."
 HELP_SPOOFING = "Amount of spoofing points from which a segment is considered noise."
 
 
@@ -60,6 +61,7 @@ class SegmentVesselDaily(Command):
             Option("--single-ident-min-freq", type=float, default=0.99, help=HELP_SINGLE_IDENT),
             Option("--most-common-min-freq", type=float, default=0.05, help=HELP_MIN_FREQ),
             Option("--spoofing-threshold", type=int, default=10, help=HELP_SPOOFING),
+            Option("--dry-run", type=bool, help=HELP_DRY_RUN),
         ]
 
     @property
