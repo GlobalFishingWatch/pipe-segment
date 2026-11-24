@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def verify_messages_exist_hook(
-    sources: list[str],
+    source: str,
     start_date: date,
     end_date: date,
     *,
@@ -30,11 +30,9 @@ def verify_messages_exist_hook(
 ) -> Callable[[Any], None]:
     """Returns a hook function that checks that every day to process has messages.
 
-    The days are counted over all the sources together.
-
     Args:
-        sources:
-            Tables with the messages.
+        source:
+            Table with the messages.
 
         start_date:
             First day to process, included.
@@ -51,18 +49,18 @@ def verify_messages_exist_hook(
 
     Returns:
         A callable hook that accepts the pipeline and raises :class:`ValueError`
-        if a day between the dates has no messages in the sources.
+        if a day between the dates has no messages in the source.
     """
 
     def _hook(p: Any) -> None:
         bq_helper = _bq_helper(p, bq_client_factory)
         n_days = (end_date - start_date).days + 1
-        query = MessageDaysQuery(sources, start_date, end_date).render()
+        query = MessageDaysQuery(source, start_date, end_date).render()
         days_with_messages = fetch_scalar(bq_helper, labels, query)
         if days_with_messages < n_days:
             raise ValueError(
                 f"Only {days_with_messages} of {n_days} days between {start_date} and "
-                f"{end_date} have messages in {sources}. "
+                f"{end_date} have messages in {source}. "
                 "An incremental run needs the messages of every day of the date range."
             )
 

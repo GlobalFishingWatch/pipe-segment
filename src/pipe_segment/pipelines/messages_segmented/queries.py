@@ -59,12 +59,12 @@ class MessagesQuery(Query):
 
 @dataclass
 class MessageDaysQuery(Query):
-    """Number of days with messages between two days, over all the source tables together.
+    """Number of days with messages in a source table between two days.
 
     Its fields are the template's variables (see template_vars).
     """
 
-    sources: list[str]
+    source: str
     start_date: datetime.date
     end_date: datetime.date
     partition_field: str = "timestamp"

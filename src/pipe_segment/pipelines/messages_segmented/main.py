@@ -123,7 +123,7 @@ def pre_hooks(
         hooks.extend(
             [
                 verify_messages_exist_hook(
-                    [config.bq_in_normalized_messages],
+                    config.bq_in_normalized_messages,
                     config.start_date,
                     config.end_date - dt.timedelta(days=1),
                     labels=labels,

@@ -47,9 +47,9 @@ def queries(client):
     return [call.args[0] for call in client.query.call_args_list]
 
 
-def messages_hook(bq_client_factory, sources=("project.dataset.messages",)):
+def messages_hook(bq_client_factory):
     return verify_messages_exist_hook(
-        list(sources),
+        "project.dataset.messages",
         date(2026, 11, 4),
         date(2026, 11, 10),
         labels=LABELS,
@@ -68,7 +68,7 @@ def test_messages_hook_passes_when_every_day_has_messages(pipe, client, bq_clien
 
     messages_hook(bq_client_factory)(pipe)
 
-    assert "COUNT(DISTINCT day)" in queries(client)[0]
+    assert "COUNT(DISTINCT DATE(timestamp))" in queries(client)[0]
     assert "BETWEEN '2026-11-04'" in queries(client)[0]
     assert "AND '2026-11-10'" in queries(client)[0]
 
@@ -78,17 +78,6 @@ def test_messages_hook_fails_when_a_day_has_no_messages(pipe, client, bq_client_
 
     with pytest.raises(ValueError, match="Only 6 of 7 days between 2026-11-04 and 2026-11-10"):
         messages_hook(bq_client_factory)(pipe)
-
-
-def test_messages_hook_counts_the_days_of_all_sources_together(pipe, client, bq_client_factory):
-    client.scalars = [7]
-
-    messages_hook(bq_client_factory, ("project.dataset.a", "project.dataset.b"))(pipe)
-
-    query = queries(client)[0]
-    assert "project.dataset.a" in query
-    assert "project.dataset.b" in query
-    assert "UNION ALL" in query
 
 
 def test_prior_segments_hook_passes_when_the_day_has_segments(pipe, client, bq_client_factory):

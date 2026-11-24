@@ -147,7 +147,7 @@ class MessagesSegmentedDag(Dag):
         last_day = config.end_date - dt.timedelta(days=1)
 
         read_messages = ReadMessages(
-            sources=[config.bq_in_normalized_messages],
+            source=config.bq_in_normalized_messages,
             start_date=start_date,
             end_date=last_day,
             labels=config.labels,

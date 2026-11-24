@@ -123,7 +123,7 @@ def test_the_checks_run_only_in_an_incremental_run_and_before_the_delete(
     assert hooks[4] is verify_segments.return_value
     assert len(hooks) == 3 + 2 + 3
     assert verify_messages.call_args.args[:3] == (
-        ["project.dataset.messages"],
+        "project.dataset.messages",
         date(2024, 1, 1),
         date(2024, 1, 2),
     )

@@ -8,23 +8,25 @@ logger = logging.getLogger(__name__)
 
 
 class ReadMessages(beam.PTransform):
+    """Reads the messages of a source table between two days."""
+
     def __init__(
         self,
-        sources,
+        source,
         start_date,
         end_date,
         labels,
         ssvid_filter_query=None,
     ):
-        self.sources = sources
+        self.source = source
         self.start_date = start_date
         self.end_date = end_date
         self.labels = labels
         self.ssvid_filter_query = ssvid_filter_query
 
-    def build_query(self, source: str):
+    def build_query(self) -> str:
         query = MessagesQuery(
-            source=source,
+            source=self.source,
             start_date=self.start_date,
             end_date=self.end_date,
             ssvid_filter_query=self.ssvid_filter_query,
@@ -34,13 +36,8 @@ class ReadMessages(beam.PTransform):
         return query
 
     def expand(self, pcoll):
-        return [
-            pcoll
-            | f"ReadFromSrc{i}"
-            >> beam.io.ReadFromBigQuery(
-                query=self.build_query(src),
-                use_standard_sql=True,
-                bigquery_job_labels=self.labels,
-            )
-            for i, src in enumerate(self.sources)
-        ] | beam.Flatten()
+        return pcoll | "ReadMessages" >> beam.io.ReadFromBigQuery(
+            query=self.build_query(),
+            use_standard_sql=True,
+            bigquery_job_labels=self.labels,
+        )

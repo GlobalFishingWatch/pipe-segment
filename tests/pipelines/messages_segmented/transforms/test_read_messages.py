@@ -7,7 +7,7 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from pipe_segment.pipelines.messages_segmented.transforms.read_messages import ReadMessages
 
 
-SOURCES = ["project1.dataset1.table1", "project2.dataset2.table2"]
+SOURCE = "project1.dataset1.table1"
 
 
 class ReadFromBigQueryMock(beam.io.ReadFromBigQuery):
@@ -20,37 +20,37 @@ def test_read_messages(monkeypatch):
     monkeypatch.setattr(beam.io, "ReadFromBigQuery", ReadFromBigQueryMock)
 
     # Test without ssvid_filter_query
-    op = ReadMessages(SOURCES, date.today(), date.today(), {})
+    op = ReadMessages(SOURCE, date.today(), date.today(), {})
     with TestPipeline() as p:
         p | op
 
     # Test with ssvid_filter_query
-    op = ReadMessages(SOURCES, date.today(), date.today(), {}, ssvid_filter_query="")
+    op = ReadMessages(SOURCE, date.today(), date.today(), {}, ssvid_filter_query="")
     with TestPipeline() as p:
         p | op
 
 
-def test_read_messages_labels_every_read(monkeypatch):
+def test_read_messages_labels_the_read(monkeypatch):
     read_calls = []
 
-    def fake_read(**kwargs):
-        read_calls.append(kwargs)
-        return beam.Create([])
+    class RecordingRead(ReadFromBigQueryMock):
+        def __init__(self, **kwargs):
+            read_calls.append(kwargs)
+            super().__init__(**kwargs)
 
-    monkeypatch.setattr(beam.io, "ReadFromBigQuery", fake_read)
+    monkeypatch.setattr(beam.io, "ReadFromBigQuery", RecordingRead)
 
     labels = {"environment": "production", "stage": "segment--v5-0-4"}
 
-    _ = beam.Pipeline() | ReadMessages(SOURCES, date.today(), date.today(), labels)
+    _ = beam.Pipeline() | ReadMessages(SOURCE, date.today(), date.today(), labels)
 
-    assert [call["bigquery_job_labels"] for call in read_calls] == [labels, labels]
+    assert [call["bigquery_job_labels"] for call in read_calls] == [labels]
 
 
-def test_read_messages_reads_a_query_per_source():
-    op = ReadMessages(SOURCES, date(2024, 1, 1), date(2024, 1, 3), {})
+def test_read_messages_reads_the_query_of_its_source():
+    op = ReadMessages(SOURCE, date(2024, 1, 1), date(2024, 1, 3), {})
 
-    queries = [" ".join(op.build_query(source).split()) for source in SOURCES]
+    query = " ".join(op.build_query().split())
 
-    assert "FROM `project1.dataset1.table1`" in queries[0]
-    assert "FROM `project2.dataset2.table2`" in queries[1]
-    assert all("BETWEEN '2024-01-01' AND '2024-01-03'" in query for query in queries)
+    assert "FROM `project1.dataset1.table1`" in query
+    assert "BETWEEN '2024-01-01' AND '2024-01-03'" in query
