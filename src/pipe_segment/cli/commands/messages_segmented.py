@@ -36,7 +36,7 @@ defined for Apache Beam PipelineOptions class. For more information, see
     https://cloud.google.com/dataflow/docs/reference/pipeline-options#python.\n
 """
 
-HELP_MESSAGES = "BigQuery tables to read the normalized messages from, separated by commas."
+HELP_MESSAGES = "BigQuery table to read the normalized messages from."
 HELP_OUT_MESSAGES = "BigQuery table in which to store the segmented messages."
 HELP_OUT_SEGMENTS = "BigQuery table in which to store the segments-days."
 HELP_OUT_FRAGMENTS = "BigQuery table in which to store the fragments."

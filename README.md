@@ -335,7 +335,7 @@ Example:
 
 ```shell
 pipe-segment messages-segmented \
-    --bq-in-normalized-messages world-fishing-827.pipe_ais_sources_v20220628.pipe_nmea_normalized_ \
+    --bq-in-normalized-messages gfw-int-ais-datalake.vessel_transmissions_normalized_v1.messages \
     --bq-out-segmented-messages world-fishing-827.scratch_tomas_ttl30d.internal__messages_segmented \
     --bq-out-segments world-fishing-827.scratch_tomas_ttl30d.internal__segments \
     --bq-out-fragments world-fishing-827.scratch_tomas_ttl30d.internal__fragments \

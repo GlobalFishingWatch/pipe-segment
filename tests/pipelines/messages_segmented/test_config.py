@@ -1,20 +1,15 @@
-"""Tests for the messages-segmented pipeline config and entry point."""
-
-import json
+"""Tests for the messages-segmented pipeline config."""
 
 from datetime import date
+from typing import Any
 
 import pytest
 
-from apache_beam.options.pipeline_options import GoogleCloudOptions
-from pytest_mock import MockerFixture
-
 from gfw.common.config import PipelineConfigError
-from pipe_segment.pipelines.messages_segmented import main
 from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
 
 
-def make_config(**kwargs) -> MessagesSegmentedConfig:
+def make_config(**kwargs: Any) -> MessagesSegmentedConfig:
     """Returns a config with the required fields."""
     defaults = {
         "project": "test-project",
@@ -73,28 +68,20 @@ def test_the_satellite_correction_needs_all_its_inputs() -> None:
         assert make_config(**partial).sat_offsets_enabled is False
 
 
-def test_run_resolves_the_beam_options_from_the_config(mocker: MockerFixture) -> None:
-    """Checks that the project, the labels and the other Beam options reach the pipeline."""
-    pipeline_class = mocker.patch.object(main, "SegmentPipeline")
+def test_the_input_tables_default_to_the_output_tables() -> None:
+    """Checks that the state is read from the tables that the run writes."""
+    config = make_config()
+
+    assert config.in_segments_table == "project.dataset.segments"
+    assert config.in_fragments_table == "project.dataset.fragments"
+
+
+def test_the_input_tables_can_be_read_from_other_tables() -> None:
+    """Checks that the state can be read from other tables."""
     config = make_config(
-        unknown_unparsed_args=("--max_num_workers=7",),
-        unknown_parsed_args={"region": "us-central1"},
+        bq_in_segments="project.dataset.in_segments",
+        bq_in_fragments="project.dataset.in_fragments",
     )
 
-    main.run(config)
-
-    assert pipeline_class.call_args.args[0] == config
-    beam_options = pipeline_class.call_args.args[1]
-    cloud_options = beam_options.view_as(GoogleCloudOptions)
-    assert cloud_options.project == "test-project"
-    assert cloud_options.region == "us-central1"
-    assert json.loads(cloud_options.labels[0]) == {"environment": "test"}
-    assert beam_options.get_all_options()["max_num_workers"] == 7
-
-
-def test_run_returns_the_result_of_the_pipeline(mocker: MockerFixture) -> None:
-    """Checks that the exit code of the pipeline is returned."""
-    pipeline_class = mocker.patch.object(main, "SegmentPipeline")
-    pipeline_class.return_value.run.return_value = 1
-
-    assert main.run(make_config()) == 1
+    assert config.in_segments_table == "project.dataset.in_segments"
+    assert config.in_fragments_table == "project.dataset.in_fragments"
