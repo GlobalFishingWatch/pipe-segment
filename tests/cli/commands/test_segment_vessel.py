@@ -44,6 +44,13 @@ def test_cli_executes_run_with_the_config(run: MagicMock) -> None:
     assert config.labels == {"environment": "test"}
 
 
+def test_cli_passes_the_dry_run(run: MagicMock) -> None:
+    """Checks that the CLI passes the dry run option to the config."""
+    main.run([*BASE_ARGS, "--dry-run"])
+
+    assert run.call_args.args[0].dry_run is True
+
+
 @pytest.mark.parametrize(
     "option",
     ["--bq-in-segment-vessel-daily", "--bq-out-segment-vessel", "--project", "--labels"],

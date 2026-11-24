@@ -79,6 +79,13 @@ def test_cli_passes_the_optional_parameters(run: MagicMock) -> None:
     assert config.spoofing_threshold == 3
 
 
+def test_cli_passes_the_dry_run(run: MagicMock) -> None:
+    """Checks that the CLI passes the dry run option to the config."""
+    main.run([*BASE_ARGS, "--dry-run"])
+
+    assert run.call_args.args[0].dry_run is True
+
+
 @pytest.mark.parametrize(
     "option",
     [

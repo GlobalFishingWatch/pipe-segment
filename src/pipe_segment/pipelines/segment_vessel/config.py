@@ -19,3 +19,6 @@ class SegmentVesselConfig(PipelineConfig):
 
     bq_out_segment_vessel: str
     """Table in which to store the segment-vessel mapping."""
+
+    dry_run: bool = False
+    """If True, executes the query in dry run mode."""
