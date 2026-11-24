@@ -1,6 +1,8 @@
 from datetime import date
 
-from pipe_segment.transform.read_prior_segments import ReadPriorSegments
+from pipe_segment.pipelines.messages_segmented.transforms.read_prior_segments import (
+    ReadPriorSegments,
+)
 
 
 def make_transform(ssvid_filter_query=None, **kwargs):

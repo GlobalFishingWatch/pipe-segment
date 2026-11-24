@@ -13,8 +13,8 @@ from typing import Any, Callable, Optional
 
 from google.cloud import bigquery
 
-from pipe_segment.transform.read_messages import build_days_query
-from pipe_segment.utils.bq_source import BigQuerySource
+from pipe_segment.pipelines.messages_segmented.transforms.read_messages import build_days_query
+from pipe_segment.pipelines.messages_segmented.bq_source import BigQuerySource
 from pipe_segment.utils.bq_tools import BigQueryHelper
 
 

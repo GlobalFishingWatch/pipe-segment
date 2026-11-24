@@ -1,6 +1,6 @@
 from datetime import datetime, date
 
-from pipe_segment.transform import util
+from pipe_segment.pipelines.messages_segmented.transforms import util
 
 
 def test_by_day():

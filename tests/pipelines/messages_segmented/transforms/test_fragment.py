@@ -13,7 +13,7 @@ from json_dict_coder import JSONDictCoder
 from pipe_segment.tools import (
     timestamp_from_string, datetime_from_timestamp, timestamp_from_datetime
 )
-from pipe_segment.transform.fragment import Fragment
+from pipe_segment.pipelines.messages_segmented.transforms.fragment import Fragment
 
 # >>> Note that cogroupByKey treats unicode and char values as distinct,
 # so tests can sometimes fail unless all ssvid are unicode.

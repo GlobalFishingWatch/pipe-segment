@@ -5,7 +5,7 @@ from datetime import date
 from jinja2 import Template
 
 import apache_beam as beam
-from pipe_segment.utils.bq_source import BigQuerySource
+from pipe_segment.pipelines.messages_segmented.bq_source import BigQuerySource
 
 
 logger = logging.getLogger(__name__)

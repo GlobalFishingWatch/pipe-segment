@@ -5,11 +5,18 @@ import apache_beam as beam
 
 from apache_beam.pvalue import TaggedOutput
 
-from pipe_segment.transform.create_segment_map import CreateSegmentMap
-from pipe_segment.transform.create_segments import CreateSegments
-from pipe_segment.transform.full_history_segments import SEGMAP, SEGMENTS
-from pipe_segment.transform.read_prior_segments import ReadPriorSegments
-from pipe_segment.transform.segment_state import SegmentState
+from pipe_segment.pipelines.messages_segmented.transforms.create_segment_map import (
+    CreateSegmentMap,
+)
+from pipe_segment.pipelines.messages_segmented.transforms.create_segments import CreateSegments
+from pipe_segment.pipelines.messages_segmented.transforms.full_history_segments import (
+    SEGMAP,
+    SEGMENTS,
+)
+from pipe_segment.pipelines.messages_segmented.transforms.read_prior_segments import (
+    ReadPriorSegments,
+)
+from pipe_segment.pipelines.messages_segmented.transforms.segment_state import SegmentState
 
 
 class SegmentUpdater:

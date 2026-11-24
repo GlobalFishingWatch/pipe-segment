@@ -5,7 +5,9 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
-from pipe_segment.transform.create_segment_map import CreateSegmentMap
+from pipe_segment.pipelines.messages_segmented.transforms.create_segment_map import (
+    CreateSegmentMap,
+)
 
 
 INPUTS = [

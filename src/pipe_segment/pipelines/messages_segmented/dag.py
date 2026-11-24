@@ -11,24 +11,36 @@ from apache_beam.pvalue import PCollection
 from gfw.common.beam.pipeline.dag import Dag
 from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
 from pipe_segment.tools import datetime_from_timestamp
-from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
-from pipe_segment.transform.fragment import Fragment
-from pipe_segment.transform.full_history_segments import (
+from pipe_segment.pipelines.messages_segmented.transforms.filter_bad_satellite_times import (
+    FilterBadSatelliteTimes,
+)
+from pipe_segment.pipelines.messages_segmented.transforms.fragment import Fragment
+from pipe_segment.pipelines.messages_segmented.transforms.full_history_segments import (
     SEGMAP,
     SEGMENTS,
     FullHistorySegments,
 )
-from pipe_segment.transform.incremental_segments import IncrementalSegments
-from pipe_segment.transform.invalid_values import filter_invalid_values
-from pipe_segment.transform.read_messages import ReadMessages
-from pipe_segment.transform.read_prior_segments import ReadPriorSegments
-from pipe_segment.transform.satellite_offsets import (
+from pipe_segment.pipelines.messages_segmented.transforms.incremental_segments import (
+    IncrementalSegments,
+)
+from pipe_segment.pipelines.messages_segmented.transforms.invalid_values import (
+    filter_invalid_values,
+)
+from pipe_segment.pipelines.messages_segmented.transforms.read_messages import ReadMessages
+from pipe_segment.pipelines.messages_segmented.transforms.read_prior_segments import (
+    ReadPriorSegments,
+)
+from pipe_segment.pipelines.messages_segmented.transforms.satellite_offsets import (
     SatelliteOffsets,
     SatelliteOffsetsWrite,
 )
-from pipe_segment.transform.tag_with_fragid_and_timebin import TagWithFragIdAndTimeBin
-from pipe_segment.transform.tag_with_seg_id import TagWithSegId
-from pipe_segment.transform.whitelist_messages_segmented import WhitelistFields
+from pipe_segment.pipelines.messages_segmented.transforms.tag_with_fragid_and_timebin import (
+    TagWithFragIdAndTimeBin,
+)
+from pipe_segment.pipelines.messages_segmented.transforms.tag_with_seg_id import TagWithSegId
+from pipe_segment.pipelines.messages_segmented.transforms.whitelist_messages_segmented import (
+    WhitelistFields,
+)
 from pipe_segment.utils.bq_tools import BigQueryHelper
 
 

@@ -5,10 +5,12 @@ from typing import Dict
 import apache_beam as beam
 
 from pipe_segment.tools import datetime_from_timestamp
-from pipe_segment.transform.create_segment_map import CreateSegmentMap
-from pipe_segment.transform.create_segments import CreateSegments
-from pipe_segment.transform.read_fragments import ReadFragments
-from pipe_segment.transform.tag_with_seg_id import TagWithSegId
+from pipe_segment.pipelines.messages_segmented.transforms.create_segment_map import (
+    CreateSegmentMap,
+)
+from pipe_segment.pipelines.messages_segmented.transforms.create_segments import CreateSegments
+from pipe_segment.pipelines.messages_segmented.transforms.read_fragments import ReadFragments
+from pipe_segment.pipelines.messages_segmented.transforms.tag_with_seg_id import TagWithSegId
 from pipe_segment.utils.bq_tools import BigQueryHelper
 
 

@@ -6,7 +6,7 @@ from apache_beam import FlatMap, PTransform
 from apache_beam.pvalue import TaggedOutput
 from gpsdio_segment.msg_processor import Destination, Identity
 
-from ..tools import datetime_from_timestamp, timestamp_from_datetime
+from pipe_segment.tools import datetime_from_timestamp, timestamp_from_datetime
 from .fragment_implementation import FragmentImplementation
 
 logger = logging.getLogger(__file__)

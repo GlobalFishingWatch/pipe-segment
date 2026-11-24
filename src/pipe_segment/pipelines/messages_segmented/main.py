@@ -17,7 +17,10 @@ from gfw.common.beam.pipeline.hooks import (
 from gfw.common.beam.transforms import WriteToBigQueryWrapper
 from gfw.common.bigquery.helper import BigQueryHelper
 from gfw.common.bigquery.table_config import TableConfig
-from pipe_segment.hooks import verify_messages_exist_hook, verify_prior_segments_hook
+from pipe_segment.pipelines.messages_segmented.hooks import (
+    verify_messages_exist_hook,
+    verify_prior_segments_hook,
+)
 from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
 from pipe_segment.pipelines.messages_segmented.dag import MessagesSegmentedDag
 from pipe_segment.pipelines.messages_segmented.table_config import (

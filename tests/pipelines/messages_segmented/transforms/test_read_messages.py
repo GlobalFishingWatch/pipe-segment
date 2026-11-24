@@ -10,7 +10,7 @@ from google.cloud import bigquery
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
-from pipe_segment.transform.read_messages import ReadMessages
+from pipe_segment.pipelines.messages_segmented.transforms.read_messages import ReadMessages
 from pipe_segment import tools
 from pipe_segment.utils.bq_tools import BigQueryHelper
 

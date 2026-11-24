@@ -4,7 +4,7 @@ import apache_beam as beam
 from gpsdio_segment.matcher import Matcher
 from typing import Iterable, Generator, Any, Optional, List, Tuple, Set, Dict
 
-from ..tools import datetime_from_timestamp
+from pipe_segment.tools import datetime_from_timestamp
 from .segment_state import SegmentState
 from .util import by_day
 

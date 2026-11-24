@@ -1,4 +1,7 @@
-from pipe_segment.transform.segment_state import SegmentState, identities_to_counter
+from pipe_segment.pipelines.messages_segmented.transforms.segment_state import (
+    SegmentState,
+    identities_to_counter,
+)
 
 
 ROW = {

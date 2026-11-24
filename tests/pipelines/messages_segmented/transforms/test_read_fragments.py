@@ -8,7 +8,7 @@ import apache_beam as beam
 
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from pipe_segment.transform.read_fragments import ReadFragments
+from pipe_segment.pipelines.messages_segmented.transforms.read_fragments import ReadFragments
 
 
 class RowMock:

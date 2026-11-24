@@ -6,7 +6,10 @@ import pytest
 from google.api_core.exceptions import NotFound
 from google.cloud import bigquery
 
-from pipe_segment.hooks import verify_messages_exist_hook, verify_prior_segments_hook
+from pipe_segment.pipelines.messages_segmented.hooks import (
+    verify_messages_exist_hook,
+    verify_prior_segments_hook,
+)
 
 
 DAY = date(2024, 4, 11)

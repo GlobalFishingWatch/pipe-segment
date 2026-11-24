@@ -7,8 +7,8 @@ from typing import Optional
 from gfw.common.bigquery.table_config import TableConfig
 from gfw.common.bigquery.table_description import TableDescription
 from pipe_segment.schemas import message_schema, segment_schema
-from pipe_segment.transform import satellite_offsets
-from pipe_segment.transform.fragment import Fragment
+from pipe_segment.pipelines.messages_segmented.transforms import satellite_offsets
+from pipe_segment.pipelines.messages_segmented.transforms.fragment import Fragment
 
 
 MESSAGES_SUMMARY = """\

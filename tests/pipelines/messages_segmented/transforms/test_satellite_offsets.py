@@ -3,7 +3,7 @@ from datetime import date, datetime
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
-from pipe_segment.transform.satellite_offsets import (
+from pipe_segment.pipelines.messages_segmented.transforms.satellite_offsets import (
     SatelliteOffsets,
     SatelliteOffsetsWrite,
 )

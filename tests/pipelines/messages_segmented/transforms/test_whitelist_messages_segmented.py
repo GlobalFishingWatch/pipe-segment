@@ -4,7 +4,9 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
 from pipe_segment.schemas import message_schema
-from pipe_segment.transform.whitelist_messages_segmented import WhitelistFields
+from pipe_segment.pipelines.messages_segmented.transforms.whitelist_messages_segmented import (
+    WhitelistFields,
+)
 
 
 FIELDNAMES = ["seg_id", "frag_id", "ssvid"]

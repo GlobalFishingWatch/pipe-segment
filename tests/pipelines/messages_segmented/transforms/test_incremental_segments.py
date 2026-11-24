@@ -12,10 +12,19 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that, equal_to
 from google.cloud import bigquery
 
-from pipe_segment.transform.create_segment_map import CreateSegmentMap
-from pipe_segment.transform.create_segments import CreateSegments
-from pipe_segment.transform.full_history_segments import SEGMAP, SEGMENTS, FullHistorySegments
-from pipe_segment.transform.incremental_segments import IncrementalSegments, SegmentUpdater
+from pipe_segment.pipelines.messages_segmented.transforms.create_segment_map import (
+    CreateSegmentMap,
+)
+from pipe_segment.pipelines.messages_segmented.transforms.create_segments import CreateSegments
+from pipe_segment.pipelines.messages_segmented.transforms.full_history_segments import (
+    SEGMAP,
+    SEGMENTS,
+    FullHistorySegments,
+)
+from pipe_segment.pipelines.messages_segmented.transforms.incremental_segments import (
+    IncrementalSegments,
+    SegmentUpdater,
+)
 
 
 SSVID = "123456789"

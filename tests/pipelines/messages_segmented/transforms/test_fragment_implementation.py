@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 
-from pipe_segment.transform import fragment_implementation
+from pipe_segment.pipelines.messages_segmented.transforms import fragment_implementation
 
 
 def read_json(path, ndx=0):

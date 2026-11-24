@@ -4,7 +4,9 @@ from datetime import datetime, timezone as tz
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 
-from pipe_segment.transform.filter_bad_satellite_times import FilterBadSatelliteTimes
+from pipe_segment.pipelines.messages_segmented.transforms.filter_bad_satellite_times import (
+    FilterBadSatelliteTimes,
+)
 from pipe_segment.tools import timestamp_from_datetime
 
 

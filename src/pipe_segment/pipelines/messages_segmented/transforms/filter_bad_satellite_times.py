@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import logging
 from apache_beam import PTransform
 
-from ..tools import datetime_from_timestamp
+from pipe_segment.tools import datetime_from_timestamp
 
 logger = logging.getLogger(__file__)
 logger.setLevel(logging.DEBUG)
