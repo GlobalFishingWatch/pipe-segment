@@ -8,11 +8,21 @@ from gfw.common.bigquery.table_description import TableDescription
 
 SUMMARY = """\
 Identity of each segment summarized over its whole history, with one row per seg_id.
-It is built from the daily identities of the segment and the vessel_ids that it has had.
+The identities of its days are summed and reduced to the most common value of each field, and
+the vessel_id is the latest one that was assigned to the segment.
 """
 
 CAVEATS = """\
-⬖ The table is rebuilt from scratch on every run.
+⬖ vessel_id is the latest one assigned to the segment (the one of its most recent day), while
+the identity fields summarize its whole history, so they can differ from the identity that the
+vessel_id was derived from.
+⬖ Segments without rows in segment_vessel_daily are left out.
+⬖ Noisy segments are included: filter by pos_count to leave out the ones with few positions.
+⬖ msg_count adds the identity messages to the positional ones, but a message can have both, so
+it can be counted twice.
+⬖ Each identity field is its most common value, or NULL when that value accounts for at most
+most_common_min_freq of the identity messages. Messages without a valid value for the field
+count in that total.
 """
 
 
