@@ -194,7 +194,6 @@ def run(
 
     dag = MessagesSegmentedDag(
         config,
-        bq_helper=BigQueryHelper(client_factory=bq_client_factory, project=config.project),
         messages_sink=sink(messages_table, write_to_bigquery_factory),
         segments_sink=sink(segments_table, write_to_bigquery_factory),
         fragments_sink=sink(fragments_table, write_to_bigquery_factory),

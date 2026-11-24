@@ -14,8 +14,7 @@ from typing import Any, Callable, Optional
 from google.cloud import bigquery
 
 from gfw.common.bigquery.helper import BigQueryHelper
-from pipe_segment.pipelines.messages_segmented.transforms.read_messages import build_days_query
-from pipe_segment.pipelines.messages_segmented.bq_source import BigQuerySource
+from pipe_segment.pipelines.messages_segmented.queries import MessageDaysQuery
 
 
 logger = logging.getLogger(__name__)
@@ -58,10 +57,8 @@ def verify_messages_exist_hook(
     def _hook(p: Any) -> None:
         bq_helper = _bq_helper(p, bq_client_factory)
         n_days = (end_date - start_date).days + 1
-        bq_sources = [BigQuerySource(bq_helper, source) for source in sources]
-        days_with_messages = fetch_scalar(
-            bq_helper, labels, build_days_query(bq_sources, start_date, end_date)
-        )
+        query = MessageDaysQuery(sources, start_date, end_date).render()
+        days_with_messages = fetch_scalar(bq_helper, labels, query)
         if days_with_messages < n_days:
             raise ValueError(
                 f"Only {days_with_messages} of {n_days} days between {start_date} and "

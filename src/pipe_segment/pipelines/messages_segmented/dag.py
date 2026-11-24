@@ -5,13 +5,9 @@ import logging
 
 import apache_beam as beam
 import ujson
-
 from apache_beam.pvalue import PCollection
-
 from gfw.common.beam.pipeline.dag import Dag
-from gfw.common.bigquery.helper import BigQueryHelper
 from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
-from pipe_segment.tools import datetime_from_timestamp
 from pipe_segment.pipelines.messages_segmented.transforms.filter_bad_satellite_times import (
     FilterBadSatelliteTimes,
 )
@@ -27,7 +23,9 @@ from pipe_segment.pipelines.messages_segmented.transforms.incremental_segments i
 from pipe_segment.pipelines.messages_segmented.transforms.invalid_values import (
     filter_invalid_values,
 )
-from pipe_segment.pipelines.messages_segmented.transforms.read_messages import ReadMessages
+from pipe_segment.pipelines.messages_segmented.transforms.read_messages import (
+    ReadMessages,
+)
 from pipe_segment.pipelines.messages_segmented.transforms.read_prior_segments import (
     ReadPriorSegments,
 )
@@ -38,11 +36,13 @@ from pipe_segment.pipelines.messages_segmented.transforms.satellite_offsets impo
 from pipe_segment.pipelines.messages_segmented.transforms.tag_with_fragid_and_timebin import (
     TagWithFragIdAndTimeBin,
 )
-from pipe_segment.pipelines.messages_segmented.transforms.tag_with_seg_id import TagWithSegId
+from pipe_segment.pipelines.messages_segmented.transforms.tag_with_seg_id import (
+    TagWithSegId,
+)
 from pipe_segment.pipelines.messages_segmented.transforms.whitelist_messages_segmented import (
     WhitelistFields,
 )
-
+from pipe_segment.tools import datetime_from_timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -80,9 +80,6 @@ class MessagesSegmentedDag(Dag):
         config:
             The pipeline's configuration.
 
-        bq_helper:
-            Helper that the transforms use to look up the tables they read.
-
         messages_sink:
             Transform that writes the segmented messages.
 
@@ -96,14 +93,12 @@ class MessagesSegmentedDag(Dag):
     def __init__(
         self,
         config: MessagesSegmentedConfig,
-        bq_helper: BigQueryHelper,
         messages_sink: beam.PTransform,
         segments_sink: beam.PTransform,
         fragments_sink: beam.PTransform,
     ) -> None:
         """Initializes the graph."""
         self.config = config
-        self.bq_helper = bq_helper
         self.messages_sink = messages_sink
         self.segments_sink = segments_sink
         self.fragments_sink = fragments_sink
@@ -152,7 +147,6 @@ class MessagesSegmentedDag(Dag):
         last_day = config.end_date - dt.timedelta(days=1)
 
         read_messages = ReadMessages(
-            bq_helper=self.bq_helper,
             sources=[config.bq_in_normalized_messages],
             start_date=start_date,
             end_date=last_day,

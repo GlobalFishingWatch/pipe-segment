@@ -4,7 +4,6 @@ import datetime as dt
 
 from datetime import date
 from typing import Any
-from unittest.mock import MagicMock
 
 import apache_beam as beam
 import pytest
@@ -63,14 +62,9 @@ class Labels(PipelineVisitor):
 
 def applied_labels(config: MessagesSegmentedConfig) -> set[str]:
     """Builds the graph of the config, without running it, and returns its labels."""
-    bq_helper = MagicMock()
-    bq_helper.client.get_table.return_value = MagicMock(
-        time_partitioning=MagicMock(type_="DAY", field="timestamp")
-    )
     messages_table, segments_table, fragments_table, *_ = main.table_configs(config)
     dag = MessagesSegmentedDag(
         config,
-        bq_helper,
         messages_sink=main.sink(messages_table, lambda **kwargs: beam.Map(lambda x: x)),
         segments_sink=main.sink(segments_table, lambda **kwargs: beam.Map(lambda x: x)),
         fragments_sink=main.sink(fragments_table, lambda **kwargs: beam.Map(lambda x: x)),

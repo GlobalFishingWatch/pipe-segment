@@ -1,0 +1,12 @@
+SELECT COUNT(DISTINCT day)
+FROM (
+{% for source in sources %}
+    SELECT
+        DATE({{ partition_field }}) AS day
+    FROM `{{ source }}`
+    WHERE DATE({{ partition_field }}) BETWEEN '{{ start_date }}' AND '{{ end_date }}'
+{% if not loop.last %}
+    UNION ALL
+{% endif %}
+{% endfor %}
+)
