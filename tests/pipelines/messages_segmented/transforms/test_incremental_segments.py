@@ -1,5 +1,4 @@
 import json
-import pickle
 import random
 
 from collections import defaultdict
@@ -10,9 +9,7 @@ import pytest
 
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that, equal_to
-from google.cloud import bigquery
 
-from gfw.common.bigquery.helper import BigQueryHelper
 
 from pipe_segment.pipelines.messages_segmented.transforms.create_segment_map import (
     CreateSegmentMap,
@@ -21,7 +18,6 @@ from pipe_segment.pipelines.messages_segmented.transforms.create_segments import
 from pipe_segment.pipelines.messages_segmented.transforms.full_history_segments import (
     SEGMAP,
     SEGMENTS,
-    FullHistorySegments,
 )
 from pipe_segment.pipelines.messages_segmented.transforms.incremental_segments import (
     IncrementalSegments,
@@ -242,24 +238,3 @@ def test_incremental_segments_pipeline():
             equal_to(normalized(expected_segments)),
             label="CheckSegments",
         )
-
-
-class UnpicklableClient:
-    """Refuses to be pickled, like a BigQuery client does."""
-
-    def __reduce__(self):
-        raise pickle.PicklingError("Pickling client objects is explicitly not supported.")
-
-    def get_table(self, table_id):
-        return bigquery.Table(table_id)
-
-
-def test_full_history_segments_graph_does_not_pickle_the_bigquery_client():
-    bq_helper = BigQueryHelper(client_factory=lambda **kwargs: UnpicklableClient())
-    transform = FullHistorySegments(
-        bq_helper, "p.d.fragments", DAYS[1].date(), DAYS[1].date(), {}, {}
-    )
-
-    p = TestPipeline()
-    new_fragments = p | beam.Create([])
-    new_fragments | transform

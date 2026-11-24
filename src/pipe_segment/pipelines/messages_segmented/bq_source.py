@@ -1,9 +1,6 @@
+"""The source tables of the messages."""
+
 import logging
-
-from typing import Optional
-
-from google.api_core.exceptions import NotFound
-from google.cloud import bigquery
 
 from gfw.common.bigquery.helper import BigQueryHelper
 
@@ -11,58 +8,28 @@ from gfw.common.bigquery.helper import BigQueryHelper
 logger = logging.getLogger(__name__)
 
 
-def fetch_table(bq_helper: BigQueryHelper, table_id: str) -> Optional[bigquery.Table]:
-    """Returns the table, or None if it does not exist."""
-    try:
-        return bq_helper.client.get_table(table_id)
-    except NotFound:
-        return None
-
-
 class BigQuerySource:
-    def __init__(
-        self,
-        bq_helper: BigQueryHelper,
-        table_id: str,
-    ):
+    """A partitioned table with messages, and the field to filter its days with.
+
+    Args:
+        bq_helper:
+            Helper to look up the table.
+
+        table_id:
+            The table. It fails if it does not exist.
+    """
+
+    def __init__(self, bq_helper: BigQueryHelper, table_id: str) -> None:
+        """Looks up the table to find out its partition field."""
         logger.info(f"Building BigQuerySource for source {table_id}")
-        self._bq_helper = bq_helper
         self.table_id = table_id
-        self._check_sharded_or_partitioned(table_id)
+        table = bq_helper.client.get_table(table_id)
 
-    def _check_sharded_or_partitioned(self, table_id):
-        table = fetch_table(self._bq_helper, table_id)
-        if table is not None:
-            self._initialize_partitioned_table(table)
-            return
-
-        table = fetch_table(self._bq_helper, f"{table_id}*")
-        if table is not None:
-            self._initialize_sharded_table()
-            return
-
-        raise ValueError("Source table is neither sharded or partitioned")
-
-    def _initialize_partitioned_table(self, table):
-        logger.info(f"Table {self.table_id} is a partitioned table")
-        self.date_format = "%Y-%m-%d"
-        self._table_suffix = ''
-
-        if table.time_partitioning:
-            self.filtering_field = f"DATE({table.time_partitioning.field})"
-            logger.info(f'Table {self.table_id} is partitioned on field {self.filtering_field}')
+        if table.time_partitioning and table.time_partitioning.field:
+            field = table.time_partitioning.field
+            logger.info(f"Table {table_id} is partitioned on field {field}")
         else:
-            self.filtering_field = "DATE(timestamp)"
-            logger.info(
-                f'Table {self.table_id} is not time partitioned, defaulting to timestamp filtering'
-            )
+            field = "timestamp"
+            logger.info(f"Table {table_id} is not partitioned by a field, filtering by timestamp")
 
-    def _initialize_sharded_table(self):
-        logger.info(f"Table {self.table_id} is a date sharded table")
-        self._table_suffix = '*'
-        self.date_format = "%Y%m%d"
-        self.filtering_field = "_TABLE_SUFFIX"
-
-    @property
-    def qualified_source(self):
-        return f"{self.table_id}{self._table_suffix}"
+        self.filtering_field = f"DATE({field})"

@@ -11,7 +11,6 @@ from google.cloud import bigquery
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from pipe_segment.pipelines.messages_segmented.transforms.read_messages import ReadMessages
-from pipe_segment import tools
 from gfw.common.bigquery.helper import BigQueryHelper
 
 TABLE_SCHEMA = [
@@ -34,17 +33,14 @@ API_HOST = os.getenv("BIGQUERY_HOST", "localhost")
 API_PORT = 9050
 
 
-def make_bq_helper(notfound_fails: int = 0) -> BigQueryHelper:
-    """Returns a helper whose client does not find the first tables that it is asked for."""
+def make_bq_helper() -> BigQueryHelper:
+    """Returns a helper whose client finds every table, partitioned by its timestamp."""
     bq_helper = BigQueryHelper.mocked(project="test-project")
-    not_found = [notfound_fails]
 
     def get_table(table_id):
-        if not_found[0] > 0:
-            not_found[0] -= 1
-            raise NotFound("Not found")
-
-        return bigquery.Table(table_id)
+        table = bigquery.Table(table_id)
+        table.time_partitioning = bigquery.table.TimePartitioning(field="timestamp")
+        return table
 
     bq_helper.client.get_table.side_effect = get_table
     return bq_helper
@@ -61,7 +57,7 @@ def test_read_messages(monkeypatch):
 
     dummy_sources = ["project1.dataset1.table1", "project2.dataset2.table2"]
 
-    bq_helper = make_bq_helper(notfound_fails=1)
+    bq_helper = make_bq_helper()
 
     # Test without ssvid_filter_query
     op = ReadMessages(bq_helper, dummy_sources, date.today(), date.today(), {})
@@ -123,32 +119,12 @@ def test_bigquery_integration():
     # Non existent table
     dummy_table2 = f"{project_id}.{dataset_id}.table2"
 
-    # How to create sharded table?
-    dummy_table3 = f"{project_id}.{dataset_id}.table3_"
-
     start_date = date(2024, 1, 1)
     end_date = date(2024, 1, 5)
 
-    days = tools.list_of_days(start_date, end_date)
-    shard_date_format = "%Y%m%d"
-    for day in days:
-        date_str = day.strftime(shard_date_format)
-        table3 = bigquery.Table(table_ref=f"{dummy_table3}{date_str}", schema=TABLE_SCHEMA)
-        bq_client.create_table(table=table3, exists_ok=True)
-
-    tables = bq_client.list_tables(dataset_id)
-    print("Tables contained in '{}':".format(dataset_id))
-    for table in tables:
-        print("{}.{}.{}".format(table.project, table.dataset_id, table.table_id))
-
-    dummy_sources = [dummy_table1, dummy_table2, dummy_table3]
+    dummy_sources = [dummy_table1, dummy_table2]
     op = ReadMessages(bq_helper, dummy_sources, start_date, end_date, {})  # noqa
     op.build_query(dummy_table1)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(NotFound):
         op.build_query(dummy_table2)
-
-    # Querying the sharded tables with wildcard not working...Problem with bigquery-emulator?
-    # wildcard_table = f"{dummy_table3}*"
-    # table = bq_client.get_table(f"{dummy_table3}20240101")
-    # op.build_query(dummy_table3)

@@ -11,7 +11,6 @@ from pipe_segment.pipelines.messages_segmented.transforms.create_segment_map imp
 from pipe_segment.pipelines.messages_segmented.transforms.create_segments import CreateSegments
 from pipe_segment.pipelines.messages_segmented.transforms.read_fragments import ReadFragments
 from pipe_segment.pipelines.messages_segmented.transforms.tag_with_seg_id import TagWithSegId
-from gfw.common.bigquery.helper import BigQueryHelper
 
 
 SEGMAP = "segmap"
@@ -40,7 +39,6 @@ class FullHistorySegments(beam.PTransform):
     keeps only the segments-days of the date range.
 
     Args:
-        bq_helper: helper to look up the tables.
         fragments_table: table to read the fragments written before the date range from.
         start_date: first day to write segments for.
         end_date: last day to write segments for.
@@ -50,14 +48,12 @@ class FullHistorySegments(beam.PTransform):
 
     def __init__(
         self,
-        bq_helper: BigQueryHelper,
         fragments_table: str,
         start_date: dt.date,
         end_date: dt.date,
         merge_params: Dict,
         labels: Dict,
     ):
-        self.bq_helper = bq_helper
         self.labels = labels
         self.fragments_table = fragments_table
         self.start_date = start_date
@@ -66,7 +62,6 @@ class FullHistorySegments(beam.PTransform):
 
     def expand(self, new_fragments):
         existing_fragments = new_fragments.pipeline | ReadFragments(
-            self.bq_helper,
             self.fragments_table,
             # TODO should be able to use single lookback, but would have to
             # lookback at fragments not segments or something otherwise complicated

@@ -133,7 +133,6 @@ class MessagesSegmentedDag(Dag):
             )
 
         return FullHistorySegments(
-            self.bq_helper,
             self.config.in_fragments_table,
             start_date,
             last_day,

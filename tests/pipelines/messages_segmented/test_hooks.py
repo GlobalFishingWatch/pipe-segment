@@ -3,7 +3,6 @@ from types import SimpleNamespace
 
 import pytest
 
-from google.api_core.exceptions import NotFound
 from google.cloud import bigquery
 
 from pipe_segment.pipelines.messages_segmented.hooks import (
@@ -90,21 +89,6 @@ def test_messages_hook_counts_the_days_of_all_sources_together(pipe, client, bq_
     assert "project.dataset.a" in query
     assert "project.dataset.b" in query
     assert "UNION ALL" in query
-
-
-def test_messages_hook_parses_the_suffix_of_sharded_sources(pipe, client, bq_client_factory):
-    client.scalars = [7]
-
-    def get_table(table_id):
-        if not table_id.endswith("*"):
-            raise NotFound("not found")
-        return bigquery.Table(table_id.rstrip("*"))
-
-    client.get_table.side_effect = get_table
-
-    messages_hook(bq_client_factory)(pipe)
-
-    assert "PARSE_DATE('%Y%m%d', _TABLE_SUFFIX)" in queries(client)[0]
 
 
 def test_prior_segments_hook_passes_when_the_day_has_segments(pipe, client, bq_client_factory):

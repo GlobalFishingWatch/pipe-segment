@@ -2,20 +2,11 @@ import logging
 
 from datetime import date
 
-from jinja2 import Template
-
 import apache_beam as beam
 from pipe_segment.pipelines.messages_segmented.bq_source import BigQuerySource
 
 
 logger = logging.getLogger(__name__)
-
-
-FILTER_TEMPLATE = """
-    {{ filter_field }}
-    BETWEEN '{{ start_date.strftime(date_format) }}'
-    AND '{{ end_date.strftime(date_format) }}'
-"""
 
 
 def build_filter(bq_source: BigQuerySource, start_date: date, end_date: date) -> str:
@@ -34,15 +25,7 @@ def build_filter(bq_source: BigQuerySource, start_date: date, end_date: date) ->
     Returns:
         The condition, to use in a ``WHERE`` clause.
     """
-    filtering_field = bq_source.filtering_field
-    if '-' in bq_source.date_format:
-        filtering_field = f"DATE({filtering_field})"
-    return Template(FILTER_TEMPLATE).render({
-        'start_date': start_date,
-        'end_date': end_date,
-        'filter_field': filtering_field,
-        'date_format': bq_source.date_format,
-    })
+    return f"{bq_source.filtering_field} BETWEEN '{start_date}' AND '{end_date}'"
 
 
 def build_days_query(sources: list, start_date: date, end_date: date) -> str:
@@ -63,14 +46,10 @@ def build_days_query(sources: list, start_date: date, end_date: date) -> str:
     """
     selects = []
     for source in sources:
-        if "-" in source.date_format:
-            day = source.filtering_field
-        else:
-            day = f"PARSE_DATE('{source.date_format}', {source.filtering_field})"
         selects.append(f"""
                 SELECT
-                  {day} AS day
-                FROM `{source.qualified_source}`
+                  {source.filtering_field} AS day
+                FROM `{source.table_id}`
                 WHERE {build_filter(source, start_date, end_date)}
             """)
 
@@ -104,7 +83,7 @@ class ReadMessages(beam.PTransform):
             SELECT
               CAST(UNIX_MICROS(timestamp) AS FLOAT64) / 1000000  AS timestamp,
                 * except (timestamp)
-            FROM `{bq_source.qualified_source}`
+            FROM `{bq_source.table_id}`
             WHERE {build_filter(bq_source, self.start_date, self.end_date)}
         )
         """
