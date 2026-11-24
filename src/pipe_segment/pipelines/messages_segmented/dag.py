@@ -3,11 +3,15 @@
 import datetime as dt
 import logging
 
+from typing import Any, Callable
+
 import apache_beam as beam
 import ujson
 from apache_beam.pvalue import PCollection
 from gfw.common.beam.pipeline.dag import Dag
+from gfw.common.beam.transforms import ReadFromBigQuery
 from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
+from pipe_segment.pipelines.messages_segmented.queries import MessagesQuery
 from pipe_segment.pipelines.messages_segmented.transforms.filter_bad_satellite_times import (
     FilterBadSatelliteTimes,
 )
@@ -22,9 +26,6 @@ from pipe_segment.pipelines.messages_segmented.transforms.incremental_segments i
 )
 from pipe_segment.pipelines.messages_segmented.transforms.invalid_values import (
     filter_invalid_values,
-)
-from pipe_segment.pipelines.messages_segmented.transforms.read_messages import (
-    ReadMessages,
 )
 from pipe_segment.pipelines.messages_segmented.transforms.read_prior_segments import (
     ReadPriorSegments,
@@ -88,6 +89,9 @@ class MessagesSegmentedDag(Dag):
 
         fragments_sink:
             Transform that writes the fragments.
+
+        read_from_bigquery_factory:
+            Builds the transform that reads from BigQuery.
     """
 
     def __init__(
@@ -96,12 +100,14 @@ class MessagesSegmentedDag(Dag):
         messages_sink: beam.PTransform,
         segments_sink: beam.PTransform,
         fragments_sink: beam.PTransform,
+        read_from_bigquery_factory: Callable[..., Any] = beam.io.ReadFromBigQuery,
     ) -> None:
         """Initializes the graph."""
         self.config = config
         self.messages_sink = messages_sink
         self.segments_sink = segments_sink
         self.fragments_sink = fragments_sink
+        self.read_from_bigquery_factory = read_from_bigquery_factory
 
     @property
     def merge_params(self) -> dict:
@@ -146,12 +152,16 @@ class MessagesSegmentedDag(Dag):
         # The end date of the config is exclusive, but the transforms work with the last day.
         last_day = config.end_date - dt.timedelta(days=1)
 
-        read_messages = ReadMessages(
-            source=config.bq_in_normalized_messages,
-            start_date=start_date,
-            end_date=last_day,
-            labels=config.labels,
-            ssvid_filter_query=config.ssvid_filter_query,
+        read_messages = ReadFromBigQuery.from_query(
+            MessagesQuery(
+                source=config.bq_in_normalized_messages,
+                start_date=start_date,
+                end_date=last_day,
+                ssvid_filter_query=config.ssvid_filter_query,
+            ),
+            label="ReadMessages",
+            read_from_bigquery_factory=self.read_from_bigquery_factory,
+            read_from_bigquery_kwargs={"bigquery_job_labels": config.labels},
         )
         segmenter = self.segmenter(start_date, last_day)
 

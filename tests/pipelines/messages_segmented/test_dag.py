@@ -1,15 +1,14 @@
 """Tests for the graph of the messages-segmented pipeline."""
 
 import datetime as dt
-
 from datetime import date
 from typing import Any
 
 import apache_beam as beam
 import pytest
-
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
+from gfw.common.beam.transforms.bigquery import FakeReadFromBigQuery
 
 from pipe_segment.pipelines.messages_segmented import main
 from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
@@ -19,7 +18,6 @@ from pipe_segment.pipelines.messages_segmented.dag import (
     time_bin_key,
     time_bin_ndx,
 )
-
 
 SAT_OFFSETS = {
     "bq_in_sat_offset_messages": "project.dataset.sat_messages",
@@ -60,14 +58,25 @@ class Labels(PipelineVisitor):
         self.labels.add(transform_node.full_label)
 
 
-def applied_labels(config: MessagesSegmentedConfig) -> set[str]:
-    """Builds the graph of the config, without running it, and returns its labels."""
+def apply_graph(config: MessagesSegmentedConfig) -> tuple[set[str], list[dict[str, Any]]]:
+    """Builds the graph of the config, without running it.
+
+    Returns:
+        The labels of its transforms, and the arguments of the reads of BigQuery.
+    """
+    reads: list[dict[str, Any]] = []
+
+    def read_factory(**kwargs: Any) -> FakeReadFromBigQuery:
+        reads.append(kwargs)
+        return FakeReadFromBigQuery(elements=[], **kwargs)
+
     messages_table, segments_table, fragments_table, *_ = main.table_configs(config)
     dag = MessagesSegmentedDag(
         config,
         messages_sink=main.sink(messages_table, lambda **kwargs: beam.Map(lambda x: x)),
         segments_sink=main.sink(segments_table, lambda **kwargs: beam.Map(lambda x: x)),
         fragments_sink=main.sink(fragments_table, lambda **kwargs: beam.Map(lambda x: x)),
+        read_from_bigquery_factory=read_factory,
     )
     pipeline = beam.Pipeline(options=PipelineOptions(["--project", "test-project"]))
 
@@ -75,7 +84,23 @@ def applied_labels(config: MessagesSegmentedConfig) -> set[str]:
 
     visitor = Labels()
     pipeline.visit(visitor)
-    return visitor.labels
+    return visitor.labels, reads
+
+
+def applied_labels(config: MessagesSegmentedConfig) -> set[str]:
+    """Builds the graph of the config, without running it, and returns its labels."""
+    return apply_graph(config)[0]
+
+
+def test_the_messages_are_read_from_the_day_before_the_end_date_with_the_labels() -> None:
+    """Checks the query of the messages: its source, its days and the labels of its job."""
+    _, reads = apply_graph(make_config(ssvid_filter_query="SELECT ssvid FROM t"))
+
+    (read,) = [read for read in reads if "project.dataset.messages`" in read["query"]]
+    query = " ".join(read["query"].split())
+    assert "BETWEEN '2024-01-01' AND '2024-01-02'" in query
+    assert "WHERE ssvid IN (SELECT ssvid FROM t)" in query
+    assert read["bigquery_job_labels"] == {"environment": "test"}
 
 
 @pytest.mark.parametrize("incremental", [False, True])

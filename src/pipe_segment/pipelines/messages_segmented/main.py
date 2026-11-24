@@ -1,12 +1,9 @@
 """Entry point of the messages-segmented pipeline."""
 
 import datetime as dt
-
 from typing import Any, Callable
 
 import apache_beam as beam
-
-from google.cloud import bigquery
 
 from gfw.common.beam.pipeline.base import Pipeline
 from gfw.common.beam.pipeline.hooks import (
@@ -14,15 +11,17 @@ from gfw.common.beam.pipeline.hooks import (
     delete_events_hook,
     update_table_hook,
 )
-from gfw.common.beam.transforms import WriteToBigQueryWrapper
+from gfw.common.beam.transforms import ReadFromBigQuery, WriteToBigQueryWrapper
 from gfw.common.bigquery.helper import BigQueryHelper
 from gfw.common.bigquery.table_config import TableConfig
+from google.cloud import bigquery
+
+from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
+from pipe_segment.pipelines.messages_segmented.dag import MessagesSegmentedDag
 from pipe_segment.pipelines.messages_segmented.hooks import (
     verify_messages_exist_hook,
     verify_prior_segments_hook,
 )
-from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
-from pipe_segment.pipelines.messages_segmented.dag import MessagesSegmentedDag
 from pipe_segment.pipelines.messages_segmented.table_config import (
     FragmentsTableConfig,
     FragmentsTableDescription,
@@ -154,6 +153,7 @@ def pre_hooks(
 
 def run(
     config: MessagesSegmentedConfig,
+    read_from_bigquery_factory: Callable | None = None,
     write_to_bigquery_factory: Callable | None = None,
     bq_client_factory: Callable | None = None,
     **kwargs: Any,
@@ -171,6 +171,10 @@ def run(
         config:
             The pipeline's configuration.
 
+        read_from_bigquery_factory:
+            Builds the transform that reads the messages from BigQuery. Defaults to
+            gfw-common's, mocked if config.mock_bq_clients is set.
+
         write_to_bigquery_factory:
             Builds the transforms that write to BigQuery. Defaults to gfw-common's, mocked if
             config.mock_bq_clients is set.
@@ -182,6 +186,10 @@ def run(
         **kwargs:
             Apache Beam pipeline options.
     """
+    if read_from_bigquery_factory is None:
+        read_from_bigquery_factory = ReadFromBigQuery.get_client_factory(
+            mocked=config.mock_bq_clients
+        )
     if write_to_bigquery_factory is None:
         write_to_bigquery_factory = WriteToBigQueryWrapper.get_client_factory(
             mocked=config.mock_bq_clients
@@ -197,6 +205,7 @@ def run(
         messages_sink=sink(messages_table, write_to_bigquery_factory),
         segments_sink=sink(segments_table, write_to_bigquery_factory),
         fragments_sink=sink(fragments_table, write_to_bigquery_factory),
+        read_from_bigquery_factory=read_from_bigquery_factory,
     )
 
     pipeline = Pipeline(
