@@ -29,6 +29,9 @@ class SegmentInfoConfig(PipelineConfig):
     most_common_min_freq: float = 0.05
     """Minimal frequency that defines a ssvid that has a single dominant identity."""
 
+    dry_run: bool = False
+    """If True, executes the query in dry run mode."""
+
     def __post_init__(self) -> None:
         """Validates the configuration.
 
