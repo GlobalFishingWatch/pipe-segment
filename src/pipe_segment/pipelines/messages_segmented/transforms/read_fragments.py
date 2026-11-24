@@ -2,7 +2,8 @@ import logging
 from datetime import datetime
 
 import apache_beam as beam
-from pipe_segment.utils.bq_tools import BigQueryHelper
+from gfw.common.bigquery.helper import BigQueryHelper
+from pipe_segment.pipelines.messages_segmented.bq_source import fetch_table
 
 
 logger = logging.getLogger(__name__)
@@ -16,8 +17,10 @@ class ReadFragments(beam.PTransform):
         source: str,
         start_date: datetime.date,
         end_date: datetime.date,
+        labels: dict,
     ):
         self.bq_helper = bq_helper
+        self.labels = labels
         self.source = source
         self.start_date = start_date
         self.end_date = end_date
@@ -45,7 +48,7 @@ class ReadFragments(beam.PTransform):
 
     def is_table_missing(self) -> bool:
         """Returns True if the source table is missing."""
-        return self.bq_helper.fetch_table(self.source) is None
+        return fetch_table(self.bq_helper, self.source) is None
 
     def expand(self, pcoll):
         if self.is_table_missing():
@@ -54,6 +57,6 @@ class ReadFragments(beam.PTransform):
                 >> beam.io.ReadFromBigQuery(
                     query=self.make_query(),
                     method=beam.io.ReadFromBigQuery.Method.EXPORT,
-                    bigquery_job_labels=self.bq_helper.labels,
+                    bigquery_job_labels=self.labels,
                     use_standard_sql=True
                 ))

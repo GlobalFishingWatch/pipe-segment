@@ -28,7 +28,13 @@ def client(mocker):
     """BigQuery client mock. Set `scalars` to the values that its queries return, in order."""
     client = mocker.Mock()
     client.scalars = []
-    client.query_and_wait.side_effect = lambda *args, **kwargs: iter([[client.scalars.pop(0)]])
+
+    def query(*args, **kwargs):
+        job = mocker.Mock()
+        job.result.return_value = iter([[client.scalars.pop(0)]])
+        return job
+
+    client.query.side_effect = query
     client.get_table.side_effect = lambda table_id: bigquery.Table(table_id)
     return client
 
@@ -39,7 +45,7 @@ def bq_client_factory(mocker, client):
 
 
 def queries(client):
-    return [call.args[0] for call in client.query_and_wait.call_args_list]
+    return [call.args[0] for call in client.query.call_args_list]
 
 
 def messages_hook(bq_client_factory, sources=("project.dataset.messages",)):
@@ -144,6 +150,7 @@ def test_hooks_use_the_project_of_the_pipeline_and_the_labels(pipe, client, bq_c
 
     prior_segments_hook(bq_client_factory)(pipe)
 
-    bq_client_factory.assert_called_once_with(project="the-project")
-    job_config = client.query_and_wait.call_args.kwargs["job_config"]
+    assert bq_client_factory.call_args.kwargs["project"] == "the-project"
+    bq_client_factory.assert_called_once()
+    job_config = client.query.call_args.kwargs["job_config"]
     assert job_config.labels == LABELS

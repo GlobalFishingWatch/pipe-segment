@@ -33,7 +33,6 @@ from pipe_segment.pipelines.messages_segmented.table_config import (
     SegmentsTableConfig,
     SegmentsTableDescription,
 )
-from pipe_segment.utils.bq_tools import BigQueryHelper as TransformsBigQueryHelper
 from pipe_segment.version import __version__
 
 
@@ -195,10 +194,7 @@ def run(
 
     dag = MessagesSegmentedDag(
         config,
-        bq_helper=TransformsBigQueryHelper(
-            bq_client=bq_client_factory(project=config.project),
-            labels=config.labels,
-        ),
+        bq_helper=BigQueryHelper(client_factory=bq_client_factory, project=config.project),
         messages_sink=sink(messages_table, write_to_bigquery_factory),
         segments_sink=sink(segments_table, write_to_bigquery_factory),
         fragments_sink=sink(fragments_table, write_to_bigquery_factory),

@@ -85,12 +85,14 @@ class ReadMessages(beam.PTransform):
         sources,
         start_date,
         end_date,
+        labels,
         ssvid_filter_query=None,
     ):
         self.bq_helper = bq_helper
         self.sources = sources
         self.start_date = start_date
         self.end_date = end_date
+        self.labels = labels
         self.ssvid_filter_query = ssvid_filter_query
 
     def build_query(self, source: str):
@@ -120,7 +122,7 @@ class ReadMessages(beam.PTransform):
             >> beam.io.ReadFromBigQuery(
                 query=self.build_query(src),
                 use_standard_sql=True,
-                bigquery_job_labels=self.bq_helper.labels,
+                bigquery_job_labels=self.labels,
             )
             for i, src in enumerate(self.sources)
         ] | beam.Flatten()

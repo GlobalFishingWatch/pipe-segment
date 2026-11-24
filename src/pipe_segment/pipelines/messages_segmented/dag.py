@@ -9,6 +9,7 @@ import ujson
 from apache_beam.pvalue import PCollection
 
 from gfw.common.beam.pipeline.dag import Dag
+from gfw.common.bigquery.helper import BigQueryHelper
 from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
 from pipe_segment.tools import datetime_from_timestamp
 from pipe_segment.pipelines.messages_segmented.transforms.filter_bad_satellite_times import (
@@ -41,7 +42,6 @@ from pipe_segment.pipelines.messages_segmented.transforms.tag_with_seg_id import
 from pipe_segment.pipelines.messages_segmented.transforms.whitelist_messages_segmented import (
     WhitelistFields,
 )
-from pipe_segment.utils.bq_tools import BigQueryHelper
 
 
 logger = logging.getLogger(__name__)
@@ -81,8 +81,7 @@ class MessagesSegmentedDag(Dag):
             The pipeline's configuration.
 
         bq_helper:
-            Helper that the transforms use to look up the tables they read, and to label
-            their queries.
+            Helper that the transforms use to look up the tables they read.
 
         messages_sink:
             Transform that writes the segmented messages.
@@ -128,7 +127,7 @@ class MessagesSegmentedDag(Dag):
                     self.config.in_fragments_table,
                     start_date - dt.timedelta(days=1),
                     ssvid_filter_query=self.config.ssvid_filter_query,
-                    read_from_bigquery_kwargs={"bigquery_job_labels": self.bq_helper.labels},
+                    read_from_bigquery_kwargs={"bigquery_job_labels": self.config.labels},
                 ),
                 merge_params=self.merge_params,
             )
@@ -139,6 +138,7 @@ class MessagesSegmentedDag(Dag):
             start_date,
             last_day,
             self.merge_params,
+            self.config.labels,
         )
 
     def apply(self, pipeline: beam.Pipeline) -> PCollection:
@@ -157,6 +157,7 @@ class MessagesSegmentedDag(Dag):
             sources=[config.bq_in_normalized_messages],
             start_date=start_date,
             end_date=last_day,
+            labels=config.labels,
             ssvid_filter_query=config.ssvid_filter_query,
         )
         segmenter = self.segmenter(start_date, last_day)

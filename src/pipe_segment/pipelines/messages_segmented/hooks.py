@@ -13,9 +13,9 @@ from typing import Any, Callable, Optional
 
 from google.cloud import bigquery
 
+from gfw.common.bigquery.helper import BigQueryHelper
 from pipe_segment.pipelines.messages_segmented.transforms.read_messages import build_days_query
 from pipe_segment.pipelines.messages_segmented.bq_source import BigQuerySource
-from pipe_segment.utils.bq_tools import BigQueryHelper
 
 
 logger = logging.getLogger(__name__)
@@ -56,11 +56,11 @@ def verify_messages_exist_hook(
     """
 
     def _hook(p: Any) -> None:
-        bq_helper = _bq_helper(p, labels, bq_client_factory)
+        bq_helper = _bq_helper(p, bq_client_factory)
         n_days = (end_date - start_date).days + 1
         bq_sources = [BigQuerySource(bq_helper, source) for source in sources]
-        days_with_messages = bq_helper.fetch_scalar(
-            build_days_query(bq_sources, start_date, end_date)
+        days_with_messages = fetch_scalar(
+            bq_helper, labels, build_days_query(bq_sources, start_date, end_date)
         )
         if days_with_messages < n_days:
             raise ValueError(
@@ -110,14 +110,18 @@ def verify_prior_segments_hook(
     """
 
     def _hook(p: Any) -> None:
-        bq_helper = _bq_helper(p, labels, bq_client_factory)
-        count = bq_helper.fetch_scalar(
-            f"SELECT COUNT(*) FROM `{segments_table}` WHERE DATE(timestamp) = '{day}'"
+        bq_helper = _bq_helper(p, bq_client_factory)
+        count = fetch_scalar(
+            bq_helper,
+            labels,
+            f"SELECT COUNT(*) FROM `{segments_table}` WHERE DATE(timestamp) = '{day}'",
         )
         if count > 0:
             return
 
-        has_history = bq_helper.fetch_scalar(
+        has_history = fetch_scalar(
+            bq_helper,
+            labels,
             f"""
             SELECT EXISTS (
               SELECT
@@ -125,7 +129,7 @@ def verify_prior_segments_hook(
               FROM `{fragments_table}`
               WHERE DATE(timestamp) <= '{day}'
             )
-            """
+            """,
         )
         if not has_history:
             logger.info(f"No fragments up to {day}: starting from an empty state.")
@@ -144,7 +148,6 @@ def verify_prior_segments_hook(
 
 def _bq_helper(
     p: Any,
-    labels: dict[str, str],
     bq_client_factory: Optional[Callable[..., bigquery.Client]],
 ) -> BigQueryHelper:
     """Builds the helper that a hook uses, in the project the pipeline runs in.
@@ -152,9 +155,6 @@ def _bq_helper(
     Args:
         p:
             The pipeline that runs the hook. It has the project in its cloud options.
-
-        labels:
-            Labels to set on the queries.
 
         bq_client_factory:
             Factory for the BigQuery client. Defaults to a real client.
@@ -165,4 +165,23 @@ def _bq_helper(
     if bq_client_factory is None:
         bq_client_factory = bigquery.Client
 
-    return BigQueryHelper(bq_client_factory(project=p.cloud_options.project), labels)
+    return BigQueryHelper(client_factory=bq_client_factory, project=p.cloud_options.project)
+
+
+def fetch_scalar(bq_helper: BigQueryHelper, labels: dict[str, str], query: str) -> Any:
+    """Runs a query that returns a single row with a single column, and returns its value.
+
+    Args:
+        bq_helper:
+            Helper to run the query.
+
+        labels:
+            Labels to set on the query job.
+
+        query:
+            The query.
+
+    Returns:
+        The value.
+    """
+    return next(iter(bq_helper.run_query(query, labels=labels)))[0]

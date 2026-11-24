@@ -1,9 +1,22 @@
 import logging
 
-from pipe_segment.utils.bq_tools import BigQueryHelper
+from typing import Optional
+
+from google.api_core.exceptions import NotFound
+from google.cloud import bigquery
+
+from gfw.common.bigquery.helper import BigQueryHelper
 
 
 logger = logging.getLogger(__name__)
+
+
+def fetch_table(bq_helper: BigQueryHelper, table_id: str) -> Optional[bigquery.Table]:
+    """Returns the table, or None if it does not exist."""
+    try:
+        return bq_helper.client.get_table(table_id)
+    except NotFound:
+        return None
 
 
 class BigQuerySource:
@@ -18,12 +31,12 @@ class BigQuerySource:
         self._check_sharded_or_partitioned(table_id)
 
     def _check_sharded_or_partitioned(self, table_id):
-        table = self._bq_helper.fetch_table(table_id)
+        table = fetch_table(self._bq_helper, table_id)
         if table is not None:
             self._initialize_partitioned_table(table)
             return
 
-        table = self._bq_helper.fetch_table(f"{table_id}*")
+        table = fetch_table(self._bq_helper, f"{table_id}*")
         if table is not None:
             self._initialize_sharded_table()
             return

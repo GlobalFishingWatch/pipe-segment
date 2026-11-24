@@ -11,7 +11,7 @@ from pipe_segment.pipelines.messages_segmented.transforms.create_segment_map imp
 from pipe_segment.pipelines.messages_segmented.transforms.create_segments import CreateSegments
 from pipe_segment.pipelines.messages_segmented.transforms.read_fragments import ReadFragments
 from pipe_segment.pipelines.messages_segmented.transforms.tag_with_seg_id import TagWithSegId
-from pipe_segment.utils.bq_tools import BigQueryHelper
+from gfw.common.bigquery.helper import BigQueryHelper
 
 
 SEGMAP = "segmap"
@@ -40,11 +40,12 @@ class FullHistorySegments(beam.PTransform):
     keeps only the segments-days of the date range.
 
     Args:
-        bq_helper: helper to run queries and to label them.
+        bq_helper: helper to look up the tables.
         fragments_table: table to read the fragments written before the date range from.
         start_date: first day to write segments for.
         end_date: last day to write segments for.
         merge_params: parameters of the matcher.
+        labels: labels of the query jobs that read the fragments.
     """
 
     def __init__(
@@ -54,8 +55,10 @@ class FullHistorySegments(beam.PTransform):
         start_date: dt.date,
         end_date: dt.date,
         merge_params: Dict,
+        labels: Dict,
     ):
         self.bq_helper = bq_helper
+        self.labels = labels
         self.fragments_table = fragments_table
         self.start_date = start_date
         self.end_date = end_date
@@ -69,6 +72,7 @@ class FullHistorySegments(beam.PTransform):
             # lookback at fragments not segments or something otherwise complicated
             start_date=None,  # start_date - timedelta(days=1),
             end_date=self.start_date - dt.timedelta(days=1),
+            labels=self.labels,
         )
 
         all_fragments = (new_fragments, existing_fragments) | beam.Flatten()

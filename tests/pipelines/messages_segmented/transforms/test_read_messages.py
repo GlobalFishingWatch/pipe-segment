@@ -1,10 +1,10 @@
 import os
 from datetime import date
-from dataclasses import dataclass, field
 
 import pytest
 
 from google.api_core.client_options import ClientOptions
+from google.api_core.exceptions import NotFound
 from google.auth.credentials import AnonymousCredentials
 from google.cloud import bigquery
 
@@ -12,7 +12,7 @@ import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
 from pipe_segment.pipelines.messages_segmented.transforms.read_messages import ReadMessages
 from pipe_segment import tools
-from pipe_segment.utils.bq_tools import BigQueryHelper
+from gfw.common.bigquery.helper import BigQueryHelper
 
 TABLE_SCHEMA = [
     {
@@ -34,18 +34,20 @@ API_HOST = os.getenv("BIGQUERY_HOST", "localhost")
 API_PORT = 9050
 
 
-@dataclass
-class BigQueryHelperMock():
-    notfound_fails: int = 0
-    labels: dict = field(default_factory=dict)
+def make_bq_helper(notfound_fails: int = 0) -> BigQueryHelper:
+    """Returns a helper whose client does not find the first tables that it is asked for."""
+    bq_helper = BigQueryHelper.mocked(project="test-project")
+    not_found = [notfound_fails]
 
-    def fetch_table(self, table_ref) -> bigquery.Table:
-        if self.notfound_fails > 0:
-            self.notfound_fails -= 1
-            return None
+    def get_table(table_id):
+        if not_found[0] > 0:
+            not_found[0] -= 1
+            raise NotFound("Not found")
 
-        table = bigquery.Table(table_ref)
-        return table
+        return bigquery.Table(table_id)
+
+    bq_helper.client.get_table.side_effect = get_table
+    return bq_helper
 
 
 class ReadFromBigQueryMock(beam.io.ReadFromBigQuery):
@@ -59,15 +61,17 @@ def test_read_messages(monkeypatch):
 
     dummy_sources = ["project1.dataset1.table1", "project2.dataset2.table2"]
 
-    bq_helper = BigQueryHelperMock(notfound_fails=1)
+    bq_helper = make_bq_helper(notfound_fails=1)
 
     # Test without ssvid_filter_query
-    op = ReadMessages(bq_helper, dummy_sources, date.today(), date.today())
+    op = ReadMessages(bq_helper, dummy_sources, date.today(), date.today(), {})
     with TestPipeline() as p:
         p | op
 
     # Test with ssvid_filter_query
-    op = ReadMessages(bq_helper, dummy_sources, date.today(), date.today(), ssvid_filter_query="")
+    op = ReadMessages(
+        bq_helper, dummy_sources, date.today(), date.today(), {}, ssvid_filter_query=""
+    )
     with TestPipeline() as p:
         p | op
 
@@ -82,10 +86,12 @@ def test_read_messages_labels_every_read(monkeypatch):
     monkeypatch.setattr(beam.io, "ReadFromBigQuery", fake_read)
 
     labels = {"environment": "production", "stage": "segment--v5-0-4"}
-    bq_helper = BigQueryHelperMock(labels=labels)
+    bq_helper = make_bq_helper()
     dummy_sources = ["project1.dataset1.table1", "project2.dataset2.table2"]
 
-    _ = beam.Pipeline() | ReadMessages(bq_helper, dummy_sources, date.today(), date.today())
+    _ = beam.Pipeline() | ReadMessages(
+        bq_helper, dummy_sources, date.today(), date.today(), labels
+    )
 
     assert [call["bigquery_job_labels"] for call in read_calls] == [labels, labels]
 
@@ -105,7 +111,7 @@ def test_bigquery_integration():
         credentials=AnonymousCredentials(),
     )
 
-    bq_helper = BigQueryHelper(bq_client, [])
+    bq_helper = BigQueryHelper(client_factory=lambda **kwargs: bq_client)
 
     # Partitioned table
     dummy_table1 = f"{project_id}.{dataset_id}.table1"
@@ -136,7 +142,7 @@ def test_bigquery_integration():
         print("{}.{}.{}".format(table.project, table.dataset_id, table.table_id))
 
     dummy_sources = [dummy_table1, dummy_table2, dummy_table3]
-    op = ReadMessages(bq_helper, dummy_sources, start_date, end_date)  # noqa
+    op = ReadMessages(bq_helper, dummy_sources, start_date, end_date, {})  # noqa
     op.build_query(dummy_table1)
 
     with pytest.raises(ValueError):

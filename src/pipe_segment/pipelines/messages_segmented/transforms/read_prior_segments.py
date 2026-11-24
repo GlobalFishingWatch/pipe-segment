@@ -5,7 +5,7 @@ from typing import Optional
 
 import apache_beam as beam
 
-from pipe_segment.utils.template_tools import format_query
+from pipe_segment.pipelines.messages_segmented.queries import PriorSegmentsQuery
 
 
 logger = logging.getLogger(__name__)
@@ -47,13 +47,12 @@ class ReadPriorSegments(beam.PTransform):
         self.read_from_bigquery_kwargs = read_from_bigquery_kwargs or {}
 
     def build_query(self) -> str:
-        return format_query(
-            "prior_segments.sql.j2",
+        return PriorSegmentsQuery(
             segments_table=self.segments_table,
             fragments_table=self.fragments_table,
             day=self.day,
             ssvid_filter_query=self.ssvid_filter_query,
-        )
+        ).render()
 
     def expand(self, pcoll):
         query = self.build_query()
