@@ -1,105 +1,85 @@
-import sys
-import logging
-import argparse
+"""Command-line interface of pipe-segment, built on gfw-common's CLI.
 
-from rich.logging import RichHandler
-from pipe_segment.cli.commands import (
-    Segment,
-    SegmentIdentity,
-    SegmentVesselDaily,
-    SegmentInfo,
-    VesselInfo,
-    SegmentVessel,
+The commands that are not migrated yet run on the legacy CLI.
+"""
+
+import sys
+
+from typing import Any
+
+from gfw.common.cli import CLI, labels_option
+from gfw.common.cli.formatting import default_formatter
+from gfw.common.logging import LoggerConfig
+
+from pipe_segment.cli import legacy
+from pipe_segment.cli.commands import VesselInfo
+from pipe_segment.cli.options import project_option
+from pipe_segment.version import __version__
+
+
+NAME = "pipe-segment"
+DESCRIPTION = (
+    "Divides vessel tracks into contiguous segments, separating out signals that come "
+    "from two or more vessels which are broadcasting using the same MMSI at the same time."
+)
+EXAMPLES = (
+    "pipe-segment vessel-info "
+    "--bq-in-segment-identity-daily project.dataset.segment_identity_daily "
+    "--bq-in-segment-vessel-daily project.dataset.segment_vessel_daily "
+    "--bq-out-vessel-info project.dataset.vessel_info "
+    "--project my-project "
+    "--labels environment=development resource_creator=tomas-link",
+    "pipe-segment vessel-info -c config/vessel-info/example.yaml",
 )
 
-logger = logging.getLogger(__name__)
+COMMANDS = [VesselInfo]
 
 
-class CLI:
-    """Generic command-line interface."""
-    HELP_VERBOSE = 'whether to run with DEBUG log level (default: %(default)s).'
-    HELP_LOG_FILE = "file to send logging output to."
+def run(args: list[str]) -> Any:
+    """Executes the command given in ``args``.
 
-    def __init__(self, args):
-        self._args = args
+    Commands that are not migrated yet run on the legacy CLI.
 
-        self._setup_logger()
-        self._add_commands()
-        self._parse_args()
+    Args:
+        args:
+            Command-line arguments, without the program name.
 
-    def execute(self):
-        logger.info(f"Running pipe {self.command} command...")
-        return self.execute_command(self.args, self.extra_args)
+    Returns:
+        The result of the command.
+    """
+    names = {command().name for command in COMMANDS}
+    if not names.intersection(args):
+        return legacy.run(args)
 
-    def _add_commands(self):
-        self.parser = argparse.ArgumentParser(
-            prog=self.NAME, description=self.DESCRIPTION, formatter_class=self.formatter())
+    cli = CLI(
+        name=NAME,
+        description=DESCRIPTION,
+        formatter=default_formatter(max_pos=120),
+        subcommands=COMMANDS,
+        options=[labels_option(), project_option()],  # Common options for all subcommands.
+        version=__version__,
+        examples=EXAMPLES,
+        logger_config=LoggerConfig(
+            warning_level=[
+                "apache_beam.runners.portability",
+                "apache_beam.runners.worker",
+                "apache_beam.transforms.core",
+                "apache_beam.io.filesystem",
+                "apache_beam.io.gcp.bigquery_tools",
+                "urllib3",
+            ]
+        ),
+        allow_unknown=True,
+    )
 
-        self.parser.add_argument('-v', '--verbose', action='store_true', help=self.HELP_VERBOSE)
-        self.parser.add_argument('-l', '--log_file', metavar='\b', help=self.HELP_LOG_FILE)
-
-        self.subparsers = self.parser.add_subparsers(dest='command', help='available commands')
-
-        for command in self.COMMANDS:
-            command.add_to_subparsers(self.subparsers)
-
-    def _parse_args(self):
-        self.args, self.extra_args = self.parser.parse_known_args(args=self._args or ['--help'])
-
-        if self.args.verbose:
-            logging.getLogger().setLevel(logging.DEBUG)
-
-        if self.args.log_file:
-            logging.getLogger().addHandler(logging.FileHandler(self.args.log_file))
-
-        self.execute_command = self.args.func
-        self.command = self.args.command
-
-        del self.args.verbose
-        del self.args.log_file
-        del self.args.command
-        del self.args.func
-
-    def _setup_logger(self):
-        logging.basicConfig(
-            level=logging.INFO,
-            format=self.LOG_FORMAT, handlers=[RichHandler(level="NOTSET")], force=True)
-        # force = True is needed because some other library is setting the root logger.
-
-        for module in self.LOG_LEVEL_WARNING:
-            logging.getLogger(module).setLevel(logging.WARNING)
+    result, _ = cli.execute(args)
+    return result
 
 
-class PIPE(CLI):
-    NAME = 'PIPE'
-    DESCRIPTION = 'Executes a GFW pipeline.'
-    LOG_FORMAT = '%(name)s - %(message)s'
-
-    # packages / moudules for which to set the log level as WARNING.
-    LOG_LEVEL_WARNING = [
-        "apache_beam.io.gcp",
-        "apache_beam.runners.worker.bundle_processor"
-    ]
-
-    COMMANDS = [
-        Segment, SegmentIdentity, SegmentVesselDaily, SegmentInfo, SegmentVessel, VesselInfo
-    ]
-
-    @staticmethod
-    def formatter():
-        def formatter(prog):
-            return argparse.RawTextHelpFormatter(prog, max_help_position=50)
-
-        return formatter
-
-
-def run(args):
-    PIPE(args).execute()
-
-
-def main():
+def main() -> None:
+    """Runs the CLI with the arguments of the command line."""
     run(sys.argv[1:])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

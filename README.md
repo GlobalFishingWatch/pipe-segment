@@ -62,7 +62,7 @@ Available Commands
   segment_vessel_daily        generate daily vessel_ids per segment
   segment_info                create a segment_info table with one row
                               per segment
-  vessel_info                 create a vessel_info table with one row
+  vessel-info                 create a vessel_info table with one row
                               per vessel_id
   segment_vessel              Create a many-to-many table mapping between
                               segment_id, vessel_id and ssvid
@@ -71,6 +71,13 @@ Available Commands
 If you want to know the parameters of one of the processes, run for example:
 ```shell
 docker compose run --rm --entrypoint pipe-segment dev segment --help
+```
+
+The commands are being migrated to a new CLI, with kebab-case options, `--bq-in-*` and `--bq-out-*`
+for the tables, and a required `--project` and `--labels`. Each migrated command also accepts
+a config file with `-c`, see [config](config/). So far, only `vessel-info` is migrated:
+```shell
+docker compose run pipeline vessel-info -c config/vessel-info/example.yaml
 ```
 
 ## Schema
