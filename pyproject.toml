@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
-"assets" = ["*"]
+"pipe_segment.assets" = ["**/*"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
