@@ -45,17 +45,23 @@ WORKDIR /opt/project
 # ---------------------------------------------------------------------------------------
 # DEVELOPMENT IMAGE
 # ---------------------------------------------------------------------------------------
-FROM builder AS dev
+# Built on prod, which already has the pinned dependencies, so dev doesn't carry a second
+# copy of them. uv leaves the already installed pinned versions alone.
+FROM prod AS dev
+
+VOLUME ["/root/.config"]
+
+COPY --from=ghcr.io/astral-sh/uv:0.10.9 /uv /usr/local/bin/uv
+
+ENV UV_COMPILE_BYTECODE=1
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends make && \
     rm -rf /var/lib/apt/lists/*
 
-WORKDIR /opt/project
-
 COPY . .
-RUN uv pip install --system -e .[lint,dev,build] && \
-    uv pip install --system -r requirements-test.txt
+RUN uv pip install --system --no-deps -e . && \
+    uv pip install --system --group lint --group dev --group build -r requirements-test.txt
 
 # ---------------------------------------------------------------------------------------
 # TEST IMAGE
