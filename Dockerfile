@@ -1,4 +1,10 @@
 # ---------------------------------------------------------------------------------------
+# UV
+# ---------------------------------------------------------------------------------------
+# The uv version is pinned here once, for the builder and dev stages.
+FROM ghcr.io/astral-sh/uv:0.10.9 AS uv
+
+# ---------------------------------------------------------------------------------------
 # BUILDER
 # ---------------------------------------------------------------------------------------
 FROM python:3.12-slim-bookworm AS builder
@@ -11,7 +17,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Use uv for high-speed installs
-COPY --from=ghcr.io/astral-sh/uv:0.10.9 /uv /usr/local/bin/uv
+COPY --from=uv /uv /usr/local/bin/uv
 
 ENV UV_COMPILE_BYTECODE=1
 
@@ -51,7 +57,7 @@ FROM prod AS dev
 
 VOLUME ["/root/.config"]
 
-COPY --from=ghcr.io/astral-sh/uv:0.10.9 /uv /usr/local/bin/uv
+COPY --from=uv /uv /usr/local/bin/uv
 
 ENV UV_COMPILE_BYTECODE=1
 
