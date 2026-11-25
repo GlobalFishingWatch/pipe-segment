@@ -5,15 +5,6 @@ services:
       - "gcp:/root/.config/"
     entrypoint: gcloud
 
-  pipeline:
-    image: gfw/pipe-segment-dev
-    build:
-      target: dev
-    volumes:
-      - ".:/opt/project"
-      - "gcp:/root/.config/"
-    entrypoint: "pipe-segment"
-
   dev: &dev
     image: gfw/pipe-segment-dev
     build:

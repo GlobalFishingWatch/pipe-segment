@@ -52,9 +52,9 @@ You can check the [examples] folder to see how to run the pipe.
 The pipeline includes a CLI that can be used to start both local test runs and
 remote full runs.
 
-With `docker compose run pipeline --help` you can see the available processes:
+With `docker compose run --rm --entrypoint pipe-segment dev --help` you can see the available processes:
 ```bash
-$ docker compose run pipeline --help
+$ docker compose run --rm --entrypoint pipe-segment dev --help
 Available Commands
   segment                     run the segmenter in dataflow
   segment_identity_daily      generate daily summary of identity messages
@@ -70,7 +70,7 @@ Available Commands
 
 If you want to know the parameters of one of the processes, run for example:
 ```shell
-docker compose run pipeline segment --help
+docker compose run --rm --entrypoint pipe-segment dev segment --help
 ```
 
 ## Schema
