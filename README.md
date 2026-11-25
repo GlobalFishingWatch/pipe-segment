@@ -139,7 +139,7 @@ flowchart TD
 The table names are the production ones.
 
 - **`messages-segmented`** reads the normalized messages of the processed dates,
-  from one or several tables, and writes three tables, plus an optional fourth one:
+  from a table, and writes three tables, plus an optional fourth one:
   1. Values outside the valid range of each message type (positions, course, speed) are set
      to null.
   2. If the three satellite inputs are given, it computes, per receiver and hour,
