@@ -45,6 +45,11 @@ class SegmentVessel(Command):
             Option("--bq-out-segment-vessel", type=str, required=True, help=HELP_OUTPUT),
         ]
 
+    @property
+    def allow_unknown(self) -> bool:
+        """Rejects unknown arguments: the command only runs queries, so it has no Beam options."""
+        return False
+
     def run(self, config: SimpleNamespace, **kwargs: Any) -> Any:
         """Runs the pipeline with the resolved configuration."""
         return main.run(SegmentVesselConfig.from_namespace(config), **kwargs)

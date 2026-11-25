@@ -106,3 +106,22 @@ def test_cli_reads_the_options_from_a_config_file(run: MagicMock, tmp_path: Path
     assert config.project == "file-project"
     assert config.most_common_min_freq == 0.3
     assert config.labels == {"environment": "file"}
+
+
+def test_cli_rejects_unknown_options(run: MagicMock) -> None:
+    """Checks that an option that the command does not define fails, as it has no Beam options."""
+    with pytest.raises(SystemExit):
+        main.run([*BASE_ARGS, "--unknown-option", "1"])
+
+    run.assert_not_called()
+
+
+def test_cli_rejects_unknown_config_file_keys(run: MagicMock, tmp_path: Path) -> None:
+    """Checks that a config file key that the command does not define fails."""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("unknown_key: 1\n")
+
+    with pytest.raises(ValueError, match="not recognized"):
+        main.run([*BASE_ARGS, "-c", str(config_file)])
+
+    run.assert_not_called()
