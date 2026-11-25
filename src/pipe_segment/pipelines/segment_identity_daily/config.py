@@ -25,6 +25,3 @@ class SegmentIdentityDailyConfig(DatePipelineConfig):
 
     bq_out_segment_identity_daily: str
     """Table in which to store the daily identities of the segments."""
-
-    wait_for_job: bool = False
-    """Whether to wait until the job finishes before returning."""

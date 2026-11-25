@@ -51,16 +51,25 @@ def test_cli_executes_run_with_the_config(run: MagicMock) -> None:
     assert config.bq_out_segment_identity_daily == "project.dataset.segment_identity_daily"
     assert config.start_date == date(2024, 1, 1)
     assert config.end_date == date(2024, 1, 8)
-    assert config.wait_for_job is False
+    assert config.wait_for_job is True
     assert config.project == "test-project"
     assert config.labels == {"environment": "test"}
 
 
-def test_cli_passes_the_wait_for_job_flag(run: MagicMock) -> None:
-    """Checks that the CLI passes the wait flag to the config."""
-    main.run([*BASE_ARGS, "--wait-for-job"])
+def test_cli_can_skip_waiting_for_the_job(run: MagicMock) -> None:
+    """Checks that --no-wait-for-job turns the wait off."""
+    main.run([*BASE_ARGS, "--no-wait-for-job"])
 
-    assert run.call_args.args[0].wait_for_job is True
+    assert run.call_args.args[0].wait_for_job is False
+
+
+def test_cli_ignores_the_snake_case_wait_for_job_flag(run: MagicMock) -> None:
+    """Checks that the flag that Airflow renders does not turn the wait off."""
+    main.run([*BASE_ARGS, "--wait_for_job"])
+
+    config = run.call_args.args[0]
+    assert config.wait_for_job is True
+    assert "--wait_for_job" in config.unknown_unparsed_args
 
 
 def test_cli_keeps_the_beam_options_that_it_does_not_define(run: MagicMock) -> None:

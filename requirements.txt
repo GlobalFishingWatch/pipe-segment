@@ -61,7 +61,7 @@ frozenlist==1.8.0
     # via
     #   aiohttp
     #   aiosignal
-gfw-common==0.25.0
+gfw-common==0.27.0
     # via pipe-segment (pyproject.toml)
 google-api-core==2.30.0
     # via

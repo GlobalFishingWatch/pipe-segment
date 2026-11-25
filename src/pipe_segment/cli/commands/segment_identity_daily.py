@@ -3,7 +3,7 @@
 from types import SimpleNamespace
 from typing import Any
 
-from gfw.common.cli import Command, Option, date_range_options
+from gfw.common.cli import Command, Option, date_range_options, wait_for_job_option
 
 from pipe_segment.pipelines.segment_identity_daily import main
 from pipe_segment.pipelines.segment_identity_daily.config import SegmentIdentityDailyConfig
@@ -25,7 +25,6 @@ defined for Apache Beam PipelineOptions class. For more information, see
 HELP_SEGMENTS = "BigQuery table to read the segments from."
 HELP_FRAGMENTS = "BigQuery table to read the fragments from."
 HELP_OUTPUT = "BigQuery table in which to store the daily identities of the segments."
-HELP_WAIT = "Wait until the job finishes before returning."
 
 
 class SegmentIdentityDaily(Command):
@@ -49,7 +48,7 @@ class SegmentIdentityDaily(Command):
             Option("--bq-in-fragments", type=str, required=True, help=HELP_FRAGMENTS),
             Option("--bq-out-segment-identity-daily", type=str, required=True, help=HELP_OUTPUT),
             *date_range_options(),
-            Option("--wait-for-job", type=bool, default=False, help=HELP_WAIT),
+            wait_for_job_option(),
         ]
 
     def run(self, config: SimpleNamespace, **kwargs: Any) -> Any:
