@@ -62,6 +62,11 @@ class SegmentVesselDaily(Command):
             Option("--spoofing-threshold", type=int, default=10, help=HELP_SPOOFING),
         ]
 
+    @property
+    def allow_unknown(self) -> bool:
+        """Rejects unknown arguments: the command only runs queries, so it has no Beam options."""
+        return False
+
     def run(self, config: SimpleNamespace, **kwargs: Any) -> Any:
         """Runs the pipeline with the resolved configuration."""
         return main.run(SegmentVesselDailyConfig.from_namespace(config), **kwargs)

@@ -53,6 +53,11 @@ class SegmentInfo(Command):
             Option("--most-common-min-freq", type=float, default=0.05, help=HELP_MIN_FREQ),
         ]
 
+    @property
+    def allow_unknown(self) -> bool:
+        """Rejects unknown arguments: the command only runs queries, so it has no Beam options."""
+        return False
+
     def run(self, config: SimpleNamespace, **kwargs: Any) -> Any:
         """Runs the pipeline with the resolved configuration."""
         return main.run(SegmentInfoConfig.from_namespace(config), **kwargs)

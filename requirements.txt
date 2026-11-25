@@ -61,7 +61,7 @@ frozenlist==1.8.0
     # via
     #   aiohttp
     #   aiosignal
-gfw-common==0.25.0
+gfw-common==0.27.0
     # via pipe-segment (pyproject.toml)
 google-api-core==2.30.0
     # via
@@ -452,9 +452,7 @@ requests==2.32.5
     #   keyrings-google-artifactregistry-auth
     #   opentelemetry-resourcedetector-gcp
 rich==14.3.4
-    # via
-    #   pipe-segment (pyproject.toml)
-    #   gfw-common
+    # via gfw-common
 roman==5.2
     # via shipdataprocess
 rsa==4.9.1

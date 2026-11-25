@@ -11,6 +11,8 @@
 ################################################################################
 import logging
 
+from datetime import timedelta
+
 from google.cloud import bigquery
 
 import apache_beam as beam
@@ -20,6 +22,7 @@ from apache_beam.options.pipeline_options import (
     StandardOptions,
 )
 from apache_beam.runners import PipelineState
+from pipe_segment.pipelines.segment_identity_daily.config import SegmentIdentityDailyConfig
 from pipe_segment.segment_identity.read_source import ReadSource
 from pipe_segment.segment_identity.transforms import (
     rename_timestamp,
@@ -277,28 +280,22 @@ DEST_SEGMENT_IDENTITY_SCHEMA = [
 ]
 
 
-def parse_date_range(s):
-    # parse a string YYYY-MM-DD,YYYY-MM-DD into 2 timestamps
-    return list(map(timestamp_from_string, s.split(",")) if s is not None else (None, None))
-
-
 class SegmentIdentityPipeline:
-    def __init__(self, options, beam_options):
-        self.options = options
+    def __init__(self, config: SegmentIdentityDailyConfig, beam_options: PipelineOptions):
+        self.config = config
         self.beam_options = beam_options
         self.cloud_options = beam_options.view_as(GoogleCloudOptions)
         assert self.cloud_options.project is not None
-        self.date_range = parse_date_range(self.options.date_range)
+        # The end date of the config is exclusive, but the queries include their last day.
+        self.last_day = config.end_date - timedelta(days=1)
+        self.date_range = [
+            timestamp_from_string(str(config.start_date)),
+            timestamp_from_string(str(self.last_day)),
+        ]
         self.bq_helper = BigQueryHelper(
             bq_client=bigquery.Client(project=self.cloud_options.project),
-            labels=self.cloud_options.labels,
+            labels=config.labels,
         )
-
-    @classmethod
-    def build(cls, options, beam_args):
-        beam_options = PipelineOptions(beam_args)
-
-        return cls(options, beam_options)
 
     @property
     def temp_gcs_location(self):
@@ -311,8 +308,8 @@ class SegmentIdentityPipeline:
     def source_segments(self):
         from_ts, to_ts = self.date_range
         return ReadSource(
-            self.options.source_segments,
-            self.options.source_fragments,
+            self.config.bq_in_segments,
+            self.config.bq_in_fragments,
             from_ts,
             to_ts,
             self.bq_helper.labels)
@@ -328,7 +325,7 @@ class SegmentIdentityPipeline:
     @property
     def destination_table(self):
         return DatePartitionedTable(
-            table_id=self.options.dest_segment_identity,
+            table_id=self.config.bq_out_segment_identity_daily,
             description=f"Created by the pipe-segment: {__version__}.\n"
                         "Daily segments identity processed in segment step.",
             schema=self.dest_segment_identity_schema,
@@ -336,10 +333,9 @@ class SegmentIdentityPipeline:
         )
 
     def prepare_output_tables(self):
-        start_date, end_date = self.options.date_range.split(",")
         self.bq_helper.ensure_table_exists(self.destination_table)
         self.bq_helper.run_query(
-            query=self.destination_table.clear_query(start_date, end_date)
+            query=self.destination_table.clear_query(self.config.start_date, self.last_day)
         )
 
     def pipeline(self):
@@ -374,7 +370,7 @@ class SegmentIdentityPipeline:
         success_states = set([PipelineState.DONE])
 
         if (
-            self.options.wait_for_job
+            self.config.wait_for_job
             or self.beam_options.view_as(StandardOptions).runner == "DirectRunner"
         ):
             logger.info("Waiting until job is done")
@@ -387,7 +383,3 @@ class SegmentIdentityPipeline:
         logger.info("returning with result.state=%s" % result.state)
 
         return 0 if result.state in success_states else 1
-
-
-def run(*args, **kwargs):
-    return SegmentIdentityPipeline.build(*args, **kwargs).run()
