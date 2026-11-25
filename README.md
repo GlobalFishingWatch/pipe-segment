@@ -60,7 +60,7 @@ Available Commands
   segment_identity_daily      generate daily summary of identity messages
                               per segment
   segment_vessel_daily        generate daily vessel_ids per segment
-  segment_info                create a segment_info table with one row
+  segment-info                create a segment_info table with one row
                               per segment
   vessel-info                 create a vessel_info table with one row
                               per vessel_id
@@ -75,9 +75,10 @@ docker compose run --rm --entrypoint pipe-segment dev segment --help
 
 The commands are being migrated to a new CLI, with kebab-case options, `--bq-in-*` and `--bq-out-*`
 for the tables, and a required `--project` and `--labels`. Each migrated command also accepts
-a config file with `-c`, see [config](config/). So far, only `vessel-info` is migrated:
+a config file with `-c`, see [config](config/). So far, `vessel-info` and `segment-info` are migrated:
 ```shell
 docker compose run pipeline vessel-info -c config/vessel-info/example.yaml
+docker compose run pipeline segment-info -c config/segment-info/example.yaml
 ```
 
 ## Schema
