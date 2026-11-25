@@ -8,6 +8,10 @@ package-dir = {"" = "src"}
 [tool.setuptools.package-data]
 "pipe_segment.assets" = ["**/*"]
 
+# Keep stray bytecode in assets/ out of the wheel.
+[tool.setuptools.exclude-package-data]
+"*" = ["__pycache__", "*.py[cod]"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 exclude = ["tests*"]
