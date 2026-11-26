@@ -1,7 +1,5 @@
 """Tests for the vessel-info CLI command."""
 
-import argparse
-
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -12,21 +10,7 @@ from pytest_mock import MockerFixture
 from gfw.common.config import PipelineConfigError
 from pipe_segment.cli import main
 from pipe_segment.pipelines.vessel_info.config import VesselInfoConfig
-
-
-BASE_ARGS = [
-    "vessel-info",
-    "--bq-in-segment-identity-daily",
-    "project.dataset.segment_identity_daily",
-    "--bq-in-segment-vessel-daily",
-    "project.dataset.segment_vessel_daily",
-    "--bq-out-vessel-info",
-    "project.dataset.vessel_info",
-    "--project",
-    "test-project",
-    "--labels",
-    "environment=test",
-]
+from .base_args import VESSEL_INFO as BASE_ARGS
 
 
 @pytest.fixture
@@ -63,27 +47,6 @@ def test_cli_passes_the_dry_run(run: MagicMock) -> None:
     assert run.call_args.args[0].dry_run is True
 
 
-@pytest.mark.parametrize(
-    "option",
-    [
-        "--bq-in-segment-identity-daily",
-        "--bq-in-segment-vessel-daily",
-        "--bq-out-vessel-info",
-        "--project",
-        "--labels",
-    ],
-)
-def test_cli_requires_the_required_options(run: MagicMock, option: str) -> None:
-    """Checks that the CLI rejects a missing required option."""
-    index = BASE_ARGS.index(option)
-    args = [*BASE_ARGS[:index], *BASE_ARGS[index + 2:]]
-
-    with pytest.raises(argparse.ArgumentTypeError, match=option.lstrip("-").replace("-", "_")):
-        main.run(args)
-
-    run.assert_not_called()
-
-
 @pytest.mark.parametrize("frequency", ["-0.1", "1.5"])
 def test_cli_rejects_a_frequency_out_of_range(run: MagicMock, frequency: str) -> None:
     """Checks that the CLI rejects a most-common-min-freq outside 0 and 1."""
@@ -113,22 +76,3 @@ def test_cli_reads_the_options_from_a_config_file(run: MagicMock, tmp_path: Path
     assert config.project == "file-project"
     assert config.most_common_min_freq == 0.3
     assert config.labels == {"environment": "file"}
-
-
-def test_cli_rejects_unknown_options(run: MagicMock) -> None:
-    """Checks that an option that the command does not define fails, as it has no Beam options."""
-    with pytest.raises(SystemExit):
-        main.run([*BASE_ARGS, "--unknown-option", "1"])
-
-    run.assert_not_called()
-
-
-def test_cli_rejects_unknown_config_file_keys(run: MagicMock, tmp_path: Path) -> None:
-    """Checks that a config file key that the command does not define fails."""
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("unknown_key: 1\n")
-
-    with pytest.raises(ValueError, match="not recognized"):
-        main.run([*BASE_ARGS, "-c", str(config_file)])
-
-    run.assert_not_called()

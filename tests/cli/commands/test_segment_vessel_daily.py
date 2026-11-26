@@ -1,7 +1,5 @@
 """Tests for the segment-vessel-daily CLI command."""
 
-import argparse
-
 from datetime import date
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -13,23 +11,7 @@ from pytest_mock import MockerFixture
 from gfw.common.config import PipelineConfigError
 from pipe_segment.cli import main
 from pipe_segment.pipelines.segment_vessel_daily.config import SegmentVesselDailyConfig
-
-
-BASE_ARGS = [
-    "segment-vessel-daily",
-    "--bq-in-segment-identity-daily",
-    "project.dataset.segment_identity_daily",
-    "--bq-out-segment-vessel-daily",
-    "project.dataset.segment_vessel_daily",
-    "--start-date",
-    "2024-01-01",
-    "--end-date",
-    "2024-01-08",
-    "--project",
-    "test-project",
-    "--labels",
-    "environment=test",
-]
+from .base_args import SEGMENT_VESSEL_DAILY as BASE_ARGS
 
 
 @pytest.fixture
@@ -87,38 +69,6 @@ def test_cli_passes_the_dry_run(run: MagicMock) -> None:
 
 
 @pytest.mark.parametrize(
-    "option",
-    [
-        "--bq-in-segment-identity-daily",
-        "--bq-out-segment-vessel-daily",
-        "--start-date",
-        "--end-date",
-        "--project",
-        "--labels",
-    ],
-)
-def test_cli_requires_the_required_options(run: MagicMock, option: str) -> None:
-    """Checks that the CLI rejects a missing required option."""
-    index = BASE_ARGS.index(option)
-    args = [*BASE_ARGS[:index], *BASE_ARGS[index + 2:]]
-
-    with pytest.raises(argparse.ArgumentTypeError, match=option.lstrip("-").replace("-", "_")):
-        main.run(args)
-
-    run.assert_not_called()
-
-
-def test_cli_rejects_an_empty_date_range(run: MagicMock) -> None:
-    """Checks that the end date is exclusive, so a range of one day is empty."""
-    args = [a.replace("2024-01-08", "2024-01-01") for a in BASE_ARGS]
-
-    with pytest.raises(PipelineConfigError, match="end_date"):
-        main.run(args)
-
-    run.assert_not_called()
-
-
-@pytest.mark.parametrize(
     ("option", "value", "name"),
     [
         ("--single-ident-min-freq", "1.5", "single_ident_min_freq"),
@@ -159,22 +109,3 @@ def test_cli_reads_the_options_from_a_config_file(run: MagicMock, tmp_path: Path
     assert config.end_date == date(2024, 2, 3)
     assert config.window_days == 14
     assert config.project == "file-project"
-
-
-def test_cli_rejects_unknown_options(run: MagicMock) -> None:
-    """Checks that an option that the command does not define fails, as it has no Beam options."""
-    with pytest.raises(SystemExit):
-        main.run([*BASE_ARGS, "--unknown-option", "1"])
-
-    run.assert_not_called()
-
-
-def test_cli_rejects_unknown_config_file_keys(run: MagicMock, tmp_path: Path) -> None:
-    """Checks that a config file key that the command does not define fails."""
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("unknown_key: 1\n")
-
-    with pytest.raises(ValueError, match="not recognized"):
-        main.run([*BASE_ARGS, "-c", str(config_file)])
-
-    run.assert_not_called()

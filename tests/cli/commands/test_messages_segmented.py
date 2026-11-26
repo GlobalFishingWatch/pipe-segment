@@ -1,7 +1,5 @@
 """Tests for the messages-segmented CLI command."""
 
-import argparse
-
 from datetime import date
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -10,30 +8,9 @@ import pytest
 
 from pytest_mock import MockerFixture
 
-from gfw.common.config import PipelineConfigError
 from pipe_segment.cli import main
 from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
-
-
-BASE_ARGS = [
-    "messages-segmented",
-    "--bq-in-normalized-messages",
-    "project.dataset.messages",
-    "--bq-out-segmented-messages",
-    "project.dataset.messages_segmented",
-    "--bq-out-segments",
-    "project.dataset.segments",
-    "--bq-out-fragments",
-    "project.dataset.fragments",
-    "--start-date",
-    "2024-01-01",
-    "--end-date",
-    "2024-01-08",
-    "--project",
-    "test-project",
-    "--labels",
-    "environment=test",
-]
+from .base_args import MESSAGES_SEGMENTED as BASE_ARGS
 
 
 @pytest.fixture
@@ -129,40 +106,6 @@ def test_cli_passes_the_other_options(run: MagicMock) -> None:
     assert config.ssvid_filter_query == "SELECT ssvid FROM t"
     assert config.wait_for_job is False
     assert "--runner" in config.unknown_unparsed_args
-
-
-@pytest.mark.parametrize(
-    "option",
-    [
-        "--bq-in-normalized-messages",
-        "--bq-out-segmented-messages",
-        "--bq-out-segments",
-        "--bq-out-fragments",
-        "--start-date",
-        "--end-date",
-        "--project",
-        "--labels",
-    ],
-)
-def test_cli_requires_the_required_options(run: MagicMock, option: str) -> None:
-    """Checks that the CLI rejects a missing required option."""
-    index = BASE_ARGS.index(option)
-    args = [*BASE_ARGS[:index], *BASE_ARGS[index + 2:]]
-
-    with pytest.raises(argparse.ArgumentTypeError, match=option.lstrip("-").replace("-", "_")):
-        main.run(args)
-
-    run.assert_not_called()
-
-
-def test_cli_rejects_an_empty_date_range(run: MagicMock) -> None:
-    """Checks that the end date is exclusive, so a range of one day is empty."""
-    args = [a.replace("2024-01-08", "2024-01-01") for a in BASE_ARGS]
-
-    with pytest.raises(PipelineConfigError, match="end_date"):
-        main.run(args)
-
-    run.assert_not_called()
 
 
 def test_cli_reads_the_options_from_a_config_file(run: MagicMock, tmp_path: Path) -> None:
