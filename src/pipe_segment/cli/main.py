@@ -16,7 +16,7 @@ from pipe_segment.cli.commands import (
     SegmentVesselDaily,
     VesselInfo,
 )
-from pipe_segment.cli.options import project_option
+from pipe_segment.cli.options import mock_bq_clients_option, project_option
 from pipe_segment.version import __version__
 
 
@@ -98,7 +98,8 @@ def run(args: list[str]) -> Any:
         description=DESCRIPTION,
         formatter=default_formatter(max_pos=120),
         subcommands=COMMANDS,
-        options=[labels_option(), project_option()],  # Common options for all subcommands.
+        # Common options for all subcommands.
+        options=[labels_option(), project_option(), mock_bq_clients_option()],
         version=__version__,
         examples=EXAMPLES,
         logger_config=LoggerConfig(
