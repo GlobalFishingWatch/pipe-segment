@@ -133,8 +133,6 @@ class MessagesSegmentedDag(Dag):
                 merge_params=self.merge_params,
             )
 
-        # TODO should be able to use single lookback, but would have to
-        # lookback at fragments not segments or something otherwise complicated.
         # Without a start date, the query reads all the fragments.
         existing_fragments = FragmentsQuery(
             source=self.config.in_fragments_table,
