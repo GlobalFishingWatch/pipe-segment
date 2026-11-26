@@ -15,7 +15,8 @@ def identities_to_counter(records: Optional[Iterable[Dict[str, Any]]]) -> Dict[T
     converted back so that the keys match the ones built from new fragments.
 
     Args:
-        records: records as read from BigQuery. Each one has a `count` and the identity fields.
+        records:
+            Records as read from BigQuery. Each one has a `count` and the identity fields.
 
     Returns:
         A dictionary from a tuple of (field, value) pairs to the count, in the same order

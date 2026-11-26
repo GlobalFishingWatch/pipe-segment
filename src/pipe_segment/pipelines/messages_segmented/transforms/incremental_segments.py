@@ -19,7 +19,8 @@ class SegmentUpdater:
     It holds no BigQuery objects, so Beam can pickle it to send it to the workers.
 
     Args:
-        merge_params: parameters of the matcher.
+        merge_params:
+            Parameters of the matcher.
     """
 
     def __init__(self, merge_params: Dict):
@@ -31,7 +32,8 @@ class SegmentUpdater:
         """Matches the new fragments of a vessel and computes its segments-days.
 
         Args:
-            item: the ssvid and the new fragments and prior state of the vessel.
+            item:
+                The ssvid and the new fragments and prior state of the vessel.
         """
         ssvid, grouped = item
         fragments = list(grouped["fragments"])
@@ -66,9 +68,12 @@ class IncrementalSegments(beam.PTransform):
     segments and its segments-days are computed right after.
 
     Args:
-        prior_segments: transform that reads the state of the segments before the date range,
+        prior_segments:
+            Transform that reads the state of the segments before the date range,
             one row per segment.
-        merge_params: parameters of the matcher.
+
+        merge_params:
+            Parameters of the matcher.
     """
 
     def __init__(self, prior_segments: beam.PTransform, merge_params: Dict):

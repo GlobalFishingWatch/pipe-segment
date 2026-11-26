@@ -98,12 +98,17 @@ class CreateSegmentMap(beam.PTransform):
         """
         Args:
             existing_fragments:
-            frag_ids:
-            frag_map: mapping of frag_id to fragments
-        Returns
-        -------
-        Sorted list of (score, segment_id, frag_id). Note highest scores
-        are last for easy access in order of highest score
+                Tuples of the seg_id and the frag_id of the last fragment of each open segment.
+
+            new_fragments:
+                The frag_ids of the new fragments to match.
+
+            frag_map:
+                Mapping of frag_id to fragments.
+
+        Returns:
+            Sorted list of (score, segment_id, frag_id). Note highest scores
+            are last for easy access in order of highest score
         """
         scores = []
         for seg_id, frag_id_0 in existing_fragments:
@@ -154,9 +159,14 @@ class CreateSegmentMap(beam.PTransform):
         """Matches the fragments of a vessel with the segments open before the first one.
 
         Args:
-            ssvid: the vessel.
-            frags: the fragments to match, of one or more days.
-            prior_states: the segments open at the end of the day before the first fragment.
+            ssvid:
+                The vessel.
+
+            frags:
+                The fragments to match, of one or more days.
+
+            prior_states:
+                The segments open at the end of the day before the first fragment.
                 When empty, the first day starts with no open segments.
         """
         frags = list(frags)

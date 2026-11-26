@@ -45,10 +45,17 @@ class FullHistorySegments(beam.PTransform):
     keeps only the segments-days of the date range.
 
     Args:
-        existing_fragments: transform that reads the fragments written before the date range.
-        start_date: first day to write segments for.
-        end_date: last day to write segments for.
-        merge_params: parameters of the matcher.
+        existing_fragments:
+            Transform that reads the fragments written before the date range.
+
+        start_date:
+            First day to write segments for.
+
+        end_date:
+            Last day to write segments for.
+
+        merge_params:
+            Parameters of the matcher.
     """
 
     def __init__(
