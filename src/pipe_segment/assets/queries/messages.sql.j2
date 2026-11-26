@@ -1,0 +1,11 @@
+SELECT *
+FROM (
+    SELECT
+        CAST(UNIX_MICROS(timestamp) AS FLOAT64) / 1000000 AS timestamp,
+        * EXCEPT (timestamp)
+    FROM `{{ source }}`
+    WHERE DATE(timestamp) BETWEEN '{{ start_date }}' AND '{{ end_date }}'
+)
+{% if ssvid_filter_query is not none %}
+WHERE ssvid IN ({{ ssvid_filter_query }})
+{% endif %}

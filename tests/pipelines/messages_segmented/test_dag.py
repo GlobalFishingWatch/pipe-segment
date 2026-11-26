@@ -1,0 +1,179 @@
+"""Tests for the graph of the messages-segmented pipeline."""
+
+import datetime as dt
+from datetime import date
+from typing import Any
+
+import apache_beam as beam
+import pytest
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.pipeline import PipelineVisitor
+from gfw.common.beam.transforms.bigquery import FakeReadFromBigQuery
+
+from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
+from pipe_segment.pipelines.messages_segmented.dag import (
+    MessagesSegmentedDag,
+    safe_date,
+    time_bin_key,
+    time_bin_ndx,
+)
+
+SAT_OFFSETS = {
+    "bq_in_sat_offset_messages": "project.dataset.sat_messages",
+    "bq_in_norad_to_receiver": "project.dataset.norad",
+    "bq_in_sat_positions": "project.dataset.sat_positions",
+    "bq_out_sat_offsets": "my-project:dataset.sat_offsets",
+}
+
+
+def make_config(**kwargs: Any) -> MessagesSegmentedConfig:
+    """Returns a config with the required fields."""
+    defaults = {
+        "project": "test-project",
+        "bq_in_normalized_messages": "project.dataset.messages",
+        "bq_out_segmented_messages": "project.dataset.messages_segmented",
+        "bq_out_segments": "project.dataset.segments",
+        "bq_out_fragments": "project.dataset.fragments",
+        "start_date": date(2024, 1, 1),
+        "end_date": date(2024, 1, 3),
+        "labels": {"environment": "test"},
+    }
+    return MessagesSegmentedConfig(**{**defaults, **kwargs})
+
+
+class Labels(PipelineVisitor):
+    """Collects the labels of the transforms of a pipeline."""
+
+    def __init__(self) -> None:
+        """Starts with no labels."""
+        self.labels: set[str] = set()
+
+    def enter_composite_transform(self, transform_node: Any) -> None:
+        """Collects the label of a composite transform."""
+        self.labels.add(transform_node.full_label)
+
+    def visit_transform(self, transform_node: Any) -> None:
+        """Collects the label of a transform."""
+        self.labels.add(transform_node.full_label)
+
+
+def apply_graph(config: MessagesSegmentedConfig) -> tuple[set[str], list[dict[str, Any]]]:
+    """Builds the graph of the config, without running it.
+
+    Returns:
+        The labels of its transforms, and the arguments of the reads of BigQuery.
+    """
+    reads: list[dict[str, Any]] = []
+
+    def read_factory(**kwargs: Any) -> FakeReadFromBigQuery:
+        reads.append(kwargs)
+        return FakeReadFromBigQuery(elements=[], **kwargs)
+
+    def write_factory(**kwargs: Any) -> beam.PTransform:
+        return beam.Map(lambda x: x)
+
+    satellite_offsets_sink = None
+    if config.bq_out_sat_offsets:
+        satellite_offsets_sink = write_factory()
+
+    dag = MessagesSegmentedDag(
+        config,
+        messages_sink=write_factory(),
+        segments_sink=write_factory(),
+        fragments_sink=write_factory(),
+        satellite_offsets_sink=satellite_offsets_sink,
+        read_from_bigquery_factory=read_factory,
+    )
+    pipeline = beam.Pipeline(options=PipelineOptions(["--project", "test-project"]))
+
+    dag.apply(pipeline)
+
+    visitor = Labels()
+    pipeline.visit(visitor)
+    return visitor.labels, reads
+
+
+def applied_labels(config: MessagesSegmentedConfig) -> set[str]:
+    """Builds the graph of the config, without running it, and returns its labels."""
+    return apply_graph(config)[0]
+
+
+def test_the_messages_are_read_from_the_day_before_the_end_date_with_the_labels() -> None:
+    """Checks the query of the messages: its source, its days and the labels of its job."""
+    _, reads = apply_graph(make_config(ssvid_filter_query="SELECT ssvid FROM t"))
+
+    (read,) = [read for read in reads if "project.dataset.messages`" in read["query"]]
+    query = " ".join(read["query"].split())
+    assert "BETWEEN '2024-01-01' AND '2024-01-02'" in query
+    assert "WHERE ssvid IN (SELECT ssvid FROM t)" in query
+    assert read["bigquery_job_labels"] == {"environment": "test"}
+
+
+def test_a_full_history_run_reads_all_the_fragments_and_no_prior_segments() -> None:
+    """Checks that the fragments are read by their table, with the labels, and no state is."""
+    _, reads = apply_graph(make_config(incremental=False))
+
+    queries = [" ".join(read["query"].split()) for read in reads]
+    (fragments,) = [query for query in queries if "project.dataset.fragments`" in query]
+    assert "WHERE" not in fragments
+    assert not any("AS s JOIN" in query for query in queries)
+    assert all(read["bigquery_job_labels"] == {"environment": "test"} for read in reads)
+
+
+def test_an_incremental_run_reads_the_prior_segments_of_the_day_before_the_range() -> None:
+    """Checks that the state is read from the day before the start date."""
+    _, reads = apply_graph(make_config(incremental=True))
+
+    queries = [" ".join(read["query"].split()) for read in reads]
+    (prior,) = [query for query in queries if "AS s JOIN" in query]
+    assert "DATE(s.timestamp) = '2023-12-31'" in prior
+    assert all(read["bigquery_job_labels"] == {"environment": "test"} for read in reads)
+
+
+@pytest.mark.parametrize("incremental", [False, True])
+def test_the_graph_writes_the_messages_the_fragments_and_the_segments(incremental: bool) -> None:
+    """Checks that the graph has the steps of the segmentation, in both modes."""
+    labels = applied_labels(make_config(incremental=incremental))
+
+    assert {"Fragment", "Segmenter", "WriteFragments", "WriteMessages", "WriteSegments"} <= labels
+    assert "WriteSatOffsets" not in " ".join(labels)
+
+
+def test_the_graph_corrects_the_satellite_times_if_the_offsets_are_given() -> None:
+    """Checks that the offsets are computed, written and used to filter the messages."""
+    labels = applied_labels(make_config(**SAT_OFFSETS))
+
+    joined = " ".join(labels)
+    assert "SatOffsets" in joined
+    assert "WriteSatOffsets" in joined
+    assert "FilterBadSatelliteTimes" in joined
+
+
+def test_the_satellite_offsets_are_read_through_the_factory_with_the_labels() -> None:
+    """Checks that the offsets' reads are not built on Beam's, so they can be mocked."""
+    _, reads = apply_graph(make_config(**SAT_OFFSETS))
+
+    offsets_reads = [read for read in reads if "project.dataset.sat_messages" in read["query"]]
+    assert offsets_reads
+    assert all(read["bigquery_job_labels"] == {"environment": "test"} for read in offsets_reads)
+
+
+def test_safe_date_is_the_utc_date_of_the_timestamp() -> None:
+    """Checks that a timestamp becomes its UTC date, and a missing one stays missing."""
+    assert safe_date(1704067200.0) == date(2024, 1, 1)
+    assert safe_date(None) is None
+
+
+@pytest.mark.parametrize(("hour", "expected"), [(0, 0), (5, 0), (6, 1), (17, 2), (23, 3)])
+def test_time_bin_ndx_splits_the_day_in_bins(hour: int, expected: int) -> None:
+    """Checks that the hours of the day fall in four bins of six hours."""
+    dtime = dt.datetime(2024, 1, 1, hour, 30, tzinfo=dt.timezone.utc)
+
+    assert time_bin_ndx(dtime, 4) == expected
+
+
+def test_time_bin_key_has_the_ssvid_the_fragment_the_day_and_the_bin() -> None:
+    """Checks the key that tags a message."""
+    message = {"ssvid": "123", "frag_id": "123-1", "timestamp": 1704067200.0 + 7 * 3600}
+
+    assert time_bin_key(message, 4) == ("123", "123-1", "2024-01-01", 1)

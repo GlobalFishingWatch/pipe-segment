@@ -1,0 +1,14 @@
+SELECT
+    CAST(UNIX_MICROS(timestamp) AS FLOAT64) / 1000000 AS timestamp,
+    CAST(UNIX_MICROS(first_msg_timestamp) AS FLOAT64) / 1000000 AS first_msg_timestamp,
+    CAST(UNIX_MICROS(last_msg_timestamp) AS FLOAT64) / 1000000 AS last_msg_timestamp,
+    * EXCEPT (
+        timestamp,
+        first_msg_timestamp,
+        last_msg_timestamp
+    )
+FROM `{{ source }}`
+{% if start_date %}
+WHERE DATE(timestamp) >= '{{ start_date }}'
+    AND DATE(timestamp) <= '{{ end_date }}'
+{% endif %}

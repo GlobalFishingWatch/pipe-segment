@@ -23,7 +23,7 @@ class MessagesSegmentedConfig(DatePipelineConfig):
     """GCP project that runs the pipeline and the queries, and is billed for them."""
 
     bq_in_normalized_messages: str
-    """Tables to read the normalized messages from, separated by commas."""
+    """Table to read the normalized messages from."""
 
     bq_out_segmented_messages: str
     """Table in which to store the segmented messages."""
@@ -92,6 +92,20 @@ class MessagesSegmentedConfig(DatePipelineConfig):
 
         if self.bins_per_day < 1:
             raise PipelineConfigError(ERROR_BINS_PER_DAY.format(self.bins_per_day))
+
+    @property
+    def in_segments_table(self) -> str:
+        """Table to read the segments of the day before the date range from."""
+        return self.bq_in_segments or self.bq_out_segments
+
+    @property
+    def in_fragments_table(self) -> str:
+        """Table to read the fragments from.
+
+        It follows the same rule as :attr:`in_segments_table`, an output table by default,
+        so the segments are joined with the fragments of the same run.
+        """
+        return self.bq_in_fragments or self.bq_out_fragments
 
     @property
     def sat_offsets_enabled(self) -> bool:

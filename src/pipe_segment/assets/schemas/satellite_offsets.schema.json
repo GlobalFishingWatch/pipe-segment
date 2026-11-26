@@ -1,0 +1,38 @@
+[
+  {
+    "mode": "REQUIRED",
+    "name": "hour",
+    "type": "TIMESTAMP",
+    "description": "Timestamp with hour resolution. This row applies starting from `hour` till `hour` plus sixty minutes."
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "receiver",
+    "type": "STRING",
+    "description": "The name of the satellite."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "dt",
+    "type": "FLOAT",
+    "description": "How much the satellite clock is offset (in seconds)from the consensus (median) of all satellite clocks."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "pings",
+    "type": "INTEGER",
+    "description": "Number of pings used in computing the clock offset. Lower values mean the result is likely to be less reliable."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "avg_distance_from_sat_km",
+    "type": "FLOAT",
+    "description": "Average distance of vessels from the satellite during a given hour. Anomalously large values are another way to infer that the satellite clocks are off, however this has been superseded by the dt field."
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "med_dist_from_sat_km",
+    "type": "FLOAT",
+    "description": "Median distance of vessels from the satellite during a given hour. Anomalously large values are another way to infer that the satellite clocks are off, however this has been superseded by the dt field."
+  }
+]
