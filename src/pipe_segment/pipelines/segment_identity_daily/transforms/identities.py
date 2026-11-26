@@ -1,3 +1,5 @@
+"""Functions that summarize the identities of a segment-day into a row of its daily table."""
+
 from collections import defaultdict
 
 from shipdataprocess.normalize import normalize_callsign, normalize_shipname
@@ -5,6 +7,12 @@ from stdnum import imo as imo_validator
 
 
 def normalize_imo(value):
+    """Returns the IMO number if it is valid, or None.
+
+    Args:
+        value:
+            The IMO number.
+    """
     if imo_validator.is_valid(str(value)):
         return value
     else:
@@ -12,10 +20,22 @@ def normalize_imo(value):
 
 
 def always_true(x):
+    """Returns True for any value, so a filter that uses it keeps everything.
+
+    Args:
+        x:
+            The value.
+    """
     return True
 
 
 def no_normalization(x):
+    """Returns the value unchanged.
+
+    Args:
+        x:
+            The value.
+    """
     return x
 
 
@@ -24,6 +44,24 @@ def extract_identity_counts(
         key,
         filtering_fn=always_true,
         normalization_fn=no_normalization):
+    """Returns the counts of the values of an identity field, after filtering and normalizing.
+
+    Args:
+        identities:
+            The identity records of a segment-day, each with its ``count`` and the identity fields.
+
+        key:
+            Name of the field to count.
+
+        filtering_fn:
+            Function that decides if a value is kept. The values for which it is falsy are dropped.
+
+        normalization_fn:
+            Function applied to the kept values. Values that normalize to the same one are added.
+
+    Returns:
+        A list of ``{"value", "count"}`` records, or None if there is none.
+    """
     # Every value starts at zero
     accummulator = defaultdict(int)
 
@@ -40,6 +78,15 @@ def extract_identity_counts(
 
 
 def summarize_identifiers(segment):
+    """Summarizes the identities of a segment-day into a row of the daily identity table.
+
+    Args:
+        segment:
+            The segment-day, with its daily identities and its message counts.
+
+    Returns:
+        The row, with the message counts and, for each identity field, its values and counts.
+    """
     identities = segment["daily_identities"]
     pos_count = segment.get("daily_msg_count")
     # We approximate identity message count by summing all the counts from
@@ -106,6 +153,7 @@ def summarize_identifiers(segment):
 
 
 def rename_timestamp(record):
+    """Returns a copy of the record with its ``timestamp`` renamed to ``summary_timestamp``."""
     result = record.copy()
     result["summary_timestamp"] = result.pop("timestamp")
     return result

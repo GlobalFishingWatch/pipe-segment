@@ -4,6 +4,7 @@ from pipe_segment.pipelines.messages_segmented.transforms import util
 
 
 def test_by_day():
+    """Checks that items are grouped by day and returned in chronological order."""
     items = [
         {
             "timestamp": datetime(2024, 1, 2).timestamp()

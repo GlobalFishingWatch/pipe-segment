@@ -78,6 +78,7 @@ OUTPUTS = [
 
 
 def test_tag_with_seg_id():
+    """Checks that messages get their seg_id tag, and one without a seg_id is rejected."""
     op = TagWithSegId()
 
     item = INPUTS[0]

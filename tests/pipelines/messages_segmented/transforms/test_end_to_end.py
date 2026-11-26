@@ -166,6 +166,7 @@ class TestEndToEnd:
         return [name for (name, cnt) in bad_cnts.most_common()]
 
     def test_that_bad_hours_dropped(self):
+        """Checks that no messages remain in the bad hours of the receiver with most bad hours."""
         worst_rcvr = self.receivers[0]
         examples = self.hourly_offsets.hour[self.drop_mask &
                                             (self.hourly_offsets.receiver == worst_rcvr)].unique()
@@ -181,6 +182,7 @@ class TestEndToEnd:
         assert len(should_be_empty) == 0
 
     def test_that_good_hours_kept(self):
+        """Checks that messages outside the bad hours of the worst receiver are all kept."""
         worst_rcvr = self.receivers[0]
         examples = self.hourly_offsets.hour[self.drop_mask &
                                             (self.hourly_offsets.receiver == worst_rcvr)].unique()

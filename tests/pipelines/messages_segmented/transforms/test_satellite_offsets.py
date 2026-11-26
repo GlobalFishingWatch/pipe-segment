@@ -7,6 +7,7 @@ from pipe_segment.pipelines.messages_segmented.transforms.satellite_offsets impo
 
 
 def test_satellite_offsets_labels_every_read():
+    """Checks that every window read of the satellite offsets carries the job labels."""
     read_calls = []
 
     def fake_read(**kwargs):
@@ -26,6 +27,7 @@ def test_satellite_offsets_labels_every_read():
 
 
 def test_satellite_offsets_reads_messages_from_a_partitioned_table():
+    """Checks that the offsets query reads the messages table by date, with no wildcard."""
     read_calls = []
 
     def fake_read(**kwargs):

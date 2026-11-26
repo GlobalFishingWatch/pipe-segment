@@ -1,3 +1,5 @@
+"""Helpers to convert between datetimes, timestamps and strings."""
+
 from datetime import datetime, timedelta, timezone as tz
 
 from dateutil.parser import parse as dateutil_parse

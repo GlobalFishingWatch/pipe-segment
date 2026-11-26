@@ -36,6 +36,7 @@ def read_json_for_one_date(path, ndx=0, date_ndx=0):
 
 class TestFragmentImp:
     def test_no_crash(self):
+        """Checks that fragmenting every vessel and date of the sample input does not fail."""
         fragger = fragment_implementation.FragmentImplementation()
         for ndx in range(10):
             for dt_ndx in range(10):

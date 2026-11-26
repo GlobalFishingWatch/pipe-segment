@@ -22,6 +22,7 @@ from pipe_segment.tools import timestamp_from_datetime
     ],
 )
 def test_make_sat_key(hour, offset, expected):
+    """Checks that the satellite key joins the receiver and the hour shifted by the offset."""
     tx = FilterBadSatelliteTimes(None, None, None)
     assert (
         tx.make_sat_key("rcvr", timestamp_from_datetime(hour.replace(tzinfo=tz.utc)), offset)
@@ -65,6 +66,7 @@ def test_make_sat_key(hour, offset, expected):
     ],
 )
 def test_make_offset_sat_key_set(msg, padding, expected):
+    """Checks that a bad hour yields the keys of that hour and the padding hours around it."""
     tx = FilterBadSatelliteTimes(None, None, bad_hour_padding=padding)
     assert list(tx.make_offset_sat_key_set(msg)) == expected
 
@@ -129,6 +131,7 @@ def test_make_offset_sat_key_set(msg, padding, expected):
     ],
 )
 def test_not_during_bad_hour(msg, expected):
+    """Checks that a message is flagged only when its receiver and hour are bad."""
     tx = FilterBadSatelliteTimes(None, None, bad_hour_padding=1)
     bad_hours_list = tx.make_offset_sat_key_set({
         "receiver": "rcvr1",
@@ -140,6 +143,7 @@ def test_not_during_bad_hour(msg, expected):
 
 
 def test_beam():
+    """Checks that, in Beam, messages in the bad satellite hours are dropped."""
     satellite_offsets = [
         {
             "receiver": "FM130",

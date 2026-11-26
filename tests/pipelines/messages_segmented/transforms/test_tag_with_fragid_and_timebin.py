@@ -12,6 +12,7 @@ from pipe_segment.pipelines.messages_segmented.transforms.tag_with_fragid_and_ti
 
 
 def test_tag_with_fragid_and_timebin():
+    """Checks that a fragment is tagged once per time bin, and none out of range."""
     bins_per_day = 4
 
     start_date = date(2024, 1, 1)

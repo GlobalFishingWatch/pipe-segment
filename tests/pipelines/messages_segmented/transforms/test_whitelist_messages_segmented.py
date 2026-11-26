@@ -23,7 +23,8 @@ INPUTS = [
 ]
 
 
-def test_tag_with_seg_id():
+def test_whitelist_keeps_only_the_fields_of_the_table():
+    """Checks that only the fields of the table, or the given fieldnames, are kept."""
     item = INPUTS[0]
 
     # missing keys

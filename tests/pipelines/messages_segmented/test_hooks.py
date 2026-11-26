@@ -64,6 +64,7 @@ def prior_segments_hook(bq_client_factory):
 
 
 def test_messages_hook_passes_when_every_day_has_messages(pipe, client, bq_client_factory):
+    """Checks that the messages hook passes, counting the days with messages in the date range."""
     client.scalars = [7]
 
     messages_hook(bq_client_factory)(pipe)
@@ -74,6 +75,7 @@ def test_messages_hook_passes_when_every_day_has_messages(pipe, client, bq_clien
 
 
 def test_messages_hook_fails_when_a_day_has_no_messages(pipe, client, bq_client_factory):
+    """Checks that the messages hook fails when fewer days have messages than the range has."""
     client.scalars = [6]
 
     with pytest.raises(ValueError, match="Only 6 of 7 days between 2026-11-04 and 2026-11-10"):
@@ -81,6 +83,7 @@ def test_messages_hook_fails_when_a_day_has_no_messages(pipe, client, bq_client_
 
 
 def test_prior_segments_hook_passes_when_the_day_has_segments(pipe, client, bq_client_factory):
+    """Checks that the prior segments hook passes when the day before the run has segments."""
     client.scalars = [10]
 
     prior_segments_hook(bq_client_factory)(pipe)
@@ -91,6 +94,7 @@ def test_prior_segments_hook_passes_when_the_day_has_segments(pipe, client, bq_c
 def test_prior_segments_hook_does_not_check_the_history_when_the_day_has_segments(
     pipe, client, bq_client_factory
 ):
+    """Checks that the prior segments hook runs a single query when the day has segments."""
     client.scalars = [10]
 
     prior_segments_hook(bq_client_factory)(pipe)
@@ -101,6 +105,7 @@ def test_prior_segments_hook_does_not_check_the_history_when_the_day_has_segment
 def test_prior_segments_hook_passes_on_the_first_run_of_the_history(
     pipe, client, bq_client_factory
 ):
+    """Checks that the prior segments hook passes when the day has none and there is no history."""
     client.scalars = [0, False]
 
     prior_segments_hook(bq_client_factory)(pipe)
@@ -112,6 +117,7 @@ def test_prior_segments_hook_passes_on_the_first_run_of_the_history(
 def test_prior_segments_hook_fails_when_the_day_has_no_segments_but_there_is_history(
     pipe, client, bq_client_factory
 ):
+    """Checks that the prior segments hook fails when the day has none but the history has some."""
     client.scalars = [0, True]
 
     with pytest.raises(ValueError, match="has no segments on 2024-04-11"):
@@ -119,6 +125,7 @@ def test_prior_segments_hook_fails_when_the_day_has_no_segments_but_there_is_his
 
 
 def test_hooks_use_the_project_of_the_pipeline_and_the_labels(pipe, client, bq_client_factory):
+    """Checks that the hooks query with the project of the pipeline and the job labels."""
     client.scalars = [10]
 
     prior_segments_hook(bq_client_factory)(pipe)

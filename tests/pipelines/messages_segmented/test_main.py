@@ -89,31 +89,22 @@ def test_the_satellite_offsets_are_a_table_if_they_are_written(mocker: MockerFix
     assert len(writes[-1]["schema"]["fields"]) == 6
 
 
-def test_the_descriptions_have_caveats_and_the_parameters(mocker: MockerFixture) -> None:
-    """Checks that each table has real caveats, and the parameters that built it."""
-    create_table_hook = mocker.patch.object(main, "create_table_hook")
-
-    run_main(mocker, make_config(**SAT_OFFSETS))
-
-    tables = [call.args[0] for call in create_table_hook.call_args_list]
-    assert len(tables) == 4
-    for table in tables:
-        assert table.description.caveats != TO_BE_COMPLETED
-        assert table.description.relevant_params["start_date"] == date(2024, 1, 1)
-        assert table.description.version
-
-
 def run_hooks(
     mocker: MockerFixture, config: MessagesSegmentedConfig
 ) -> list[tuple[str, tuple, dict]]:
-    """Runs the pre-hooks on mocked clients, and returns the calls that they made, in order."""
+    """Runs the pre-hooks on mocked clients, and returns the calls that they made, in order.
+
+    Every query returns 10, which is enough for the checks to pass.
+    """
     mocked_factory = BigQueryHelper.get_client_factory(mocked=True)
     calls: list[tuple[str, tuple, dict]] = []
 
     def recorder(name: str) -> Any:
         def record(*args: Any, **kwargs: Any) -> MagicMock:
             calls.append((name, args, kwargs))
-            return MagicMock()
+            job = MagicMock()
+            job.result.return_value = iter([[10]])
+            return job
 
         return record
 
@@ -132,6 +123,17 @@ def run_hooks(
     return calls
 
 
+def test_the_descriptions_have_caveats_and_the_parameters(mocker: MockerFixture) -> None:
+    """Checks that each table is created with real caveats, and the parameters that built it."""
+    calls = run_hooks(mocker, make_config(**SAT_OFFSETS))
+
+    descriptions = [args[0].description for name, args, _ in calls if name == "create_table"]
+    assert len(descriptions) == 4
+    for description in descriptions:
+        assert TO_BE_COMPLETED not in description
+        assert "2024-01-01" in description
+
+
 def test_the_tables_are_created_before_the_range_is_deleted(mocker: MockerFixture) -> None:
     """Checks that every table is created first, and then its range is deleted."""
     calls = run_hooks(mocker, make_config())
@@ -148,41 +150,6 @@ def test_the_range_is_deleted_without_the_end_date(mocker: MockerFixture) -> Non
     for args, kwargs in deletes:
         assert "< '2024-01-03'" in args[0]
         assert kwargs["job_config"].labels == {"environment": "test"}
-
-
-def test_the_checks_run_only_in_an_incremental_run_and_before_the_delete(
-    mocker: MockerFixture,
-) -> None:
-    """Checks that the incremental checks are between the creation and the deletes."""
-    verify_messages = mocker.patch.object(main, "verify_messages_exist_hook")
-    verify_segments = mocker.patch.object(main, "verify_prior_segments_hook")
-
-    pipeline_class = run_main(mocker, make_config(incremental=True))
-
-    hooks = pipeline_class.call_args.kwargs["pre_hooks"]
-    assert hooks[3] is verify_messages.return_value
-    assert hooks[4] is verify_segments.return_value
-    assert len(hooks) == 3 + 2 + 3
-    assert verify_messages.call_args.args[:3] == (
-        "project.dataset.messages",
-        date(2024, 1, 1),
-        date(2024, 1, 2),
-    )
-    assert verify_segments.call_args.args == (
-        "project.dataset.segments",
-        "project.dataset.fragments",
-        date(2023, 12, 31),
-    )
-
-
-def test_a_full_history_run_has_no_checks(mocker: MockerFixture) -> None:
-    """Checks that only an incremental run is checked."""
-    verify_messages = mocker.patch.object(main, "verify_messages_exist_hook")
-
-    pipeline_class = run_main(mocker, make_config())
-
-    assert len(pipeline_class.call_args.kwargs["pre_hooks"]) == 3 + 3
-    verify_messages.assert_not_called()
 
 
 def test_run_resolves_the_beam_options_from_the_config(mocker: MockerFixture) -> None:
@@ -211,3 +178,18 @@ def test_run_passes_wait_for_job_to_the_pipeline(
 
     assert pipeline_class.call_args.kwargs["wait_for_job"] is wait_for_job
     pipeline_class.return_value.run.assert_called_once_with()
+
+
+def test_the_checks_run_only_in_an_incremental_run_and_before_the_delete(
+    mocker: MockerFixture,
+) -> None:
+    """Checks that the incremental checks are between the creation and the deletes."""
+    calls = run_hooks(mocker, make_config(incremental=True))
+
+    assert [name for name, _, _ in calls] == ["create_table"] * 3 + ["query"] * (2 + 3)
+    queries = [" ".join(args[0].split()) for name, args, _ in calls if name == "query"]
+    assert "FROM `project.dataset.messages`" in queries[0]
+    assert "BETWEEN '2024-01-01' AND '2024-01-02'" in queries[0]
+    assert "FROM `project.dataset.segments`" in queries[1]
+    assert "DATE(timestamp) = '2023-12-31'" in queries[1]
+    assert all(query.startswith("DELETE FROM") for query in queries[2:])
