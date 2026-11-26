@@ -9,8 +9,11 @@ def timestamp_from_datetime(dt: datetime, tzinfo: tz = tz.utc):
     """Converts a datetime to a unix timestamp.
 
     Args:
-        dt: the datetime to convert.
-        tzinfo: timezone.
+        dt:
+            The datetime to convert.
+
+        tzinfo:
+            Timezone.
     """
     return dt.replace(tzinfo=tzinfo).timestamp()
 
@@ -19,8 +22,11 @@ def datetime_from_timestamp(ts: float, tzinfo: tz = tz.utc):
     """Converts a unix timestamp to a datetime.
 
     Args:
-        ts: the timestamp to convert.
-        tzinfo: timezone.
+        ts:
+            The timestamp to convert.
+
+        tzinfo:
+            Timezone.
     """
     return datetime.fromtimestamp(ts, tz=tzinfo)
 

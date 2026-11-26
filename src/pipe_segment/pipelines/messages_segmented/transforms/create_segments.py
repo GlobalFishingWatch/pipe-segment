@@ -48,8 +48,11 @@ class CreateSegments(beam.PTransform):
         """Adds the cumulative values to the fragments of a segment.
 
         Args:
-            items: tuple of the segment id and its fragments.
-            prior: state of the segment at the end of the day before the first fragment,
+            items:
+                Tuple of the segment id and its fragments.
+
+            prior:
+                State of the segment at the end of the day before the first fragment,
                 or None when the fragments are the whole segment.
         """
         _, frags = items

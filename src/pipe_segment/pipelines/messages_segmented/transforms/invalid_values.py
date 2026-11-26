@@ -10,8 +10,8 @@ def validate_field(is_invalid):
     to `None` instead. If not, the original value is returned.
 
     Args:
-        is_invalid (Callable): Function which returns True when a given value is invalid,
-            False otherwise.
+        is_invalid:
+            Function which returns True when a given value is invalid, False otherwise.
 
     Returns:
         Callable: A validator function that returns None for invalid values, or the original value.
@@ -31,8 +31,11 @@ def float_to_fixed_point(value, precision):
     Converts a given floating point value to a fixed precision decimal.
 
     Args:
-        value (float or Decimal): The value to convert.
-        precision (int): The number of decimal places to keep.
+        value:
+            The value to convert (float or Decimal).
+
+        precision:
+            The number of decimal places to keep.
 
     Returns:
         Decimal: The value rounded to the specified precision.
@@ -52,8 +55,11 @@ def validate_fixed_position_field(precision, is_invalid):
     before calling the `is_invalid` function.
 
     Args:
-        precision (int): Number of decimal places to use for fixed point conversion.
-        is_invalid (Callable): Function that returns True if the value is invalid.
+        precision:
+            Number of decimal places to use for fixed point conversion.
+
+        is_invalid:
+            Function that returns True if the value is invalid.
 
     Returns:
         Callable: A validator function for fixed point fields.
@@ -77,7 +83,8 @@ def validate_all_fields_record(is_invalid):
     are set to `None` in the returned record; otherwise, the original values are kept.
 
     Args:
-        is_invalid (Callable): Function that returns True when a given value is invalid.
+        is_invalid:
+            Function that returns True when a given value is invalid.
 
     Returns:
         Callable: A function that takes a list of fields and a record (dict), and returns
@@ -208,7 +215,8 @@ def apply_field_validators(element):
     are defined in the `INVALID_VALUE_RULES_BY_MESSAGE_TYPE` dictionary.
 
     Args:
-        element (dict): The element to apply the field validators to.
+        element:
+            The element to apply the field validators to.
 
     Returns:
         dict: The element with the field validators applied.
@@ -234,7 +242,8 @@ def apply_group_validators(element):
     are defined in the `INVALID_GROUP_RULES_BY_MESSAGE_TYPE` dictionary.
 
     Args:
-        element (dict): The element to apply the group validators to.
+        element:
+            The element to apply the group validators to.
 
     Returns:
         dict: The element with the group validators applied.
@@ -269,7 +278,8 @@ def filter_invalid_values(element):
     dictionary.
 
     Args:
-        element (dict): The element to apply the field and record validators to.
+        element:
+            The element to apply the field and record validators to.
 
     Returns:
         dict: The element with the field and record validators applied.
