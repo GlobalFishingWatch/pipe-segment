@@ -94,13 +94,6 @@ install: upgrade-pip
 test:
 	python -m pytest -m "not integration" --cov-report term --cov-report=xml --cov=$(SOURCES)
 
-.PHONY: testintegration ## Runs all unit tests and integration tests exporting coverage.xml report.
-testintegration:
-	docker volume create --name ${GCP_DOCKER_VOLUME}
-	docker compose up bigquery --detach
-	INTEGRATION_TESTS=true pytest --cov-report term --cov-report=xml --cov=$(SOURCES)
-	docker compose down bigquery
-
 # ---------------------
 # QUALITY CHECKS
 # ---------------------
