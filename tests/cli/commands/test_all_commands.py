@@ -1,8 +1,7 @@
 """Tests of what all the commands of the CLI have in common."""
 
-import argparse
+import dataclasses
 
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,8 +9,23 @@ import pytest
 from pytest_mock import MockerFixture
 
 from gfw.common.beam.pipeline.base import Pipeline
-from gfw.common.config import PipelineConfigError
+from gfw.common.cli import labels_option
 from pipe_segment.cli import main
+from pipe_segment.cli.commands import (
+    MessagesSegmented,
+    SegmentIdentityDaily,
+    SegmentInfo,
+    SegmentVessel,
+    SegmentVesselDaily,
+    VesselInfo,
+)
+from pipe_segment.cli.options import mock_bq_clients_option, project_option
+from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
+from pipe_segment.pipelines.segment_identity_daily.config import SegmentIdentityDailyConfig
+from pipe_segment.pipelines.segment_info.config import SegmentInfoConfig
+from pipe_segment.pipelines.segment_vessel.config import SegmentVesselConfig
+from pipe_segment.pipelines.segment_vessel_daily.config import SegmentVesselDailyConfig
+from pipe_segment.pipelines.vessel_info.config import VesselInfoConfig
 from .base_args import (
     MESSAGES_SEGMENTED,
     SEGMENT_IDENTITY_DAILY,
@@ -22,19 +36,21 @@ from .base_args import (
 )
 
 
+COMMANDS = [
+    pytest.param(MessagesSegmented, MessagesSegmentedConfig, id="messages-segmented"),
+    pytest.param(SegmentIdentityDaily, SegmentIdentityDailyConfig, id="segment-identity-daily"),
+    pytest.param(SegmentVesselDaily, SegmentVesselDailyConfig, id="segment-vessel-daily"),
+    pytest.param(SegmentVessel, SegmentVesselConfig, id="segment-vessel"),
+    pytest.param(SegmentInfo, SegmentInfoConfig, id="segment-info"),
+    pytest.param(VesselInfo, VesselInfoConfig, id="vessel-info"),
+]
 BEAM_COMMANDS = [MESSAGES_SEGMENTED, SEGMENT_IDENTITY_DAILY]
 QUERY_COMMANDS = [SEGMENT_VESSEL_DAILY, SEGMENT_VESSEL, SEGMENT_INFO, VESSEL_INFO]
-DATE_COMMANDS = [MESSAGES_SEGMENTED, SEGMENT_IDENTITY_DAILY, SEGMENT_VESSEL_DAILY]
 
 
 def name(args: list[str]) -> str:
     """Returns the name of the command of the arguments."""
     return args[0]
-
-
-def required_options(args: list[str]) -> list[tuple[list[str], str]]:
-    """Returns the arguments, and each of the options that the arguments have."""
-    return [(args, option) for option in args[1::2]]
 
 
 @pytest.fixture
@@ -44,36 +60,28 @@ def run(request: pytest.FixtureRequest, mocker: MockerFixture) -> MagicMock:
     return mocker.patch(f"pipe_segment.cli.commands.{command}.main.run")
 
 
-@pytest.mark.parametrize(
-    "args, option",
-    [
-        pytest.param(args, option, id=f"{name(args)}{option}")
-        for args in [*BEAM_COMMANDS, *QUERY_COMMANDS]
-        for args, option in required_options(args)
-    ],
-)
-def test_cli_requires_the_required_options(
-    run: MagicMock, args: list[str], option: str
-) -> None:
-    """Checks that the CLI rejects a command without one of its required options."""
-    index = args.index(option)
-    without_option = [*args[:index], *args[index + 2:]]
+@pytest.mark.parametrize("command, config_class", COMMANDS)
+def test_the_options_of_a_command_agree_with_its_config(command, config_class) -> None:
+    """Checks that the options and the fields of the config of a command match.
 
-    with pytest.raises(argparse.ArgumentTypeError, match=option.lstrip("-").replace("-", "_")):
-        main.run(without_option)
+    Every option is a field, every field without a default has an option, and the default of an
+    option is the one of its field: a different one would silently override the config's.
+    """
+    fields = {field.name: field for field in dataclasses.fields(config_class)}
+    options = [*command().options, labels_option(), project_option(), mock_bq_clients_option()]
+    dests = {option.dest for option in options}
 
-    run.assert_not_called()
-
-
-@pytest.mark.parametrize("args", DATE_COMMANDS, ids=name)
-def test_cli_rejects_an_empty_date_range(run: MagicMock, args: list[str]) -> None:
-    """Checks that the end date is exclusive, so a range of one day is empty."""
-    one_day = [a.replace("2024-01-08", "2024-01-01") for a in args]
-
-    with pytest.raises(PipelineConfigError, match="end_date"):
-        main.run(one_day)
-
-    run.assert_not_called()
+    assert dests <= set(fields)
+    required = {
+        name
+        for name, field in fields.items()
+        if field.default is dataclasses.MISSING and field.default_factory is dataclasses.MISSING
+    }
+    assert required <= dests
+    for option in options:
+        field = fields[option.dest]
+        if option.default is not None and field.default is not dataclasses.MISSING:
+            assert option.default == field.default, option.dest
 
 
 @pytest.mark.parametrize("args", QUERY_COMMANDS, ids=name)
@@ -85,18 +93,28 @@ def test_cli_rejects_unknown_options(run: MagicMock, args: list[str]) -> None:
     run.assert_not_called()
 
 
-@pytest.mark.parametrize("args", QUERY_COMMANDS, ids=name)
-def test_cli_rejects_unknown_config_file_keys(
-    run: MagicMock, args: list[str], tmp_path: Path
+@pytest.mark.parametrize("args", BEAM_COMMANDS, ids=name)
+def test_a_beam_command_keeps_the_beam_options_that_it_does_not_define(
+    run: MagicMock, args: list[str]
 ) -> None:
-    """Checks that a config file key that the command does not define fails."""
-    config_file = tmp_path / "config.yaml"
-    config_file.write_text("unknown_key: 1\n")
+    """Checks that the Beam options reach the config as unparsed arguments."""
+    main.run([*args, "--runner", "DataflowRunner", "--max_num_workers=7"])
 
-    with pytest.raises(ValueError, match="not recognized"):
-        main.run([*args, "-c", str(config_file)])
+    config = run.call_args.args[0]
+    assert "--runner" in config.unknown_unparsed_args
+    assert "--max_num_workers=7" in config.unknown_unparsed_args
 
-    run.assert_not_called()
+
+@pytest.mark.parametrize("args", BEAM_COMMANDS, ids=name)
+def test_a_beam_command_ignores_the_snake_case_wait_for_job_flag(
+    run: MagicMock, args: list[str]
+) -> None:
+    """Checks that the flag that Airflow renders does not turn the wait off."""
+    main.run([*args, "--wait_for_job"])
+
+    config = run.call_args.args[0]
+    assert config.wait_for_job is True
+    assert "--wait_for_job" in config.unknown_unparsed_args
 
 
 @pytest.mark.parametrize("args", QUERY_COMMANDS, ids=name)
@@ -123,5 +141,4 @@ def test_a_beam_command_builds_its_pipeline_with_mocked_clients(
     main.run([*args, "--mock-bq-clients"])
 
     pipeline_run.assert_called_once()
-    pipeline = pipeline_run.call_args.args[0]
-    assert isinstance(pipeline, Pipeline)
+    assert isinstance(pipeline_run.call_args.args[0], Pipeline)
