@@ -1,3 +1,5 @@
+"""Transform that computes the segments-days from the fragments of a segment."""
+
 import logging
 
 import apache_beam as beam
@@ -8,16 +10,40 @@ logger = logging.getLogger(__file__)
 
 
 def idents2dict(key, cnt):
+    """Returns the record of an identity: its fields, and how many messages had it.
+
+    Args:
+        key:
+            Tuple of the (field, value) pairs of the identity.
+
+        cnt:
+            Number of messages that had the identity.
+    """
     d = dict(key)
     d["count"] = cnt
     return d
 
 
 def convert_idents(d: dict):
+    """Converts a counter of identities, or of destinations, into repeated records.
+
+    Args:
+        d:
+            Dictionary from a tuple of (field, value) pairs to its count.
+
+    Returns:
+        The list of records, one per key.
+    """
     return [idents2dict(k, v) for (k, v) in d.items()]
 
 
 class CreateSegments(beam.PTransform):
+    """Computes the segments-days from the fragments of each segment.
+
+    Each segment-day has the daily and the cumulative message counts, identities and
+    destinations, and the timestamp of the first message of the segment.
+    """
+
     def update_msgs(self, items, prior=None):
         """Adds the cumulative values to the fragments of a segment.
 
@@ -83,4 +109,5 @@ class CreateSegments(beam.PTransform):
             yield seg
 
     def expand(self, xs):
+        """Computes the segments-days of the fragments grouped by seg_id."""
         return xs | beam.FlatMap(self.update_msgs)

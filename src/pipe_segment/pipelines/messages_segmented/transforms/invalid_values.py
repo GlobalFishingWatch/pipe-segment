@@ -1,3 +1,5 @@
+"""Functions that set the invalid values of the messages to None."""
+
 from decimal import Decimal
 
 

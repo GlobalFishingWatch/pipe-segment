@@ -1,3 +1,5 @@
+"""Transform that builds the segments from the segments of the day before."""
+
 from collections import defaultdict
 from typing import Any, Dict, Generator, Tuple
 
@@ -21,6 +23,7 @@ class SegmentUpdater:
     """
 
     def __init__(self, merge_params: Dict):
+        """Initializes the updater."""
         self.segment_map = CreateSegmentMap(merge_params)
         self.segments = CreateSegments()
 
@@ -69,10 +72,20 @@ class IncrementalSegments(beam.PTransform):
     """
 
     def __init__(self, prior_segments: beam.PTransform, merge_params: Dict):
+        """Initializes the transform."""
         self.prior_segments = prior_segments
         self.updater = SegmentUpdater(merge_params)
 
     def expand(self, new_fragments):
+        """Returns the segment map and the segments of the new fragments.
+
+        Args:
+            new_fragments:
+                The fragments of the date range.
+
+        Returns:
+            A dictionary with the segment map under ``SEGMAP`` and the segments under ``SEGMENTS``.
+        """
         prior_state = (
             new_fragments.pipeline
             | self.prior_segments

@@ -1,3 +1,5 @@
+"""State of the segments at the end of a day, for the incremental segmenter."""
+
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Optional, Tuple
 

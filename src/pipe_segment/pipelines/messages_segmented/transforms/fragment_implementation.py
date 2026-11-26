@@ -1,3 +1,5 @@
+"""Splitting of the messages of a vessel and day into fragments, without Beam."""
+
 import logging
 
 from datetime import datetime, timezone, time
@@ -10,11 +12,18 @@ logger.setLevel(logging.INFO)
 
 
 class FragmentImplementation(object):
+    """Splits the messages of one vessel and day into fragments, with gpsdio-segment.
+
+    Args:
+        fragmenter_params:
+            Parameters of the segmenter of gpsdio-segment. Its ``max_hours`` can only be 24.
+    """
 
     OUTPUT_TAG_MESSAGES = "messages"
     OUTPUT_TAG_FRAGMENTS = "fragments"
 
     def __init__(self, fragmenter_params=None):
+        """Initializes the fragmenter."""
         self.fragmenter_params = fragmenter_params or {}
         assert self.fragmenter_params.get("max_hours", 24) == 24, self.fragmenter_params
 
@@ -84,6 +93,20 @@ class FragmentImplementation(object):
         return record
 
     def fragment(self, messages):
+        """Yields the fragments and the messages of a vessel and day.
+
+        Args:
+            messages:
+                The messages, sorted, all from the same date and the same ssvid.
+
+        Yields:
+            Tuples of ``OUTPUT_TAG_FRAGMENTS`` and the record of each fragment that is not noise,
+            and of ``OUTPUT_TAG_MESSAGES`` and each message, with the ``frag_id`` of its fragment
+            (None for noise).
+
+        Raises:
+            RuntimeError: If the messages are from more than one date or more than one ssvid.
+        """
         dates = set(msg["timestamp"].date() for msg in messages)
         if len(dates) != 1:
             raise RuntimeError("fragment expects all messages from a single date")

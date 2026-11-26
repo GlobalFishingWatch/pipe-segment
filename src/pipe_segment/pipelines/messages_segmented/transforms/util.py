@@ -1,3 +1,5 @@
+"""Helpers shared by the transforms."""
+
 from datetime import date
 from typing import Iterable, Generator, Tuple, List
 

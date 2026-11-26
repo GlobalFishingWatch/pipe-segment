@@ -1,3 +1,5 @@
+"""Transform that splits the messages of each vessel and day into fragments."""
+
 import logging
 import math
 import pytz
@@ -13,14 +15,27 @@ logger.setLevel(logging.DEBUG)
 
 
 def none_to_inf(x):
+    """Returns infinity for None, so it sorts after any number."""
     return math.inf if (x is None) else x
 
 
 def none_to_blank(x):
+    """Returns an empty string for None, so it sorts before any string."""
     return "" if (x is None) else x
 
 
 class Fragment(PTransform):
+    """Splits the messages of a vessel and day into fragments.
+
+    It has two outputs: the messages, each tagged with the id of its fragment, and the fragments.
+
+    Args:
+        fragmenter_params:
+            Parameters of the segmenter of gpsdio-segment. Its ``max_hours`` can only be 24.
+
+        **kwargs:
+            Arguments of PTransform.
+    """
 
     OUTPUT_TAG_FRAGMENTS = FragmentImplementation.OUTPUT_TAG_FRAGMENTS
     OUTPUT_TAG_MESSAGES = FragmentImplementation.OUTPUT_TAG_MESSAGES
@@ -30,6 +45,7 @@ class Fragment(PTransform):
         fragmenter_params=None,
         **kwargs,
     ):
+        """Initializes the transform."""
         super().__init__(**kwargs)
         self._fragmenter = FragmentImplementation(fragmenter_params)
 
@@ -62,6 +78,19 @@ class Fragment(PTransform):
         return frag
 
     def fragment(self, item):
+        """Splits the messages of a vessel and day into fragments.
+
+        The messages are sorted by all their fields first, so the result does not depend on
+        the order in which they were read.
+
+        Args:
+            item:
+                Tuple of the (ssvid, day) key and its messages.
+
+        Yields:
+            The messages, with the ``frag_id`` of their fragment (None for noise), and the
+            fragments, tagged with ``OUTPUT_TAG_FRAGMENTS``.
+        """
         _, messages = item
         messages = [self._convert_message_in(x) for x in messages]
         messages.sort(
@@ -96,4 +125,5 @@ class Fragment(PTransform):
                 logger.warning(f"Unknown key in fragment.fragment ({key})")
 
     def expand(self, xs):
+        """Splits the messages, grouped by vessel and day."""
         return xs | FlatMap(self.fragment).with_outputs(main=self.OUTPUT_TAG_MESSAGES)

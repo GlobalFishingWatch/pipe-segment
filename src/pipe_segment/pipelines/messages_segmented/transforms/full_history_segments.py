@@ -1,3 +1,5 @@
+"""Transform that builds the segments from the whole history of fragments."""
+
 import datetime as dt
 
 from typing import Dict
@@ -16,14 +18,20 @@ SEGMENTS = "segments"
 
 
 def timestamp_to_date(ts: float) -> dt.date:
+    """Returns the UTC date of a timestamp in seconds."""
     return datetime_from_timestamp(ts).date()
 
 
 def in_date_range(segment, start_date, end_date):
+    """Returns True if the day of the segment is between the dates, both included."""
     return start_date <= timestamp_to_date(segment["timestamp"]) <= end_date
 
 
 def strip_identity_and_destination(fragment):
+    """Returns a copy of the fragment without its identities and destinations.
+
+    They are not used to match the fragments.
+    """
     x = fragment.copy()
     x["identities"] = []
     x["destinations"] = []
@@ -50,12 +58,22 @@ class FullHistorySegments(beam.PTransform):
         end_date: dt.date,
         merge_params: Dict,
     ):
+        """Initializes the transform."""
         self.existing_fragments = existing_fragments
         self.start_date = start_date
         self.end_date = end_date
         self.merge_params = merge_params
 
     def expand(self, new_fragments):
+        """Returns the segment map and the segments of the new fragments.
+
+        Args:
+            new_fragments:
+                The fragments of the date range.
+
+        Returns:
+            A dictionary with the segment map under ``SEGMAP`` and the segments under ``SEGMENTS``.
+        """
         existing_fragments = new_fragments.pipeline | self.existing_fragments
 
         all_fragments = (new_fragments, existing_fragments) | beam.Flatten()

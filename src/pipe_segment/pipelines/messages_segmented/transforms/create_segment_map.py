@@ -1,3 +1,5 @@
+"""Transform that matches the fragments of each vessel with its segments."""
+
 from datetime import date
 
 import apache_beam as beam
@@ -22,7 +24,19 @@ def get_next(
 
 
 class CreateSegmentMap(beam.PTransform):
+    """Matches the fragments of each vessel with segments, with one row per fragment and day.
+
+    The new fragments of each day are scored against the segments that were open the day before,
+    with the matcher of gpsdio-segment. Each one joins the segment with the best score, or starts
+    a new segment if it does not match any.
+
+    Args:
+        args:
+            Parameters of the matcher. Its lookback is always 0, so it cannot be given.
+    """
+
     def __init__(self, args=None):
+        """Initializes the transform."""
         if args is None:
             args = {}
 
@@ -31,6 +45,18 @@ class CreateSegmentMap(beam.PTransform):
         self.matcher = Matcher(**args)
 
     def frag2msg(self, frag, end):
+        """Returns a message with the position and the time of one end of a fragment.
+
+        Args:
+            frag:
+                The fragment.
+
+            end:
+                The end of the fragment to take: ``"first"`` or ``"last"``.
+
+        Returns:
+            The message, with its timestamp as a datetime, and its lon, lat, speed and course.
+        """
         msg = {
             k: frag[f"{end}_msg_{k}"]
             for k in ["timestamp", "lon", "lat", "speed", "course"]
@@ -39,6 +65,19 @@ class CreateSegmentMap(beam.PTransform):
         return msg
 
     def compute_pair_score(self, frag0, frag1):
+        """Returns how well the start of a fragment continues the end of another one.
+
+        Args:
+            frag0:
+                The fragment that ends first. Its last message is used.
+
+            frag1:
+                The fragment that starts later. Its first message is used.
+
+        Returns:
+            The score of the match, where higher is better. It is 0.0 if the time between the two
+            messages is not between 0 and 24 hours.
+        """
         msg0 = self.frag2msg(frag0, "last")
         msg1 = self.frag2msg(frag1, "first")
         hours = self.matcher.compute_msg_delta_hours(msg0, msg1)
@@ -79,12 +118,30 @@ class CreateSegmentMap(beam.PTransform):
     def frags_by_day(
         self, frags: Iterable[dict]
     ) -> Generator[Tuple[date, Set[str]], None, None]:
+        """Yields the ids of the fragments of each day, in date order.
+
+        Args:
+            frags:
+                The fragments.
+
+        Yields:
+            Tuples of the day and the set of the frag_ids of its fragments.
+        """
         for day, frags_by_day in by_day(frags):
             yield day, {x["frag_id"] for x in frags_by_day}
 
     def merge_fragments(
         self, ssvid_frags: Tuple[Any, Iterable[Dict]]
     ) -> Generator[Dict, None, None]:
+        """Matches the fragments of a vessel, starting with no open segments.
+
+        Args:
+            ssvid_frags:
+                Tuple of the ssvid and its fragments.
+
+        Yields:
+            One row per fragment and day, with its ssvid, date, seg_id and frag_id.
+        """
         ssvid, frags = ssvid_frags
         yield from self.merge_fragments_with_state(ssvid, frags)
 
@@ -165,4 +222,5 @@ class CreateSegmentMap(beam.PTransform):
                 open_segs[seg_id] = frag_id
 
     def expand(self, xs):
+        """Matches the fragments of each vessel, grouped by ssvid."""
         return xs | beam.FlatMap(self.merge_fragments)
