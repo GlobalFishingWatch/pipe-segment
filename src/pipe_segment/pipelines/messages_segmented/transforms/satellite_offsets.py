@@ -16,9 +16,16 @@ class SatelliteOffsets(PTransform):
         offsets = pipeline | SatelliteOffsets(start_date, end_date)
     """
 
-    def __init__(self, source_table, norad_to_receiver_tbl, sat_positions_tbl,
-                 start_date, end_date, labels,
-                 read_from_bigquery_factory: Callable[..., Any] = io.ReadFromBigQuery):
+    def __init__(
+        self,
+        source_table,
+        norad_to_receiver_tbl,
+        sat_positions_tbl,
+        start_date,
+        end_date,
+        labels,
+        read_from_bigquery_factory: Callable[..., Any] = io.ReadFromBigQuery,
+    ):
         self.source_table = source_table
         self.norad_to_receiver_tbl = norad_to_receiver_tbl
         self.sat_positions_tbl = sat_positions_tbl
