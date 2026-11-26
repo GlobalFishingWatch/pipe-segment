@@ -1,10 +1,10 @@
 from datetime import timedelta
 from jinja2 import Template
 from importlib import resources
+from typing import Any, Callable
 
 import apache_beam as beam
 from apache_beam import PTransform, io
-from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
 
 
 def make_schema():
@@ -76,13 +76,15 @@ class SatelliteOffsets(PTransform):
     """
 
     def __init__(self, source_table, norad_to_receiver_tbl, sat_positions_tbl,
-                 start_date, end_date, labels):
+                 start_date, end_date, labels,
+                 read_from_bigquery_factory: Callable[..., Any] = io.ReadFromBigQuery):
         self.source_table = source_table
         self.norad_to_receiver_tbl = norad_to_receiver_tbl
         self.sat_positions_tbl = sat_positions_tbl
         self.start_date = start_date
         self.end_date = end_date
         self.labels = labels
+        self.read_from_bigquery_factory = read_from_bigquery_factory
 
     def expand(self, xs):
         return [
@@ -102,7 +104,7 @@ class SatelliteOffsets(PTransform):
                 start_window=start_window,
                 end_window=end_window
             )
-            yield io.ReadFromBigQuery(
+            yield self.read_from_bigquery_factory(
                 query=query, use_standard_sql=True, bigquery_job_labels=self.labels
             )
 
@@ -113,26 +115,3 @@ class SatelliteOffsets(PTransform):
             end_window = min(start_window + timedelta(days=800), end_date)
             yield start_window, end_window
             start_window = end_window + timedelta(days=1)
-
-
-class SatelliteOffsetsWrite(PTransform):
-    """Writes the satellite offsets to BigQuery.
-
-    Args:
-        config:
-            Configuration of the segment pipeline.
-    """
-
-    def __init__(self, config: MessagesSegmentedConfig):
-        self.source_table = config.bq_in_sat_offset_messages
-        self.source_norad = config.bq_in_norad_to_receiver
-        self.source_sat_positions = config.bq_in_sat_positions
-        self.dest_table = config.bq_out_sat_offsets
-        self.schema = make_schema()
-
-    def expand(self, xs):
-        return xs | "WriteSatOffsets" >> io.WriteToBigQuery(
-            self.dest_table,
-            schema={"fields": self.schema},
-            create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
-        )

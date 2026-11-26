@@ -70,12 +70,22 @@ def apply_graph(config: MessagesSegmentedConfig) -> tuple[set[str], list[dict[st
         reads.append(kwargs)
         return FakeReadFromBigQuery(elements=[], **kwargs)
 
-    messages_table, segments_table, fragments_table, *_ = main.table_configs(config)
+    def write_factory(**kwargs: Any) -> beam.PTransform:
+        return beam.Map(lambda x: x)
+
+    messages_table, segments_table, fragments_table, *satellite_offsets_tables = (
+        main.table_configs(config)
+    )
+    satellite_offsets_sink = None
+    if satellite_offsets_tables:
+        satellite_offsets_sink = main.sink(satellite_offsets_tables[0], write_factory)
+
     dag = MessagesSegmentedDag(
         config,
-        messages_sink=main.sink(messages_table, lambda **kwargs: beam.Map(lambda x: x)),
-        segments_sink=main.sink(segments_table, lambda **kwargs: beam.Map(lambda x: x)),
-        fragments_sink=main.sink(fragments_table, lambda **kwargs: beam.Map(lambda x: x)),
+        messages_sink=main.sink(messages_table, write_factory),
+        segments_sink=main.sink(segments_table, write_factory),
+        fragments_sink=main.sink(fragments_table, write_factory),
+        satellite_offsets_sink=satellite_offsets_sink,
         read_from_bigquery_factory=read_factory,
     )
     pipeline = beam.Pipeline(options=PipelineOptions(["--project", "test-project"]))
@@ -141,6 +151,15 @@ def test_the_graph_corrects_the_satellite_times_if_the_offsets_are_given() -> No
     assert "SatOffsets" in joined
     assert "WriteSatOffsets" in joined
     assert "FilterBadSatelliteTimes" in joined
+
+
+def test_the_satellite_offsets_are_read_through_the_factory_with_the_labels() -> None:
+    """Checks that the offsets' reads are not built on Beam's, so they can be mocked."""
+    _, reads = apply_graph(make_config(**SAT_OFFSETS))
+
+    offsets_reads = [read for read in reads if "project.dataset.sat_messages" in read["query"]]
+    assert offsets_reads
+    assert all(read["bigquery_job_labels"] == {"environment": "test"} for read in offsets_reads)
 
 
 def test_safe_date_is_the_utc_date_of_the_timestamp() -> None:

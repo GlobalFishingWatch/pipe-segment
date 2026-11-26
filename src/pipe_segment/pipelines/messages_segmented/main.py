@@ -199,13 +199,17 @@ def run(
         bq_client_factory = BigQueryHelper.get_client_factory(mocked=config.mock_bq_clients)
 
     tables = table_configs(config)
-    messages_table, segments_table, fragments_table, *_ = tables
+    messages_table, segments_table, fragments_table, *satellite_offsets_tables = tables
+    satellite_offsets_sink = None
+    if satellite_offsets_tables:
+        satellite_offsets_sink = sink(satellite_offsets_tables[0], write_to_bigquery_factory)
 
     dag = MessagesSegmentedDag(
         config,
         messages_sink=sink(messages_table, write_to_bigquery_factory),
         segments_sink=sink(segments_table, write_to_bigquery_factory),
         fragments_sink=sink(fragments_table, write_to_bigquery_factory),
+        satellite_offsets_sink=satellite_offsets_sink,
         read_from_bigquery_factory=read_from_bigquery_factory,
     )
 

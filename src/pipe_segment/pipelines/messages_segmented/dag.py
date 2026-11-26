@@ -27,7 +27,6 @@ from pipe_segment.pipelines.messages_segmented.transforms import (
     FullHistorySegments,
     IncrementalSegments,
     SatelliteOffsets,
-    SatelliteOffsetsWrite,
     TagWithFragIdAndTimeBin,
     TagWithSegId,
     WhitelistFields,
@@ -81,6 +80,9 @@ class MessagesSegmentedDag(Dag):
         fragments_sink:
             Transform that writes the fragments.
 
+        satellite_offsets_sink:
+            Transform that writes the satellite offsets. If None, they are not written.
+
         read_from_bigquery_factory:
             Builds the transform that reads from BigQuery.
     """
@@ -91,6 +93,7 @@ class MessagesSegmentedDag(Dag):
         messages_sink: beam.PTransform,
         segments_sink: beam.PTransform,
         fragments_sink: beam.PTransform,
+        satellite_offsets_sink: beam.PTransform | None = None,
         read_from_bigquery_factory: Callable[..., Any] = beam.io.ReadFromBigQuery,
     ) -> None:
         """Initializes the graph."""
@@ -98,6 +101,7 @@ class MessagesSegmentedDag(Dag):
         self.messages_sink = messages_sink
         self.segments_sink = segments_sink
         self.fragments_sink = fragments_sink
+        self.satellite_offsets_sink = satellite_offsets_sink
         self.read_from_bigquery_factory = read_from_bigquery_factory
 
     @property
@@ -182,11 +186,12 @@ class MessagesSegmentedDag(Dag):
                 start_date,
                 last_day,
                 config.labels,
+                read_from_bigquery_factory=self.read_from_bigquery_factory,
             )
 
-            if config.bq_out_sat_offsets:
-                logger.info("Adding SatelliteOffsetsWrite transform...")
-                _ = satellite_offsets | SatelliteOffsetsWrite(config)
+            if self.satellite_offsets_sink is not None:
+                logger.info("Adding WriteSatOffsets transform...")
+                _ = satellite_offsets | "WriteSatOffsets" >> self.satellite_offsets_sink
 
             logger.info("Adding FilterBadSatelliteTimes transform...")
             messages = messages | FilterBadSatelliteTimes(

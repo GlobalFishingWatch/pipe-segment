@@ -23,7 +23,6 @@ from pipe_segment.pipelines.messages_segmented.transforms.invalid_values import 
 )
 from pipe_segment.pipelines.messages_segmented.transforms.satellite_offsets import (
     SatelliteOffsets,
-    SatelliteOffsetsWrite,
 )
 from pipe_segment.pipelines.messages_segmented.transforms.segment_state import (
     SegmentState,
@@ -49,7 +48,6 @@ __all__ = [
     "FullHistorySegments",
     "IncrementalSegments",
     "SatelliteOffsets",
-    "SatelliteOffsetsWrite",
     "SegmentState",
     "TagWithFragIdAndTimeBin",
     "TagWithSegId",
