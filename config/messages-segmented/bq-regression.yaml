@@ -1,0 +1,40 @@
+# Production inputs and Dataflow options of core.ais.v3's segment task, on one day in incremental
+# mode, to compare its outputs with production's (gfw-int-pipe-v3.pipe_ais_v3_internal, and
+# global-fishing-watch.pipe_ais_v3_published for the satellite offsets).
+# Query parameters:
+bq_in_normalized_messages: "gfw-int-ais-datalake.vessel_transmissions_normalized_v1.messages"
+bq_in_segments: "gfw-int-pipe-v3.pipe_ais_v3_internal.segments"
+bq_in_fragments: "gfw-int-pipe-v3.pipe_ais_v3_internal.fragments"
+bq_in_sat_offset_messages: "gfw-int-ais-datalake.vessel_transmissions_normalized_v1.messages"
+bq_in_norad_to_receiver: "global-fishing-watch.pipe_static.norad_to_receiver_v20230510"
+bq_in_sat_positions: "gfw-int-pipe-v3.satellite_positions.satellite_positions_one_second_resolution_"
+bq_out_segmented_messages: "world-fishing-827.scratch_tomas_ttl30d.messages_segmented_regression"
+bq_out_segments: "world-fishing-827.scratch_tomas_ttl30d.segments_regression"
+bq_out_fragments: "world-fishing-827.scratch_tomas_ttl30d.fragments_regression"
+bq_out_sat_offsets: "world-fishing-827.scratch_tomas_ttl30d.satellite_offsets_regression"
+start_date: "2026-11-22"
+end_date: "2026-11-23"
+incremental: true
+
+# Apache Beam / Dataflow options:
+project: world-fishing-827
+runner: DataflowRunner
+wait_for_job: true
+max_num_workers: 150
+worker_machine_type: e2-standard-4
+region: us-central1
+subnetwork: regions/us-central1/subnetworks/gfw-internal-us-central1
+service_account_email: engineering-development@world-fishing-827.iam.gserviceaccount.com
+temp_location: "gs://gfw-dataflow-temp-staging-ttl-7/segment/temp"
+staging_location: "gs://gfw-dataflow-temp-staging-ttl-7/segment/staging"
+setup_file: "./setup.py"
+job_name: messages-segmented-regression-20261122
+# The workers have no image, so pin the versions of production's image (requirements.txt).
+requirements_file: "config/messages-segmented/bq-regression-requirements.txt"
+
+# Labels for cost tracking (label values: lowercase letters, digits, '_' and '-').
+labels:
+  environment: development
+  resource_creator: tomas-link
+  project: ais
+  stage: segment
