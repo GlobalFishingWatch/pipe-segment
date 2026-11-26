@@ -1,0 +1,32 @@
+# Production inputs and Dataflow options of core.ais.v3's segment_identity_daily, on one day,
+# to compare its output with production's
+# (gfw-int-pipe-v3.pipe_ais_v3_internal.segment_identity_daily).
+# Query parameters:
+bq_in_segments: "gfw-int-pipe-v3.pipe_ais_v3_internal.segments"
+bq_in_fragments: "gfw-int-pipe-v3.pipe_ais_v3_internal.fragments"
+bq_out_segment_identity_daily: "world-fishing-827.scratch_tomas_ttl30d.segment_identity_daily_regression"
+start_date: "2026-11-22"
+end_date: "2026-11-23"
+
+# Apache Beam / Dataflow options:
+project: world-fishing-827
+runner: DataflowRunner
+max_num_workers: 50
+worker_machine_type: e2-standard-4
+region: us-central1
+subnetwork: regions/us-central1/subnetworks/gfw-internal-us-central1
+service_account_email: engineering-development@world-fishing-827.iam.gserviceaccount.com
+temp_location: "gs://gfw-dataflow-temp-staging-ttl-7/segment/temp"
+staging_location: "gs://gfw-dataflow-temp-staging-ttl-7/segment/staging"
+setup_file: "./setup.py"
+job_name: segment-identity-daily-regression-20261122
+# The workers have no image, so pin the version of the image of production (requirements.txt):
+# a newer shipdataprocess changes how the shipnames are normalized.
+requirements_file: "config/segment-identity-daily/bq-regression-requirements.txt"
+
+# Labels for cost tracking (label values: lowercase letters, digits, '_' and '-').
+labels:
+  environment: development
+  resource_creator: tomas-link
+  project: ais
+  stage: segment
