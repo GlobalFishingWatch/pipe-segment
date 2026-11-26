@@ -1,0 +1,14 @@
+SELECT
+    seg.* EXCEPT (cumulative_identities, cumulative_destinations),
+    frag.first_msg_timestamp,
+    frag.last_msg_timestamp
+FROM
+    `{{ source_segments }}` AS seg
+JOIN
+    `{{ source_fragments }}` AS frag
+USING (frag_id)
+WHERE
+    DATE(seg.timestamp) >= '{{ start_date }}'
+    AND DATE(seg.timestamp) < '{{ end_date }}'
+    AND DATE(frag.timestamp) >= '{{ start_date }}'
+    AND DATE(frag.timestamp) < '{{ end_date }}'

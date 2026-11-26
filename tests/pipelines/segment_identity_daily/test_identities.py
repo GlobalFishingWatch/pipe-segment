@@ -1,4 +1,6 @@
-from pipe_segment.segment_identity.transforms import summarize_identifiers
+from pipe_segment.pipelines.segment_identity_daily.transforms.identities import (
+    summarize_identifiers,
+)
 from pipe_segment.tools import timestamp_from_string
 
 
