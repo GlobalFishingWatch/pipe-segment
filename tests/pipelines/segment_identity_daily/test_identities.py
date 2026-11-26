@@ -78,6 +78,7 @@ def counted_value(value, count):
 
 class TestSegmentIdentityDaily():
     def test_summarize_identifiers_no_noise(self):
+        """Checks that identities are summed and counted by value when there is no noise."""
         segment = build_example_segment_with_identities(
             daily_msg_count=295,
             daily_identities=[
@@ -151,6 +152,7 @@ class TestSegmentIdentityDaily():
         )
 
     def test_summarize_identifiers_discarding_noise(self):
+        """Checks that noise identities are left out of the summary and its identity count."""
         segment = build_example_segment_with_identities(
             daily_msg_count=295,
             daily_identities=[

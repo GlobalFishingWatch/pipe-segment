@@ -136,18 +136,22 @@ class TestTransforms:
         return messages, segments
 
     def test_segment_empty(self, tmp_path):
+        """Checks that segmenting no messages does not fail."""
         self._run_segment([], temp_dir=tmp_path)
 
     def test_segment_single(self, tmp_path):
+        """Checks that segmenting a single message does not fail."""
         messages_in = [{"ssvid": 1, "timestamp": self.ts, "type": "AIS.1"}]
         messages_out, segments_out = self._run_segment(messages_in, temp_dir=tmp_path)
 
     def test_segment_segments_in(self, tmp_path):
+        """Checks that the message of a lone noise segment gets no seg_id."""
         messages_in = [{"ssvid": "1", "timestamp": self.ts, "type": "AIS.1"}]
         messages_out, segments_out = self._run_segment(messages_in, temp_dir=tmp_path)
         assert messages_out[0]["seg_id"] is None  # No longer assign seg ids to noise segments.
 
     def test_expected_segments(self, tmp_path):
+        """Checks that two messages days apart end up in two segments of one message each."""
         messages_in = [
             {
                 "timestamp": timestamp_from_string("2017-11-15T11:14:32.000000Z"),
@@ -179,6 +183,7 @@ class TestTransforms:
         assert seg_stats == expected
 
     def test_message_type(self, tmp_path):
+        """Checks that segmenting handles messages of different AIS types for the same vessel."""
         messages_in = [
             {
                 "timestamp": timestamp_from_string("2018-01-01 00:00"),

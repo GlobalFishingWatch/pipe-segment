@@ -89,6 +89,7 @@ OUTPUT = [
 
 
 def test_create_segments():
+    """Checks that messages are updated with their segment, directly and in Beam."""
     op = CreateSegments()
     assert next(op.update_msgs(INPUTS[0])) == OUTPUT[0]
 

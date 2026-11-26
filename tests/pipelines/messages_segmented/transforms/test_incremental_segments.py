@@ -158,6 +158,7 @@ def normalized(rows):
 
 @pytest.mark.parametrize("seed", range(25))
 def test_day_by_day_matches_full_history(seed):
+    """Checks that updating segments day by day matches processing the full history."""
     fragments = make_fragments(random.Random(seed), vessels=random.Random(seed).randint(1, 3))
 
     expected_segmap, expected_segments = full_history(fragments)
@@ -180,6 +181,7 @@ def test_generated_tracks_continue_segments():
 
 
 def test_range_of_days_matches_day_by_day():
+    """Checks that updating several days at once gives the same result as one day at a time."""
     fragments = make_fragments(random.Random(3), vessels=2)
     first_days, last_days = DAYS[:5], DAYS[5:]
 
@@ -202,6 +204,7 @@ def test_range_of_days_matches_day_by_day():
 
 
 def test_state_without_new_fragments_yields_nothing():
+    """Checks that a vessel with prior state but no new fragments produces no output."""
     updater = SegmentUpdater({})
     fragments = make_fragments(random.Random(2), vessels=1)
     _, segments = day_by_day(fragments, DAYS[:1])
@@ -211,6 +214,7 @@ def test_state_without_new_fragments_yields_nothing():
 
 
 def test_incremental_segments_pipeline():
+    """Checks that the incremental segments transform gives the expected output in Beam."""
     fragments = make_fragments(random.Random(4), vessels=2)
     day, next_day = DAYS[0], DAYS[1]
     first_fragments = [f for f in fragments if f["timestamp"] == day.timestamp()]

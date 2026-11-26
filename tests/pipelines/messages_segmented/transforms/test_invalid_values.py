@@ -9,6 +9,7 @@ from pipe_segment.pipelines.messages_segmented.transforms.invalid_values import 
 
 class TestInvalidData:
     def test_type_1_messages(self):
+        """Checks that AIS type 1 messages have out-of-range values cleared."""
         source = [
             {
                 "type": "AIS.1",
@@ -132,6 +133,7 @@ class TestInvalidData:
         assert expected == actual
 
     def test_type_2_messages(self):
+        """Checks that AIS type 2 messages have out-of-range values cleared."""
         source = [
             {
                 "type": "AIS.2",
@@ -255,6 +257,7 @@ class TestInvalidData:
         assert expected == actual
 
     def test_type_3_messages(self):
+        """Checks that AIS type 3 messages have out-of-range values cleared."""
         source = [
             {
                 "type": "AIS.3",
@@ -378,6 +381,7 @@ class TestInvalidData:
         assert expected == actual
 
     def test_type_4_messages(self):
+        """Checks that AIS type 4 messages have out-of-range lat and lon cleared."""
         source = [
             {"type": "AIS.4", "lat": -35, "lon": -125},
             {"type": "AIS.4", "lat": -90, "lon": -180},
@@ -403,6 +407,7 @@ class TestInvalidData:
         assert expected == actual
 
     def test_type_11_messages(self):
+        """Checks that AIS type 11 messages have out-of-range lat and lon cleared."""
         source = [
             {"type": "AIS.11", "lat": -35, "lon": -125},
             {"type": "AIS.11", "lat": -90, "lon": -180},
@@ -428,6 +433,7 @@ class TestInvalidData:
         assert expected == actual
 
     def test_type_5_messages(self):
+        """Checks that AIS type 5 messages have invalid identity values cleared."""
         source = [
             {
                 "type": "AIS.5",
@@ -509,6 +515,7 @@ class TestInvalidData:
         assert expected == actual
 
     def test_type_9_messages(self):
+        """Checks that AIS type 9 messages have out-of-range lat, lon, course and speed cleared."""
         source = [
             {
                 "type": "AIS.9",
@@ -564,6 +571,7 @@ class TestInvalidData:
         assert expected == actual
 
     def test_type_17_messages(self):
+        """Checks that AIS type 17 messages have out-of-range lat and lon cleared."""
         source = [
             {"type": "AIS.17", "lat": -35, "lon": -125},
             {"type": "AIS.17", "lat": -90, "lon": -180},
@@ -589,6 +597,7 @@ class TestInvalidData:
         assert expected == actual
 
     def test_type_18_messages(self):
+        """Checks that AIS type 18 messages have out-of-range values cleared."""
         source = [
             {
                 "type": "AIS.18",
@@ -712,6 +721,7 @@ class TestInvalidData:
         assert expected == actual
 
     def test_type_19_messages(self):
+        """Checks that AIS type 19 messages have out-of-range or invalid values cleared."""
         source = [
             {
                 "type": "AIS.19",
@@ -839,6 +849,7 @@ class TestInvalidData:
         assert expected == actual
 
     def test_type_21_messages(self):
+        """Checks that AIS type 21 messages have out-of-range position and shipname cleared."""
         source = [
             {"type": "AIS.21", "lat": -35, "lon": -125, "shipname": "Some vessel name"},
             {
@@ -869,6 +880,7 @@ class TestInvalidData:
         assert expected == actual
 
     def test_type_24_messages(self):
+        """Checks that AIS type 24 messages have an invalid callsign and shipname cleared."""
         source = [
             {"type": "AIS.24", "callsign": "1234567", "shipname": "Some ship"},
             {
@@ -892,6 +904,7 @@ class TestInvalidData:
         assert expected == actual
 
     def test_type_27_messages(self):
+        """Checks that AIS type 27 messages have out-of-range values cleared."""
         source = [
             {
                 "type": "AIS.27",
@@ -947,6 +960,7 @@ class TestInvalidData:
         assert expected == actual
 
     def test_vms_type_messages(self):
+        """Checks that VMS messages have out-of-range lat, lon, course and speed cleared."""
         test_cases = [
             (
                 "valid values",
@@ -1061,12 +1075,14 @@ class TestInvalidData:
 
 
 def test_no_validator():
+    """Checks that a message type without a validator is returned unchanged."""
     element = {"type": "DUMMY"}
 
     assert filter_invalid_values(element) == element
 
 
 def test_validate_all_fields_record():
+    """Checks that fields are cleared only when all of them are invalid, dropping extras."""
     expected = {
         "lat": None,
         "lon": None,
@@ -1097,6 +1113,7 @@ def test_validate_all_fields_record():
 
 
 def test_float_to_fixed_point():
+    """Checks that numbers are rounded to the given decimal places as fixed point decimals."""
     # Basic rounding
     assert float_to_fixed_point(120.034, 1) == Decimal("120.0")
     assert float_to_fixed_point(120.034, 2) == Decimal("120.03")

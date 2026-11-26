@@ -98,6 +98,7 @@ OUTPUT = [
 
 
 def test_create_segment_map():
+    """Checks that fragments are merged into the segment map, directly and in Beam."""
     op = CreateSegmentMap(MERGE_PARAMS)
 
     output = list(op.merge_fragments(INPUTS[0]))
@@ -112,4 +113,5 @@ def test_create_segment_map():
 
 
 def test_create_segment_map_no_params():
+    """Checks that the segment map transform can be created without merge parameters."""
     CreateSegmentMap()

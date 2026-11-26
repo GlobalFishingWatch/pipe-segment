@@ -4,6 +4,7 @@ from pipe_segment import tools
 
 
 def test_timestamp_from_datetime():
+    """Checks that datetimes, aware or naive, convert to the same UTC timestamp."""
     ts = 1704067200.0
 
     dt = datetime(2024, 1, 1, tzinfo=timezone.utc)
@@ -14,6 +15,7 @@ def test_timestamp_from_datetime():
 
 
 def test_datetime_from_timestamp():
+    """Checks that a timestamp converts to the UTC datetime."""
     dt = datetime(2024, 1, 1, tzinfo=timezone.utc)
 
     ts = 1704067200.0
@@ -21,12 +23,14 @@ def test_datetime_from_timestamp():
 
 
 def test_timestamp_from_string():
+    """Checks that a date string converts to its UTC timestamp."""
     ts = 1704067200.0
 
     assert tools.timestamp_from_string("2024-01-01") == ts
 
 
 def test_list_of_days():
+    """Checks that the list of days includes the start day and excludes the end day."""
     start_date = "2024-01-01"
     end_date = "2024-01-05"
     expected = ['2024-01-01', '2024-01-02', '2024-01-03', '2024-01-04']

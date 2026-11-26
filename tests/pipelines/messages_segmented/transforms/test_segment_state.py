@@ -24,6 +24,7 @@ ROW = {
 
 
 def test_identities_to_counter_converts_length_and_width_to_float():
+    """Checks that the identities become a counter, with length and width as floats."""
     counter = identities_to_counter(ROW["cumulative_identities"])
 
     assert counter == {
@@ -33,6 +34,7 @@ def test_identities_to_counter_converts_length_and_width_to_float():
 
 
 def test_identities_to_counter_keeps_the_order_of_the_records():
+    """Checks that the counter keys follow the order of the identity records."""
     records = [{"count": 1, "destination": "B"}, {"count": 2, "destination": "A"}]
 
     assert list(identities_to_counter(records)) == [
@@ -42,10 +44,12 @@ def test_identities_to_counter_keeps_the_order_of_the_records():
 
 
 def test_identities_to_counter_accepts_missing_records():
+    """Checks that missing identity records give an empty counter."""
     assert identities_to_counter(None) == {}
 
 
 def test_segment_state_from_row():
+    """Checks that a segment state is built from a row, with its id, count and destinations."""
     state = SegmentState.from_row(ROW)
 
     assert state.seg_id == "1-a"
@@ -54,6 +58,7 @@ def test_segment_state_from_row():
 
 
 def test_as_last_fragment_has_what_the_matcher_needs():
+    """Checks that the state as last fragment has the fields the matcher needs."""
     assert SegmentState.from_row(ROW).as_last_fragment() == {
         "frag_id": "1-b",
         "ssvid": "1",
