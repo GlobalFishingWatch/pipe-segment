@@ -7,11 +7,6 @@ from typing import Optional
 from gfw.common.bigquery.table_config import TableConfig
 from gfw.common.bigquery.table_description import TableDescription
 
-from pipe_segment.pipelines.messages_segmented.transforms import (
-    Fragment,
-    satellite_offsets,
-)
-from pipe_segment.schemas import message_schema, segment_schema
 
 MESSAGES_SUMMARY = """\
 Messages of the vessels, one row per message, tagged with the segment and the fragment that
@@ -137,7 +132,7 @@ class DatePartitionedTableConfig(TableConfig):
     Same layout as the legacy pipeline's output tables.
     """
 
-    schema_file: str = ""  # The schema is built in code.
+    schema_file: str = ""  # Each table sets its own.
     partition_type: str = "MONTH"
     partition_field: str = "timestamp"
 
@@ -163,39 +158,26 @@ class DatePartitionedTableConfig(TableConfig):
 class SegmentedMessagesTableConfig(DatePartitionedTableConfig):
     """Configuration of the segmented messages table."""
 
-    @property
-    def schema(self) -> list[dict]:  # type: ignore[override]
-        """The table's schema."""
-        return message_schema.message_output_schema
+    schema_file: str = "messages_segmented.schema.json"
 
 
 @dataclass
 class FragmentsTableConfig(DatePartitionedTableConfig):
     """Configuration of the fragments table."""
 
-    @property
-    def schema(self) -> list[dict]:  # type: ignore[override]
-        """The table's schema."""
-        return Fragment.schema
+    schema_file: str = "fragments.schema.json"
 
 
 @dataclass
 class SegmentsTableConfig(DatePartitionedTableConfig):
     """Configuration of the segments table."""
 
-    @property
-    def schema(self) -> list[dict]:  # type: ignore[override]
-        """The table's schema."""
-        return segment_schema.segment_schema
+    schema_file: str = "segments.schema.json"
 
 
 @dataclass
 class SatelliteOffsetsTableConfig(DatePartitionedTableConfig):
     """Configuration of the satellite offsets table."""
 
+    schema_file: str = "satellite_offsets.schema.json"
     partition_field: str = "hour"
-
-    @property
-    def schema(self) -> list[dict]:  # type: ignore[override]
-        """The table's schema."""
-        return satellite_offsets.make_schema()

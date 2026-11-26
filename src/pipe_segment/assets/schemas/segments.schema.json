@@ -1,0 +1,155 @@
+[
+  {
+    "mode": "REQUIRED",
+    "name": "seg_id",
+    "type": "STRING"
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "frag_id",
+    "type": "STRING"
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "ssvid",
+    "type": "STRING"
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "timestamp",
+    "type": "TIMESTAMP"
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "daily_msg_count",
+    "type": "INTEGER"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "daily_identities",
+    "type": "RECORD",
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "shipname",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "callsign",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "imo",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "transponder_type",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "length",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "width",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "mode": "REPEATED",
+    "name": "daily_destinations",
+    "type": "RECORD",
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "destination",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "first_timestamp",
+    "type": "TIMESTAMP"
+  },
+  {
+    "mode": "REQUIRED",
+    "name": "cumulative_msg_count",
+    "type": "INTEGER"
+  },
+  {
+    "mode": "REPEATED",
+    "name": "cumulative_identities",
+    "type": "RECORD",
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "shipname",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "callsign",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "imo",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "transponder_type",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "length",
+        "type": "STRING"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "width",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "mode": "REPEATED",
+    "name": "cumulative_destinations",
+    "type": "RECORD",
+    "fields": [
+      {
+        "mode": "NULLABLE",
+        "name": "count",
+        "type": "INTEGER"
+      },
+      {
+        "mode": "NULLABLE",
+        "name": "destination",
+        "type": "STRING"
+      }
+    ]
+  }
+]

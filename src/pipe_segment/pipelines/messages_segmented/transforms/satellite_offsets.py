@@ -7,65 +7,6 @@ import apache_beam as beam
 from apache_beam import PTransform, io
 
 
-def make_schema():
-    """Returns the schema fields array."""
-    schema = []
-
-    def add_field(name, field_type, mode="REQUIRED", description=""):
-        schema.append(
-            dict(
-                name=name,
-                type=field_type,
-                mode=mode,
-                description=description,
-            )
-        )
-
-    add_field(
-        "hour",
-        "TIMESTAMP",
-        description=(
-            "Timestamp with hour resolution. "
-            "This row applies starting from `hour` till `hour` plus sixty minutes.")
-    )
-    add_field("receiver", "STRING", description="The name of the satellite.")
-    add_field(
-        "dt",
-        "FLOAT",
-        "NULLABLE",
-        description=(
-            "How much the satellite clock is offset (in seconds)"
-            "from the consensus (median) of all satellite clocks.")
-        )
-    add_field(
-        "pings",
-        "INTEGER",
-        "NULLABLE",
-        description=(
-            "Number of pings used in computing the clock offset. "
-            "Lower values mean the result is likely to be less reliable.")
-        )
-    add_field(
-        "avg_distance_from_sat_km",
-        "FLOAT",
-        "NULLABLE",
-        description=(
-            "Average distance of vessels from the satellite during a given hour. "
-            "Anomalously large values are another way to infer that the satellite clocks are off, "
-            "however this has been superseded by the dt field.")
-        )
-    add_field(
-        "med_dist_from_sat_km",
-        "FLOAT",
-        "NULLABLE",
-        description=(
-            "Median distance of vessels from the satellite during a given hour. "
-            "Anomalously large values are another way to infer that the satellite clocks are off, "
-            "however this has been superseded by the dt field.")
-        )
-    return schema
-
-
 class SatelliteOffsets(PTransform):
     """Generate satellite offset times based on Spire data.
 

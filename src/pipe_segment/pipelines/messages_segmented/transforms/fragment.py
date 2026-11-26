@@ -4,7 +4,6 @@ import pytz
 
 from apache_beam import FlatMap, PTransform
 from apache_beam.pvalue import TaggedOutput
-from gpsdio_segment.msg_processor import Destination, Identity
 
 from pipe_segment.tools import datetime_from_timestamp, timestamp_from_datetime
 from .fragment_implementation import FragmentImplementation
@@ -19,57 +18,6 @@ def none_to_inf(x):
 
 def none_to_blank(x):
     return "" if (x is None) else x
-
-
-def make_schema():
-    schema = {"fields": []}
-
-    def add_field(name, field_type, mode="REQUIRED"):
-        schema["fields"].append(
-            dict(
-                name=name,
-                type=field_type,
-                mode=mode,
-            )
-        )
-
-    add_field("frag_id", "STRING")
-    add_field("ssvid", "STRING")
-    add_field("msg_count", "INTEGER")
-    add_field("timestamp", "TIMESTAMP")
-    for prefix in [
-        "first_msg_",
-        "last_msg_",
-    ]:
-        add_field(prefix + "timestamp", "TIMESTAMP")
-        add_field(prefix + "lat", "FLOAT")
-        add_field(prefix + "lon", "FLOAT")
-        add_field(prefix + "course", "FLOAT", mode="NULLABLE")
-        add_field(prefix + "speed", "FLOAT")
-
-    def add_ident_field(name, value_type, type_map):
-        field = dict(
-            name=name,
-            type="RECORD",
-            mode="REPEATED",
-            fields=[dict(name="count", type="INTEGER", mode="NULLABLE")],
-        )
-        for fld_name in value_type._fields:
-            field["fields"].append(
-                dict(
-                    name=fld_name,
-                    type=type_map.get(fld_name, "STRING"),
-                    mode="NULLABLE",
-                )
-            )
-        schema["fields"].append(field)
-
-    add_ident_field(
-        "identities", Identity, type_map={"length": "FLOAT", "width": "FLOAT"}
-    )
-    add_ident_field("destinations", Destination, type_map={})
-
-    return schema
 
 
 class Fragment(PTransform):
@@ -149,5 +97,3 @@ class Fragment(PTransform):
 
     def expand(self, xs):
         return xs | FlatMap(self.fragment).with_outputs(main=self.OUTPUT_TAG_MESSAGES)
-
-    schema = make_schema()["fields"]
