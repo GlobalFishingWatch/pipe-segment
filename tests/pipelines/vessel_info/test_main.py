@@ -3,8 +3,8 @@
 from typing import Any
 from unittest.mock import MagicMock
 
-from . import query_helpers
-from .query_helpers import written_job_config
+from .. import query_helpers
+from ..query_helpers import written_job_config
 from pipe_segment.pipelines.vessel_info import main
 from pipe_segment.pipelines.vessel_info.config import VesselInfoConfig
 

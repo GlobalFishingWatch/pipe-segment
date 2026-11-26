@@ -6,9 +6,9 @@ from pipe_segment.pipelines.segment_info import main as segment_info
 from pipe_segment.pipelines.segment_vessel import main as segment_vessel
 from pipe_segment.pipelines.vessel_info import main as vessel_info
 from . import query_helpers
-from .test_segment_info import make_config as segment_info_config
-from .test_segment_vessel import make_config as segment_vessel_config
-from .test_vessel_info import make_config as vessel_info_config
+from .segment_info.test_main import make_config as segment_info_config
+from .segment_vessel.test_main import make_config as segment_vessel_config
+from .vessel_info.test_main import make_config as vessel_info_config
 
 
 PIPELINES = [
