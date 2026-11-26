@@ -39,34 +39,73 @@ SAT_OFFSETS = {
 }
 
 
-def table_ids(config: MessagesSegmentedConfig) -> list[str]:
-    """Returns the ids of the tables of the config."""
-    return [table.table_id for table in main.table_configs(config)]
+def run_main(
+    mocker: MockerFixture, config: MessagesSegmentedConfig, **factories: Any
+) -> MagicMock:
+    """Runs the pipeline with a mocked Pipeline, and returns the mock of its class."""
+    pipeline_class = mocker.patch.object(main, "Pipeline")
+    main.run(config, **factories)
+    return pipeline_class
 
 
-def test_the_tables_are_the_three_outputs() -> None:
-    """Checks that the tables are the messages, the segments and the fragments."""
-    assert table_ids(make_config()) == [
+def written_tables(mocker: MockerFixture, config: MessagesSegmentedConfig) -> list[dict[str, Any]]:
+    """Returns the arguments of the sinks that the pipeline builds, in order."""
+    writes: list[dict[str, Any]] = []
+
+    def write_factory(**kwargs: Any) -> MagicMock:
+        writes.append(kwargs)
+        return MagicMock()
+
+    run_main(mocker, config, write_to_bigquery_factory=write_factory)
+    return writes
+
+
+def test_the_tables_are_the_three_outputs(mocker: MockerFixture) -> None:
+    """Checks that the sinks write the messages, the segments and the fragments."""
+    writes = written_tables(mocker, make_config())
+
+    assert [write["table"] for write in writes] == [
         "project.dataset.messages_segmented",
         "project.dataset.segments",
         "project.dataset.fragments",
     ]
 
 
-def test_the_satellite_offsets_are_a_table_if_they_are_written() -> None:
+def test_a_sink_appends_to_an_existing_table_with_its_schema(mocker: MockerFixture) -> None:
+    """Checks that each sink writes the schema of its table, never creating it."""
+    writes = written_tables(mocker, make_config())
+
+    for write, fields in zip(writes, [22, 11, 16]):
+        assert len(write["schema"]["fields"]) == fields
+        assert write["create_disposition"] == "CREATE_NEVER"
+
+
+def test_the_satellite_offsets_are_a_table_if_they_are_written(mocker: MockerFixture) -> None:
     """Checks that the offsets table is the last one, and only when it is given."""
-    assert table_ids(make_config(**SAT_OFFSETS))[-1] == "project.dataset.sat_offsets"
+    writes = written_tables(mocker, make_config(**SAT_OFFSETS))
+
+    assert len(writes) == 4
+    assert writes[-1]["table"] == "project.dataset.sat_offsets"
+    assert len(writes[-1]["schema"]["fields"]) == 6
 
 
-def test_the_descriptions_have_caveats_and_the_parameters() -> None:
+def test_the_descriptions_have_caveats_and_the_parameters(mocker: MockerFixture) -> None:
     """Checks that each table has real caveats, and the parameters that built it."""
-    for table in main.table_configs(make_config(**SAT_OFFSETS)):
+    create_table_hook = mocker.patch.object(main, "create_table_hook")
+
+    run_main(mocker, make_config(**SAT_OFFSETS))
+
+    tables = [call.args[0] for call in create_table_hook.call_args_list]
+    assert len(tables) == 4
+    for table in tables:
         assert table.description.caveats != TO_BE_COMPLETED
         assert table.description.relevant_params["start_date"] == date(2024, 1, 1)
         assert table.description.version
 
 
-def run_hooks(config: MessagesSegmentedConfig) -> list[tuple[str, tuple, dict]]:
+def run_hooks(
+    mocker: MockerFixture, config: MessagesSegmentedConfig
+) -> list[tuple[str, tuple, dict]]:
     """Runs the pre-hooks on mocked clients, and returns the calls that they made, in order."""
     mocked_factory = BigQueryHelper.get_client_factory(mocked=True)
     calls: list[tuple[str, tuple, dict]] = []
@@ -84,23 +123,25 @@ def run_hooks(config: MessagesSegmentedConfig) -> list[tuple[str, tuple, dict]]:
         client.query.side_effect = recorder("query")
         return client
 
+    pipeline_class = run_main(mocker, config, bq_client_factory=bq_client_factory)
+
     pipeline = Pipeline(project=config.project, labels=config.labels)
-    for hook in main.pre_hooks(config, main.table_configs(config), bq_client_factory):
+    for hook in pipeline_class.call_args.kwargs["pre_hooks"]:
         hook(pipeline)
 
     return calls
 
 
-def test_the_tables_are_created_before_the_range_is_deleted() -> None:
+def test_the_tables_are_created_before_the_range_is_deleted(mocker: MockerFixture) -> None:
     """Checks that every table is created first, and then its range is deleted."""
-    calls = run_hooks(make_config())
+    calls = run_hooks(mocker, make_config())
 
     assert [name for name, _, _ in calls] == ["create_table"] * 3 + ["query"] * 3
 
 
-def test_the_range_is_deleted_without_the_end_date() -> None:
+def test_the_range_is_deleted_without_the_end_date(mocker: MockerFixture) -> None:
     """Checks that each table's range is deleted before the end date, with the labels."""
-    calls = run_hooks(make_config(**SAT_OFFSETS))
+    calls = run_hooks(mocker, make_config(**SAT_OFFSETS))
 
     deletes = [(args, kwargs) for name, args, kwargs in calls if name == "query"]
     assert len(deletes) == 4
@@ -115,10 +156,10 @@ def test_the_checks_run_only_in_an_incremental_run_and_before_the_delete(
     """Checks that the incremental checks are between the creation and the deletes."""
     verify_messages = mocker.patch.object(main, "verify_messages_exist_hook")
     verify_segments = mocker.patch.object(main, "verify_prior_segments_hook")
-    config = make_config(incremental=True)
 
-    hooks = main.pre_hooks(config, main.table_configs(config), MagicMock())
+    pipeline_class = run_main(mocker, make_config(incremental=True))
 
+    hooks = pipeline_class.call_args.kwargs["pre_hooks"]
     assert hooks[3] is verify_messages.return_value
     assert hooks[4] is verify_segments.return_value
     assert len(hooks) == 3 + 2 + 3
@@ -137,21 +178,21 @@ def test_the_checks_run_only_in_an_incremental_run_and_before_the_delete(
 def test_a_full_history_run_has_no_checks(mocker: MockerFixture) -> None:
     """Checks that only an incremental run is checked."""
     verify_messages = mocker.patch.object(main, "verify_messages_exist_hook")
-    config = make_config()
 
-    assert len(main.pre_hooks(config, main.table_configs(config), MagicMock())) == 3 + 3
+    pipeline_class = run_main(mocker, make_config())
+
+    assert len(pipeline_class.call_args.kwargs["pre_hooks"]) == 3 + 3
     verify_messages.assert_not_called()
 
 
 def test_run_resolves_the_beam_options_from_the_config(mocker: MockerFixture) -> None:
     """Checks that the project, the labels and the other Beam options reach the pipeline."""
-    pipeline_class = mocker.patch.object(main, "Pipeline")
     config = make_config(
         unknown_unparsed_args=("--max_num_workers=7",),
         unknown_parsed_args={"region": "us-central1"},
     )
 
-    main.run(config)
+    pipeline_class = run_main(mocker, config)
 
     kwargs = pipeline_class.call_args.kwargs
     assert kwargs["project"] == "test-project"
@@ -166,22 +207,7 @@ def test_run_passes_wait_for_job_to_the_pipeline(
     mocker: MockerFixture, wait_for_job: bool
 ) -> None:
     """Checks that the pipeline waits as the config says, with no argument to run."""
-    pipeline_class = mocker.patch.object(main, "Pipeline")
-
-    main.run(make_config(wait_for_job=wait_for_job))
+    pipeline_class = run_main(mocker, make_config(wait_for_job=wait_for_job))
 
     assert pipeline_class.call_args.kwargs["wait_for_job"] is wait_for_job
     pipeline_class.return_value.run.assert_called_once_with()
-
-
-def test_a_sink_appends_to_an_existing_table_with_its_schema() -> None:
-    """Checks that the sink writes the table of the config, never creating it."""
-    calls: list[dict[str, Any]] = []
-    segments_table = main.table_configs(make_config())[1]
-
-    main.sink(segments_table, lambda **kwargs: calls.append(kwargs))
-
-    (call,) = calls
-    assert call["table"] == "project.dataset.segments"
-    assert call["schema"] == {"fields": segments_table.schema}
-    assert call["create_disposition"] == "CREATE_NEVER"

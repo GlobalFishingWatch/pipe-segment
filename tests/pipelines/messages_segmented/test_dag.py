@@ -10,7 +10,6 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from gfw.common.beam.transforms.bigquery import FakeReadFromBigQuery
 
-from pipe_segment.pipelines.messages_segmented import main
 from pipe_segment.pipelines.messages_segmented.config import MessagesSegmentedConfig
 from pipe_segment.pipelines.messages_segmented.dag import (
     MessagesSegmentedDag,
@@ -73,18 +72,15 @@ def apply_graph(config: MessagesSegmentedConfig) -> tuple[set[str], list[dict[st
     def write_factory(**kwargs: Any) -> beam.PTransform:
         return beam.Map(lambda x: x)
 
-    messages_table, segments_table, fragments_table, *satellite_offsets_tables = (
-        main.table_configs(config)
-    )
     satellite_offsets_sink = None
-    if satellite_offsets_tables:
-        satellite_offsets_sink = main.sink(satellite_offsets_tables[0], write_factory)
+    if config.bq_out_sat_offsets:
+        satellite_offsets_sink = write_factory()
 
     dag = MessagesSegmentedDag(
         config,
-        messages_sink=main.sink(messages_table, write_factory),
-        segments_sink=main.sink(segments_table, write_factory),
-        fragments_sink=main.sink(fragments_table, write_factory),
+        messages_sink=write_factory(),
+        segments_sink=write_factory(),
+        fragments_sink=write_factory(),
         satellite_offsets_sink=satellite_offsets_sink,
         read_from_bigquery_factory=read_factory,
     )
