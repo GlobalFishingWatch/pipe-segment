@@ -39,6 +39,9 @@ class SegmentVesselDailyConfig(DatePipelineConfig):
     spoofing_threshold: int = 10
     """Amount of spoofing points from which a segment is considered noise."""
 
+    dry_run: bool = False
+    """If True, only executes the queries of the days, in dry run mode."""
+
     def __post_init__(self) -> None:
         """Validates the configuration.
 

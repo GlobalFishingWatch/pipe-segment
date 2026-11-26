@@ -1,0 +1,17 @@
+# Production inputs and parameters of core.ais.v3's segment_vessel_daily, on one day, to compare
+# its output with production's (gfw-int-pipe-v3.pipe_ais_v3_internal.segment_vessel_daily).
+# Query parameters:
+bq_in_segment_identity_daily: "gfw-int-pipe-v3.pipe_ais_v3_internal.segment_identity_daily"
+bq_out_segment_vessel_daily: "world-fishing-827.scratch_tomas_ttl30d.segment_vessel_daily_regression"
+start_date: "2026-11-22"
+end_date: "2026-11-23"
+
+# GCP project that runs the queries and is billed for them:
+project: world-fishing-827
+
+# Labels for cost tracking (label values: lowercase letters, digits, '_' and '-').
+labels:
+  environment: development
+  resource_creator: tomas-link
+  project: ais
+  stage: segment

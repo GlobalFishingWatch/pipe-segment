@@ -79,3 +79,31 @@ def test_satellite_offsets_labels_every_read(monkeypatch):
     _ = beam.Pipeline() | query_op
 
     assert [call["bigquery_job_labels"] for call in read_calls] == [labels, labels]
+
+
+def test_satellite_offsets_reads_messages_from_a_partitioned_table(monkeypatch):
+    read_calls = []
+
+    def fake_read(**kwargs):
+        read_calls.append(kwargs)
+        return beam.Create([])
+
+    monkeypatch.setattr(beam.io, "ReadFromBigQuery", fake_read)
+
+    query_op = SatelliteOffsets(
+        "p.d.messages",
+        "p.d.norad",
+        "p.d.positions_",
+        datetime(2024, 1, 1),
+        datetime(2024, 1, 31),
+        labels={},
+    )
+
+    _ = beam.Pipeline() | query_op
+
+    query = read_calls[0]["query"]
+    assert "FROM `p.d.messages`" in query
+    assert 'DATE(timestamp) BETWEEN "2024-01-01" AND "2024-01-31"' in query
+    assert "`p.d.messages*`" not in query
+    # The satellite positions table is still date sharded.
+    assert "`p.d.positions_*`" in query
