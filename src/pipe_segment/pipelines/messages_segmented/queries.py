@@ -36,7 +36,7 @@ class PriorSegmentsQuery(Query):
 class MessagesQuery(Query):
     """Messages of a source table between two days, with the timestamp in seconds.
 
-    The messages are filtered by the day of ``partition_field``, so the query only reads
+    The messages are filtered by the day of their timestamp, so the query only reads
     the partitions of the days. Its fields are the template's variables (see template_vars).
     """
 
@@ -44,7 +44,6 @@ class MessagesQuery(Query):
     start_date: datetime.date
     end_date: datetime.date
     ssvid_filter_query: Optional[str] = None
-    partition_field: str = "timestamp"
 
     @property
     def template_filename(self) -> str:
@@ -67,7 +66,6 @@ class MessageDaysQuery(Query):
     source: str
     start_date: datetime.date
     end_date: datetime.date
-    partition_field: str = "timestamp"
 
     @property
     def template_filename(self) -> str:

@@ -30,13 +30,6 @@ def test_messages_are_read_from_the_days_of_the_range() -> None:
     assert "ssvid IN" not in query
 
 
-def test_messages_can_be_filtered_by_another_partition_field() -> None:
-    """Checks that the field of the days can be changed."""
-    query = messages_query(partition_field="received_at")
-
-    assert "DATE(received_at) BETWEEN '2024-01-01' AND '2024-01-03'" in query
-
-
 def test_messages_are_limited_to_the_ssvids_of_the_filter() -> None:
     """Checks that the ssvids are limited by the query of the filter."""
     query = messages_query(ssvid_filter_query="SELECT ssvid FROM t")
