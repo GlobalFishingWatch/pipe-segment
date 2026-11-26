@@ -31,21 +31,9 @@ services:
     image: gfw/pipe-segment-test
     # Runs tests using the production Docker image.
     # Intended to be executed in the GitHub CI environment.
-    environment:
-      BIGQUERY_HOST: bigquery
-      INTEGRATION_TESTS: true
     build:
       target: test
     entrypoint: "pytest -v"
-    depends_on:
-      - bigquery
-
-  bigquery:
-    platform: linux/x86_64
-    ports:
-      - 9050:9050
-    image: ghcr.io/goccy/bigquery-emulator:latest
-    command: --project=test_project --dataset=test_dataset
 
 # Volume to hold GCP authentication
 volumes:
