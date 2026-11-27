@@ -71,18 +71,8 @@ class TestTransforms:
     ts = timestamp_from_datetime(datetime(2017, 1, 1, 0, 0, 0))
 
     @staticmethod
-    def _seg_id(ssvid, ts):
-        ts = datetime_from_timestamp(ts)
-        return "{}-{:%Y-%m-%dT%H:%M:%S.%fZ}".format(ssvid, ts)
-
-    @staticmethod
     def groupby_fn(msg):
         return ((msg["ssvid"], safe_date(msg["timestamp"])), msg)
-
-    @staticmethod
-    def convert_timestamp(msg):
-        msg["timestamp"] = timestamp_from_datetime(msg["timestamp"])
-        return msg
 
     @staticmethod
     def unconvert_timestamp(msg):

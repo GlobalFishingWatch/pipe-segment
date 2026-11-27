@@ -67,34 +67,6 @@ python -m pipe_segment \
 
 pipeline_cmd = shlex.split(pipeline_cmd_str.strip())
 
-pipeline_cmd_nosat_str = f"""
-python -m pipe_segment \
-    --runner=DataflowRunner \
-    --requirements_file=./requirements.txt \
-    --staging_location=gs://pipe-temp-ttl30/dataflow_staging \
-    --disk_size_gb=100 \
-    --worker_machine_type=custom-1-16384-ext \
-    --project=world-fishing-827 \
-    --in_normalized_messages_table=bq://world-fishing-827:pipe_ais_sources_v20190222.normalized_spire_ \
-    --runner=DataflowRunner \
-    --labels=airflow-version=v1-10-2 \
-    --temp_shards_per_day=100 \
-    --experiments=shuffle_mode=service \
-    --max_num_workers=100 \
-    --temp_location=gs://pipe-temp-ttl30/dataflow_temp \
-    --setup_file=./setup.py \
-    --region=us-central1 \
-    --job_name=pytest-segmenter-nosat \
-    --look_ahead=1 \
-    --max_timing_offset_s {max_timing_offset_s} \
-    --out_segments_table=bq://world-fishing-827:0_ttl24h.segmenter_test_nosat_segments_ \
-    --out_segmented_messages_table=bq://world-fishing-827:0_ttl24h.segmenter_test_nosat_messages_ \
-    --date_range=2018-07-01,2018-07-01 \
-    --wait_for_job \
-    --ssvid_filter_query 'select ssvid from unnest([{mmsi_str}]) as ssvid'"""  # noqa E501
-
-pipeline_cmd_nosat = shlex.split(pipeline_cmd_nosat_str.strip())
-
 
 @pytest.mark.slow
 class TestEndToEnd:
@@ -105,7 +77,6 @@ class TestEndToEnd:
     def run_pipeline(self):
         print('Running segmenter pipeline to generate temp tables')
         subprocess.run(pipeline_cmd, check=True, capture_output=True)
-        # subprocess.run(pipeline_cmd_nosat, check=True, capture_output=True)
         self._table_names = dict(
             sat_offsets='0_ttl24h.segmenter_test_sat_offsets_',
             segments='0_ttl24h.segmenter_test_segments_',
