@@ -37,7 +37,7 @@ classifiers = [
 ]
 requires-python = ">= 3.12"
 dependencies = [
-    "apache-beam[gcp]~=2.76",
+    "apache-beam[gcp]~=2.78",
     "gfw-common[bq,beam]~=0.27.0",
     "gpsdio-segment @ git+https://github.com/GlobalFishingWatch/gpsdio-segment.git@v3.0.0",
     "jinja2~=3.1",
